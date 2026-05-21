@@ -1,10 +1,181 @@
+# .gitignore para School Admin Platform
+#
+# Incluye:
+# - Laravel configuration
+# - GrumPHP & PHP tooling
+# - Pest testing
+# - IDE configurations
+# - OS files
+# - Secrets & environment variables
+
+# ================================================================
+# PHP & COMPOSER
+# ================================================================
+
+# Dependencias de PHP (se regenera con: composer install)
 /vendor/
-node_modules/
-.env
-.env.backup
-.phpunit.result.cache
-.idea
-.vscode
-*.swp
-*.log
+
+# Cache de composer
+.composer-cache/
+
+# ================================================================
+# LARAVEL
+# ================================================================
+
+# Cache de Laravel
+bootstrap/cache/
+
+# Logs de Laravel
 storage/logs/
+
+# Sesiones
+storage/sessions/
+
+# ================================================================
+# ENVIRONMENT & SECRETS
+# ================================================================
+
+# Variables de entorno local (NUNCA versionar)
+.env
+.env.local
+.env.*.local
+.env.backup
+
+# Testing environment
+.env.testing
+.env.testing.local
+
+# ================================================================
+# IDE & EDITORES
+# ================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PhpStorm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ================================================================
+# TESTING & COVERAGE
+# ================================================================
+
+# Coverage reports
+/coverage/
+.coverage
+coverage.xml
+
+# PHPUnit
+.phpunit.result.cache
+.phpunit.cache
+
+# Pest
+.pest.cache
+
+# ================================================================
+# BUILD & COMPILATION
+# ================================================================
+
+/build/
+/dist/
+out/
+
+# ================================================================
+# GRUMPHP & TOOLING
+# ================================================================
+
+.phplint-cache
+.php_cs.cache
+.phpstan-cache
+
+# ================================================================
+# OS FILES
+# ================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+
+# ================================================================
+# TEMPORARY FILES
+# ================================================================
+
+*.tmp
+*.temp
+*.bak
+*.backup
+*.log
+logs/
+
+# ================================================================
+# DATABASES
+# ================================================================
+
+# SQLite (development)
+*.sqlite
+*.sqlite3
+database.sqlite
+
+# ================================================================
+# MISC
+# ================================================================
+
+# Directorios personales
+/third-party/
+/external/
+research/
+experiments/
+
+# Archivos compilados
+*.php.bak
+
+# ================================================================
+# FILES THAT SHOULD BE VERSIONED (for reference)
+# ================================================================
+
+# ✅ These SHOULD be in git:
+# - composer.json
+# - composer.lock
+# - package.json (if using npm)
+# - .env.example (template with example values)
+# - phpunit.xml
+# - pest.xml
+# - phpstan.neon
+# - grumphp.yml
+# - pint.json
+# - .gitignore
+# - app/
+# - routes/
+# - database/migrations/
+# - database/seeders/
+# - tests/
+# - docs/
+# - .github/workflows/
+# - README.md
+# - CONTRIBUTING.md
