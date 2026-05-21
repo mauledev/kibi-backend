@@ -1,0 +1,8 @@
+{
+    "name": "school-admin/backend",
+    "description": "School Admin Backend - Clean Architecture",
+    "type": "project",
+    "require": {
+        "php": "^8.2"
+    }
+}

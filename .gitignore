@@ -1,0 +1,10 @@
+/vendor/
+node_modules/
+.env
+.env.backup
+.phpunit.result.cache
+.idea
+.vscode
+*.swp
+*.log
+storage/logs/
