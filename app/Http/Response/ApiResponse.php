@@ -73,7 +73,7 @@ class ApiResponse
         return [
             'timestamp' => now()->toIso8601String(),
             'path' => request()->getPathInfo(),
-            'request_id' => request()->header('X-Request-ID') ?? 'req_' . uniqid(),
+            'request_id' => request()->header('X-Request-ID') ?? 'req_'.uniqid(),
         ];
     }
 }

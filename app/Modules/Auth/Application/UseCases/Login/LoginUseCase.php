@@ -2,11 +2,11 @@
 
 namespace App\Modules\Auth\Application\UseCases\Login;
 
-use App\Modules\Auth\Domain\Repositories\UserRepositoryInterface;
-use App\Modules\Auth\Domain\ValueObjects\Email;
-use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
+use App\Modules\Auth\Domain\Repositories\UserRepositoryInterface;
+use App\Modules\Auth\Domain\ValueObjects\Email;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -18,8 +18,7 @@ class LoginUseCase
 {
     public function __construct(
         private UserRepositoryInterface $userRepository
-    ) {
-    }
+    ) {}
 
     public function execute(LoginInput $input): LoginOutput
     {
@@ -29,17 +28,17 @@ class LoginUseCase
         // 2. Buscar usuario
         $user = $this->userRepository->findByEmail($email);
 
-        if (!$user) {
-            throw new InvalidCredentialsException();
+        if (! $user) {
+            throw new InvalidCredentialsException;
         }
 
         // 3. Verificar contraseña
-        if (!Hash::check($input->password, $user->getPasswordHash())) {
-            throw new InvalidCredentialsException();
+        if (! Hash::check($input->password, $user->getPasswordHash())) {
+            throw new InvalidCredentialsException;
         }
 
         // 4. Verificar que esté activo
-        if (!$user->isActive()) {
+        if (! $user->isActive()) {
             throw new InvalidCredentialsException('Usuario desactivado');
         }
 

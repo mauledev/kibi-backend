@@ -27,7 +27,7 @@ class Email
             throw new \InvalidArgumentException('Email no puede estar vacío');
         }
 
-        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
             throw new \InvalidArgumentException("Email inválido: {$value}");
         }
     }

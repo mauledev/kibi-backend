@@ -2,10 +2,10 @@
 
 namespace App\Modules\Auth\Infrastructure\Repositories;
 
+use App\Models\User as UserModel;
 use App\Modules\Auth\Domain\Entities\User;
 use App\Modules\Auth\Domain\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Domain\ValueObjects\Email;
-use App\Models\User as UserModel;
 
 /**
  * EloquentUserRepository
@@ -32,12 +32,14 @@ class EloquentUserRepository implements UserRepositoryInterface
     public function findById(string $id): ?User
     {
         $model = UserModel::find($id);
+
         return $model ? $this->toDomain($model) : null;
     }
 
     public function findByEmail(Email $email): ?User
     {
         $model = UserModel::where('email', $email->getValue())->first();
+
         return $model ? $this->toDomain($model) : null;
     }
 
@@ -63,7 +65,8 @@ class EloquentUserRepository implements UserRepositoryInterface
     public function findBySchool(string $schoolId): array
     {
         $models = UserModel::where('school_id', $schoolId)->get();
-        return $models->map(fn($model) => $this->toDomain($model))->toArray();
+
+        return $models->map(fn ($model) => $this->toDomain($model))->toArray();
     }
 
     /**
@@ -72,7 +75,7 @@ class EloquentUserRepository implements UserRepositoryInterface
     private function toDomain(UserModel $model): User
     {
         return new User(
-            id: $model->id,
+            id: (string) $model->id,
             email: $model->email,
             name: $model->name,
             passwordHash: $model->password,

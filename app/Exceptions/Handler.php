@@ -2,12 +2,16 @@
 
 namespace App\Exceptions;
 
-use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Throwable;
 use App\Http\Response\ApiResponse;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
-use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Auth\Domain\Exceptions\UserAlreadyExistsException;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class Handler extends ExceptionHandler
 {
@@ -54,7 +58,7 @@ class Handler extends ExceptionHandler
         });
 
         // Validation exceptions
-        $this->renderable(function (\Illuminate\Validation\ValidationException $e, $request) {
+        $this->renderable(function (ValidationException $e, $request) {
             if ($request->expectsJson()) {
                 return ApiResponse::error(
                     'Validación fallida',
@@ -65,21 +69,21 @@ class Handler extends ExceptionHandler
         });
 
         // Model not found
-        $this->renderable(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
+        $this->renderable(function (ModelNotFoundException $e, $request) {
             if ($request->expectsJson()) {
                 return ApiResponse::notFound('Recurso no encontrado');
             }
         });
 
         // Authentication
-        $this->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+        $this->renderable(function (AuthenticationException $e, $request) {
             if ($request->expectsJson()) {
                 return ApiResponse::unauthorized('No autenticado');
             }
         });
 
         // Authorization
-        $this->renderable(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+        $this->renderable(function (AuthorizationException $e, $request) {
             if ($request->expectsJson()) {
                 return ApiResponse::forbidden('Acceso denegado');
             }

@@ -13,6 +13,5 @@ class RegisterInput
         public readonly string $name,
         public readonly string $schoolId,
         public readonly string $role = 'user'
-    ) {
-    }
+    ) {}
 }
