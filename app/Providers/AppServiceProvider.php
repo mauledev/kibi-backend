@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Domain\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
-use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         // Binding de interfaces a implementaciones
         // ============================================
-        
+
         // Auth module bindings
         $this->app->bind(
             UserRepositoryInterface::class,
@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
         // Use Cases
         $this->app->singleton(
             LoginUseCase::class,
-            fn($app) => new LoginUseCase(
+            fn ($app) => new LoginUseCase(
                 $app->make(UserRepositoryInterface::class)
             )
         );

@@ -1,0 +1,10 @@
+{
+    "private": true,
+    "scripts": {
+        "prepare": "husky",
+        "quality": "./scripts/quality-check.sh"
+    },
+    "devDependencies": {
+        "husky": "^9.1.7"
+    }
+}

@@ -12,6 +12,9 @@
 # PHP & COMPOSER
 # ================================================================
 
+# Node (Husky git hooks)
+node_modules/
+
 # Dependencias de PHP (se regenera con: composer install)
 /vendor/
 

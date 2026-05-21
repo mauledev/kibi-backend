@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -12,7 +13,9 @@ class CreateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->check() && auth()->user()->role === 'admin';
+        $user = auth()->user();
+
+        return $user instanceof User && $user->role === 'admin';
     }
 
     public function rules(): array

@@ -77,6 +77,97 @@ declare(strict_types=1);
 
 All public methods need docblocks. Naming: `PascalCase` classes, `camelCase` methods/variables, `UPPER_SNAKE_CASE` constants, `snake_case` DB columns.
 
+Formatting and static analysis are enforced with **Laravel Pint** (PSR-12) and **Larastan** (PHPStan for Laravel). Run them before committing; Husky runs the same checks automatically on `git commit`.
+
+### Prerequisites (Composer)
+
+Larastan boots the full Laravel app via `bootstrap/app.php`. These are required in `composer.json`:
+
+| Package | Role |
+|---------|------|
+| `laravel/framework` | Provides `Illuminate\Foundation\Application` for Larastan bootstrap |
+| `laravel/pint` (dev) | PSR-12 formatting |
+| `larastan/larastan` + `phpstan/phpstan` (dev) | Static analysis |
+
+Composer scripts call binaries explicitly: `@php vendor/bin/pint`, `@php vendor/bin/phpstan` (never bare `pint` on PATH).
+
+**Directories that must exist** (committed or created locally):
+
+- `bootstrap/cache/` — writable; Laravel writes `packages.php` here during bootstrap (tracked via `bootstrap/cache/.gitignore`)
+- `storage/framework/{cache,sessions,views}` and `storage/logs/`
+- `.env` — copy from `.env.example` if missing (`cp .env.example .env`)
+
+### One-time setup
+
+**With Docker:**
+
+```bash
+cp .env.example .env
+docker-compose up -d
+docker-compose exec app composer install
+npm install   # Husky hooks (on the host)
+```
+
+**Local (without Docker):**
+
+```bash
+cp .env.example .env
+composer install
+npm install
+```
+
+Dev dependencies (`pint`, `larastan`) install with `composer install` because they are already in `composer.json`.
+
+### Validation commands
+
+**Docker** (when `app` container is running):
+
+```bash
+docker-compose exec app composer format:test   # pint --test
+docker-compose exec app composer format        # pint (fix)
+docker-compose exec app composer analyse       # phpstan / Larastan
+docker-compose exec app composer quality       # both
+```
+
+**Local** (same commands, no Docker):
+
+```bash
+composer format:test
+composer format
+composer analyse
+composer quality
+```
+
+Direct binaries (equivalent):
+
+```bash
+./vendor/bin/pint --test
+./vendor/bin/pint
+./vendor/bin/phpstan analyse --memory-limit=512M
+```
+
+**Typical workflow:** run `composer format` first, then `composer analyse`. `composer quality` runs both in that order.
+
+### Troubleshooting
+
+| Error | Fix |
+|-------|-----|
+| `sh: pint: command not found` | Run `composer install`; scripts must use `vendor/bin/pint` (already configured) |
+| `Class "Illuminate\Foundation\Application" not found` | Add `laravel/framework` to `require` and run `composer update` |
+| `bootstrap/cache directory must be present and writable` | Ensure `bootstrap/cache/` exists (see repo) |
+| Larastan reports code errors after bootstrap works | Fix reported issues or adjust `phpstan.neon` level — not a bootstrap failure |
+
+### Git hooks (Husky)
+
+`npm install` registers Husky via the `prepare` script. The pre-commit hook runs `scripts/quality-check.sh`:
+
+1. If Docker is available and container `app` is **Up** → `docker compose exec app composer quality`
+2. Otherwise → local `composer quality`
+
+Works the same with or without Docker, as long as `vendor/` is installed in that environment.
+
+To bypass in an emergency only: `git commit --no-verify` (not recommended).
+
 ## Multi-tenancy (planned)
 
 The platform is being built for **schema-per-tenant PostgreSQL**: each school gets its own schema (`escuela1`, `escuela2`, etc.) alongside a central `public` schema for tenants/global users. Tenant resolution is via subdomain → `TenantResolver::activateTenant()` sets `search_path`. Always scope queries to `tenant_id` to enforce isolation.
@@ -89,3 +180,5 @@ The platform is being built for **schema-per-tenant PostgreSQL**: each school ge
 - Rate-limit sensitive endpoints (5 attempts / 15 min for login)
 - Never use `unserialize()` on untrusted input; use `json_decode(..., flags: JSON_THROW_ON_ERROR)`
 - Log security events with `user_id`, `tenant_id`, `ip`, and `timestamp`
+
+**Reference:** For deeper implementation details, always follow the rules defined in `docs/.skills/laravel.md`.

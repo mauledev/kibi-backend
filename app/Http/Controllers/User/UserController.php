@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controller;
-use App\Http\Response\ApiResponse;
 use App\Http\Requests\User\CreateUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
+use App\Http\Resources\User\UserCreateResource;
 use App\Http\Resources\User\UserDetailResource;
 use App\Http\Resources\User\UserListResource;
-use App\Http\Resources\User\UserCreateResource;
+use App\Http\Response\ApiResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -65,7 +65,7 @@ class UserController extends Controller
             );
         } catch (\Exception $e) {
             return ApiResponse::error(
-                'Error al crear usuario: ' . $e->getMessage(),
+                'Error al crear usuario: '.$e->getMessage(),
                 400
             );
         }
@@ -87,7 +87,7 @@ class UserController extends Controller
             );
         } catch (\Exception $e) {
             return ApiResponse::error(
-                'Error al actualizar usuario: ' . $e->getMessage(),
+                'Error al actualizar usuario: '.$e->getMessage(),
                 400
             );
         }
@@ -109,7 +109,7 @@ class UserController extends Controller
             );
         } catch (\Exception $e) {
             return ApiResponse::error(
-                'Error al eliminar usuario: ' . $e->getMessage(),
+                'Error al eliminar usuario: '.$e->getMessage(),
                 400
             );
         }

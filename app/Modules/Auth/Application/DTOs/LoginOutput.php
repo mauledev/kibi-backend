@@ -14,6 +14,5 @@ class LoginOutput
         public readonly string $name,
         public readonly string $role,
         public readonly string $schoolId
-    ) {
-    }
+    ) {}
 }

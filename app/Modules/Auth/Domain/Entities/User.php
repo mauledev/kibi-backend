@@ -11,13 +11,21 @@ use DateTime;
 class User
 {
     private string $id;
+
     private string $email;
+
     private string $name;
+
     private string $passwordHash;
+
     private string $role;
+
     private string $schoolId;
+
     private string $status;
+
     private DateTime $createdAt;
+
     private ?DateTime $updatedAt;
 
     public function __construct(
@@ -36,32 +44,67 @@ class User
         $this->role = $role;
         $this->schoolId = $schoolId;
         $this->status = $status;
-        $this->createdAt = new DateTime();
+        $this->createdAt = new DateTime;
         $this->updatedAt = null;
     }
 
     // Getters
-    public function getId(): string { return $this->id; }
-    public function getEmail(): string { return $this->email; }
-    public function getName(): string { return $this->name; }
-    public function getPasswordHash(): string { return $this->passwordHash; }
-    public function getRole(): string { return $this->role; }
-    public function getSchoolId(): string { return $this->schoolId; }
-    public function getStatus(): string { return $this->status; }
-    public function getCreatedAt(): DateTime { return $this->createdAt; }
-    public function getUpdatedAt(): ?DateTime { return $this->updatedAt; }
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getPasswordHash(): string
+    {
+        return $this->passwordHash;
+    }
+
+    public function getRole(): string
+    {
+        return $this->role;
+    }
+
+    public function getSchoolId(): string
+    {
+        return $this->schoolId;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): ?DateTime
+    {
+        return $this->updatedAt;
+    }
 
     // Métodos de negocio
     public function deactivate(): void
     {
         $this->status = 'inactive';
-        $this->updatedAt = new DateTime();
+        $this->updatedAt = new DateTime;
     }
 
     public function activate(): void
     {
         $this->status = 'active';
-        $this->updatedAt = new DateTime();
+        $this->updatedAt = new DateTime;
     }
 
     public function isActive(): bool
@@ -72,12 +115,12 @@ class User
     public function changePassword(string $newPasswordHash): void
     {
         $this->passwordHash = $newPasswordHash;
-        $this->updatedAt = new DateTime();
+        $this->updatedAt = new DateTime;
     }
 
     public function updateProfile(string $name): void
     {
         $this->name = $name;
-        $this->updatedAt = new DateTime();
+        $this->updatedAt = new DateTime;
     }
 }
