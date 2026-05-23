@@ -1,15 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Auth\Application\DTOs;
 
-/**
- * LoginInput DTO
- * Datos de entrada para LoginUseCase
- */
 class LoginInput
 {
     public function __construct(
         public readonly string $email,
-        public readonly string $password
+        public readonly string $password,
     ) {}
 }

@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Roles\Domain\Contracts;
+
+use App\Modules\Roles\Domain\Entities\Role;
+
+interface RoleRepositoryInterface
+{
+    /**
+     * Return all active (non-deleted) roles for the current tenant,
+     * plus global system roles (tenant_id IS NULL).
+     *
+     * @return array<Role>
+     */
+    public function findAll(): array;
+
+    /**
+     * Find a single role by its public UUID within the current tenant scope.
+     */
+    public function findByPublicId(string $publicId): ?Role;
+
+    /**
+     * Find a role by its internal ID within the current tenant scope.
+     */
+    public function findById(int $id): ?Role;
+
+    /**
+     * Find a role by slug within the current tenant scope.
+     */
+    public function findBySlug(string $slug): ?Role;
+
+    /**
+     * Persist a new role and return the domain entity.
+     */
+    public function create(
+        ?int $tenantId,
+        string $name,
+        string $slug,
+        int $hierarchyLevel,
+        bool $isSystemRole,
+    ): Role;
+
+    /**
+     * Update mutable fields of an existing role.
+     */
+    public function update(Role $role): Role;
+
+    /**
+     * Soft-delete a role by its public UUID.
+     */
+    public function delete(string $publicId): bool;
+
+    /**
+     * Return all active roles for a user by their internal user ID.
+     *
+     * @return array<Role>
+     */
+    public function findActiveRolesForUser(int $userId): array;
+
+    /**
+     * Attach a permission to a role (role_permissions pivot).
+     */
+    public function attachPermission(int $roleId, int $permissionId): void;
+
+    /**
+     * Detach a permission from a role (role_permissions pivot).
+     */
+    public function detachPermission(int $roleId, int $permissionId): void;
+}

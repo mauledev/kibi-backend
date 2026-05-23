@@ -1,46 +1,151 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
- * User Model
- * Solo acceso a BD, no contiene lógica de negocio
- * La lógica está en la Entity del dominio
+ * User Model — data access only, no business logic.
+ * Business logic lives in App\Modules\Auth\Domain\Entities\User.
  *
  * @property int $id
+ * @property string $public_id
+ * @property int|null $tenant_id
  * @property string $email
- * @property string $name
- * @property string $password
- * @property string $role
- * @property string $school_id
+ * @property string $password_hash
+ * @property string|null $google_id
+ * @property string|null $microsoft_id
+ * @property string $full_name
+ * @property string|null $phone
  * @property string $status
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
  */
 class User extends Authenticatable
 {
-    use Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'id',
+        'public_id',
+        'tenant_id',
         'email',
-        'name',
-        'password',
-        'role',
-        'school_id',
+        'password_hash',
+        'google_id',
+        'microsoft_id',
+        'full_name',
+        'phone',
         'status',
     ];
 
-    protected $hidden = [
-        'password',
-    ];
+    protected $hidden = ['password_hash'];
 
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
+    public function getAuthPassword(): string
+    {
+        return $this->password_hash;
+    }
+
+    /** @return BelongsTo<Tenant, $this> */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    /** @return HasMany<UserRoleAssignment, $this> */
+    public function roleAssignments(): HasMany
+    {
+        return $this->hasMany(UserRoleAssignment::class);
+    }
+
+    /**
+     * Return all active role assignments (revoked_at IS NULL).
+     *
+     * @return Collection<int, UserRoleAssignment>
+     */
+    public function activeAssignments(): Collection
+    {
+        return $this->roleAssignments()
+            ->whereNull('revoked_at')
+            ->with('role')
+            ->get();
+    }
+
+    /**
+     * Return all active Role models for this user.
+     *
+     * @return Collection<int, Role>
+     */
+    public function activeRoles(): Collection
+    {
+        return $this->activeAssignments()
+            ->map(fn (UserRoleAssignment $a) => $a->role)
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * Check whether the user holds ANY active assignment with the given role slug.
+     * This does NOT depend on X-Active-Role — it checks all active assignments.
+     */
+    public function hasRole(string $slug): bool
+    {
+        return $this->activeAssignments()
+            ->map(fn (UserRoleAssignment $a) => $a->role)
+            ->filter()
+            ->contains(fn (Role $role) => $role->slug === $slug);
+    }
+
+    /**
+     * Return merged permission slugs from all active roles.
+     *
+     * @return array<string>
+     */
+    public function activePermissions(): array
+    {
+        $slugs = [];
+
+        foreach ($this->activeAssignments() as $assignment) {
+            /** @var Role|null $role */
+            $role = $assignment->role;
+
+            if ($role === null) {
+                continue;
+            }
+
+            foreach ($role->permissions as $permission) {
+                $slugs[$permission->slug] = true;
+            }
+        }
+
+        return array_keys($slugs);
+    }
+
+    /**
+     * Return true if the user has the given permission slug in their merged active permissions.
+     */
+    public function hasPermissionTo(string $slug): bool
+    {
+        return in_array($slug, $this->activePermissions(), true);
+    }
+
+    /**
+     * Return the lowest (most privileged) hierarchy_level across all active roles.
+     * Returns PHP_INT_MAX when the user has no active roles (no privileges).
+     */
+    public function lowestHierarchyLevel(): int
+    {
+        $levels = $this->activeAssignments()
+            ->map(fn (UserRoleAssignment $a) => $a->role)
+            ->filter()
+            ->map(fn (Role $role) => $role->hierarchy_level)
+            ->all();
+
+        return $levels !== [] ? (int) min($levels) : PHP_INT_MAX;
+    }
 }

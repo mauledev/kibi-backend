@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\User;
 
 use App\Models\User;
@@ -8,22 +10,21 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * UserDetailResource
- * Serializa User con detalles completos
- * Más campos que UserResource para listar
+ * Serializes User with full details.
  */
 class UserDetailResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         /** @var User $user */
         $user = $this->resource;
 
         return [
-            'id' => $user->id,
+            'id' => $user->public_id,
             'email' => $user->email,
-            'name' => $user->name,
-            'role' => $user->role,
-            'school_id' => $user->school_id,
+            'full_name' => $user->full_name,
+            'phone' => $user->phone,
             'status' => $user->status,
             'created_at' => $user->created_at?->toIso8601String(),
             'updated_at' => $user->updated_at?->toIso8601String(),

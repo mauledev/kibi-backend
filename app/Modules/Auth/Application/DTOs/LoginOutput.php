@@ -1,18 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Auth\Application\DTOs;
 
-/**
- * LoginOutput DTO
- * Datos de salida de LoginUseCase
- */
+use App\Modules\Roles\Domain\Entities\Role;
+
 class LoginOutput
 {
+    /**
+     * @param  array<Role>  $roles
+     */
     public function __construct(
-        public readonly string $id,
+        public readonly string $publicId,
         public readonly string $email,
-        public readonly string $name,
-        public readonly string $role,
-        public readonly string $schoolId
+        public readonly string $fullName,
+        public readonly bool $isStaff,
+        public readonly string $token,
+        public readonly array $roles = [],
     ) {}
 }
