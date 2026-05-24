@@ -1,20 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Auth;
 
-use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\DTOs\MeOutput;
 use App\Modules\Roles\Domain\Entities\Role;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class LoginResource extends JsonResource
+class MeResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
-        /** @var LoginOutput $output */
+        /** @var MeOutput $output */
         $output = $this->resource;
 
         return [
@@ -29,7 +31,6 @@ class LoginResource extends JsonResource
                 'hierarchy_level' => $role->getHierarchyLevel(),
             ], $output->roles),
             'permissions' => $output->permissions,
-            'token' => $output->token,
         ];
     }
 }

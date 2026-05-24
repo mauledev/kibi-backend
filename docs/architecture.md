@@ -260,7 +260,7 @@ The permission `manage.permissions` allows a role to assign permissions to roles
 
 Two gates are registered in `AppServiceProvider::boot()`:
 
-1. **`Gate::before` — Owner bypass**: any user whose active assignments include a role with slug `owner` is granted every ability and gate evaluation stops immediately.
+1. **`Gate::before` — Owner bypass**: any user whose active assignments include a role with slug `owner` is granted every ability and gate evaluation stops immediately. Owner is a tenant concept — do not add staff roles (e.g. `superadmin`) to this bypass. Staff routes do not use `$this->authorize()` and do not need a gate bypass.
 
 2. **`Gate::after` — Dynamic permission gate**: for all other users, every `$this->authorize('some.slug')` call in a Controller resolves against the merged permission slugs from all active role assignments (`revoked_at IS NULL`). Returns `true` if the permission is found, `null` otherwise (letting any policy take precedence). Use `Gate::after` — not `Gate::define('*')` — to avoid overriding policies.
 
@@ -276,6 +276,32 @@ Gate::after(function (User $user, string $ability): ?bool {
     return $user->hasPermissionTo($ability) ? true : null;
 });
 ```
+
+### Permission query optimization
+
+`User::activeAssignments()` is the single source for all permission checks. It is called by `hasRole()`, `activePermissions()`, and `hasPermissionTo()` — all of which are triggered by every `$this->authorize()` call via the gate.
+
+Two optimizations are applied:
+
+**Eager loading** — loads `role.permissions` in 3 queries total instead of N+2 (one per role):
+```php
+->with(['role', 'role.permissions'])
+```
+
+**Request-level memoization** — the result is cached in a private property on the `User` model. The DB is hit once per request regardless of how many gate checks occur:
+```php
+private ?Collection $cachedAssignments = null;
+
+public function activeAssignments(): Collection
+{
+    return $this->cachedAssignments ??= $this->roleAssignments()
+        ->whereNull('revoked_at')
+        ->with(['role', 'role.permissions'])
+        ->get();
+}
+```
+
+Without these optimizations, a single `$this->authorize()` for a non-owner user triggers `activeAssignments()` three times: twice in `Gate::before` (one `hasRole()` per bypass slug) and once in `Gate::after`. With memoization, all three calls hit the cache after the first.
 
 ### X-Active-Role header
 

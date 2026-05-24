@@ -14,9 +14,11 @@ class User
         private readonly ?int $tenantId,
         private readonly string $email,
         private readonly string $fullName,
-        private string $passwordHash,
+        private ?string $passwordHash,
         private string $status = 'active',
         private readonly DateTime $createdAt = new DateTime,
+        private readonly ?string $googleId = null,
+        private readonly ?string $microsoftId = null,
     ) {}
 
     public function getId(): int
@@ -44,9 +46,19 @@ class User
         return $this->fullName;
     }
 
-    public function getPasswordHash(): string
+    public function getPasswordHash(): ?string
     {
         return $this->passwordHash;
+    }
+
+    public function getGoogleId(): ?string
+    {
+        return $this->googleId;
+    }
+
+    public function getMicrosoftId(): ?string
+    {
+        return $this->microsoftId;
     }
 
     public function getStatus(): string

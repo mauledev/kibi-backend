@@ -2,7 +2,7 @@
 
 namespace App\Modules\Roles\Application\UseCases\AssignPermissionToRole;
 
-use App\Common\Audit\AuditLogger;
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -16,7 +16,7 @@ class AssignPermissionToRoleUseCase
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly PermissionRepositoryInterface $permissions,
-        private readonly AuditLogger $audit,
+        private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**

@@ -27,6 +27,26 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     }
 
     /** {@inheritDoc} */
+    public function findByGoogleId(string $googleId): ?User
+    {
+        $model = UserModel::whereNull('tenant_id')
+            ->where('google_id', $googleId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByMicrosoftId(string $microsoftId): ?User
+    {
+        $model = UserModel::whereNull('tenant_id')
+            ->where('microsoft_id', $microsoftId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function save(User $user): User
     {
         $model = UserModel::create([
@@ -34,6 +54,8 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
             'email' => $user->getEmail(),
             'full_name' => $user->getFullName(),
             'password_hash' => $user->getPasswordHash(),
+            'google_id' => $user->getGoogleId(),
+            'microsoft_id' => $user->getMicrosoftId(),
             'status' => $user->getStatus(),
         ]);
 
@@ -72,6 +94,8 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
             fullName: $model->full_name,
             passwordHash: $model->password_hash,
             status: $model->status,
+            googleId: $model->google_id,
+            microsoftId: $model->microsoft_id,
         );
     }
 }

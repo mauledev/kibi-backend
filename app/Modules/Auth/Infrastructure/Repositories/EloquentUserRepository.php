@@ -33,6 +33,26 @@ class EloquentUserRepository implements UserRepositoryInterface
     }
 
     /** {@inheritDoc} */
+    public function findByGoogleId(string $googleId): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('google_id', $googleId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByMicrosoftId(string $microsoftId): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('microsoft_id', $microsoftId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function save(User $user): User
     {
         $model = UserModel::create([
@@ -40,6 +60,8 @@ class EloquentUserRepository implements UserRepositoryInterface
             'email' => $user->getEmail(),
             'full_name' => $user->getFullName(),
             'password_hash' => $user->getPasswordHash(),
+            'google_id' => $user->getGoogleId(),
+            'microsoft_id' => $user->getMicrosoftId(),
             'status' => $user->getStatus(),
         ]);
 
@@ -79,6 +101,8 @@ class EloquentUserRepository implements UserRepositoryInterface
             fullName: $model->full_name,
             passwordHash: $model->password_hash,
             status: $model->status,
+            googleId: $model->google_id,
+            microsoftId: $model->microsoft_id,
         );
     }
 }

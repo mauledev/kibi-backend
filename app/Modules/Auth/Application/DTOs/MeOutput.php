@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Auth\Application\DTOs;
 
 use App\Modules\Roles\Domain\Entities\Role;
 
-class LoginOutput
+class MeOutput
 {
     /**
      * @param  array<Role>    $roles
@@ -15,7 +17,6 @@ class LoginOutput
         public readonly string $email,
         public readonly string $fullName,
         public readonly bool $isStaff,
-        public readonly string $token,
         public readonly array $roles = [],
         public readonly array $permissions = [],
     ) {}

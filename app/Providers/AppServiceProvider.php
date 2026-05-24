@@ -2,11 +2,18 @@
 
 namespace App\Providers;
 
+use App\Common\Audit\AuditLogger;
+use App\Common\Audit\AuditLoggerInterface;
 use App\Models\User;
+use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
+use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
+use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
+use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
+use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
@@ -17,8 +24,6 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentPermissionRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
-use App\Common\Audit\AuditLogger;
-use App\Common\Audit\AuditLoggerInterface;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,9 +39,15 @@ class AppServiceProvider extends ServiceProvider
 
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
+        $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
 
         // Tenant login — scoped by TenantContext
         $this->app->when(LoginUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentUserRepository::class);
+
+        // OAuth login — scoped by TenantContext
+        $this->app->when(OAuthLoginUseCase::class)
             ->needs(UserRepositoryInterface::class)
             ->give(EloquentUserRepository::class);
 
@@ -46,6 +57,20 @@ class AppServiceProvider extends ServiceProvider
             ->give(EloquentStaffUserRepository::class);
 
         $this->app->when(StaffLoginUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentStaffRoleRepository::class);
+
+        // Get me — tenant
+        $this->app->when(GetMeUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentUserRepository::class);
+
+        // Get me — staff
+        $this->app->when(GetStaffMeUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentStaffUserRepository::class);
+
+        $this->app->when(GetStaffMeUseCase::class)
             ->needs(RoleRepositoryInterface::class)
             ->give(EloquentStaffRoleRepository::class);
 
@@ -85,7 +110,7 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return null; // let normal gate evaluation proceed
+            return null;
         });
 
         // Dynamic permission gate — checks merged permissions from all active roles.

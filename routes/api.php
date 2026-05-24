@@ -26,10 +26,11 @@ Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 */
 Route::prefix('staff')->group(function () {
     // Public
-    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->name('staff.auth.login');
+    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:5,15')->name('staff.auth.login');
 
     // Authenticated
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
     });
 });
@@ -42,10 +43,12 @@ Route::prefix('staff')->group(function () {
 */
 Route::middleware('tenant')->group(function () {
     // Public (login needs tenant context to scope user lookup)
-    Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,15')->name('auth.login');
+    Route::post('/auth/oauth/{provider}', [AuthController::class, 'oauthLogin'])->whereIn('provider', ['google', 'microsoft'])->name('auth.oauth');
 
     // Authenticated
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
         Route::apiResource('users', UserController::class);

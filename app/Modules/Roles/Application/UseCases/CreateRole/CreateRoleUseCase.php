@@ -2,7 +2,7 @@
 
 namespace App\Modules\Roles\Application\UseCases\CreateRole;
 
-use App\Common\Audit\AuditLogger;
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -11,7 +11,7 @@ class CreateRoleUseCase
 {
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
-        private readonly AuditLogger $audit,
+        private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**

@@ -2,50 +2,39 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Auth\Application\UseCases\Login;
+namespace App\Modules\Auth\Application\UseCases\GetMe;
 
-use App\Modules\Auth\Application\DTOs\LoginInput;
-use App\Modules\Auth\Application\DTOs\LoginOutput;
-use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Application\DTOs\MeOutput;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
-use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
-use Illuminate\Support\Facades\Hash;
 
-class LoginUseCase
+class GetMeUseCase
 {
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
-        private readonly TokenServiceInterface $tokens,
         private readonly RoleRepositoryInterface $roles,
     ) {}
 
     /**
-     * @throws InvalidCredentialsException
+     * @throws UserNotFoundException
      */
-    public function execute(LoginInput $input): LoginOutput
+    public function execute(int $userId): MeOutput
     {
-        $user = $this->userRepository->findByEmail($input->email);
+        $user = $this->userRepository->findById($userId);
 
-        $hash = $user?->getPasswordHash();
-
-        if (! $user || $hash === null || ! Hash::check($input->password, $hash)) {
-            throw new InvalidCredentialsException;
+        if ($user === null) {
+            throw new UserNotFoundException;
         }
 
-        if (! $user->isActive()) {
-            throw new InvalidCredentialsException('User is inactive');
-        }
+        $roles = $this->roles->findActiveRolesForUser($userId);
 
-        $roles = $this->roles->findActiveRolesForUser($user->getId());
-
-        return new LoginOutput(
+        return new MeOutput(
             publicId: $user->getPublicId(),
             email: $user->getEmail(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),
-            token: $this->tokens->generate($user->getId()),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
         );

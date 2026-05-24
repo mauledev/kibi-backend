@@ -61,16 +61,21 @@ class User extends Authenticatable
         return $this->hasMany(UserRoleAssignment::class);
     }
 
+    /** @var Collection<int, UserRoleAssignment>|null */
+    private ?Collection $cachedAssignments = null;
+
     /**
      * Return all active role assignments (revoked_at IS NULL).
+     * Result is memoized for the lifetime of the request — the DB is hit once
+     * regardless of how many hasRole() / hasPermissionTo() / authorize() calls occur.
      *
      * @return Collection<int, UserRoleAssignment>
      */
     public function activeAssignments(): Collection
     {
-        return $this->roleAssignments()
+        return $this->cachedAssignments ??= $this->roleAssignments()
             ->whereNull('revoked_at')
-            ->with('role')
+            ->with(['role', 'role.permissions'])
             ->get();
     }
 

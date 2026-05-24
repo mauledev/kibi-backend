@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 
 uses(RefreshDatabase::class);
 
@@ -14,7 +15,7 @@ uses(RefreshDatabase::class);
  * Helper: authenticate through TenantMiddleware via X-Tenant-Slug header.
  * Returns a configured test client acting as the given user.
  */
-function tenantRequest(Tenant $tenant, User $user): \Illuminate\Testing\TestResponse
+function tenantRequest(Tenant $tenant, User $user): TestResponse
 {
     return test()
         ->actingAs($user)

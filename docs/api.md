@@ -70,15 +70,15 @@ Staff routes do not go through `TenantMiddleware`. School routes always do.
 
 ### X-Active-Role
 
-When a user holds multiple roles, every authenticated request must include the active role:
+When a user holds multiple roles, the frontend sends the currently selected role:
 
 ```
 X-Active-Role: {role_public_id}
 ```
 
-UseCases read this header to validate that the user actually holds the declared role before executing permission-gated operations.
+This header is **UI context only**. The frontend uses it to decide which dashboard to render. It does **not** participate in permission checks on the backend.
 
-The header is required on all endpoints that perform write operations or permission-gated reads. Authentication endpoints (login, logout) are exempt.
+Permission checks always merge all active role assignments — no backend logic reads `X-Active-Role`. Reading an HTTP header inside a UseCase would couple the Application layer to HTTP, violating hexagonal architecture.
 
 ---
 
@@ -159,20 +159,10 @@ Authentication endpoints (login, logout) sit outside both groups — no `auth:sa
 ```
 POST   /auth/login               Authenticate with email + password, returns token
 POST   /auth/logout              Revoke current token
-POST   /auth/google              OAuth login/register via Google access token
-POST   /auth/microsoft           OAuth login/register via Microsoft access token
+POST   /auth/oauth/{provider}    OAuth login/register (provider: google | microsoft)
 ```
 
-#### OAuth flow (stateless)
-
-The frontend handles the OAuth redirect with the provider. Once the user authorizes, the frontend sends the provider's access token to the backend:
-
-```json
-POST /auth/google
-{ "access_token": "{google_access_token}" }
-```
-
-The backend validates the token with the provider via Socialite, finds or creates the user by `google_id` / `microsoft_id`, and returns a Sanctum token. The backend never handles OAuth redirects — that is the frontend's responsibility.
+`POST /auth/oauth/{provider}` accepts `{ "access_token": "..." }` and returns the same `LoginOutput` as a password login. See `docs/oauth.md` for the full flow.
 
 ### Roles and permissions
 

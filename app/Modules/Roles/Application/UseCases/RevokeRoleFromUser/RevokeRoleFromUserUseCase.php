@@ -2,7 +2,7 @@
 
 namespace App\Modules\Roles\Application\UseCases\RevokeRoleFromUser;
 
-use App\Common\Audit\AuditLogger;
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
@@ -15,7 +15,7 @@ class RevokeRoleFromUserUseCase
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
-        private readonly AuditLogger $audit,
+        private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**
