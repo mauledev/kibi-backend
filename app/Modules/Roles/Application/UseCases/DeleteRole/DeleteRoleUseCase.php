@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Roles\Application\UseCases\DeleteRole;
 
 use App\Common\Audit\AuditLogger;

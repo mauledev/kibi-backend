@@ -6,14 +6,6 @@ Rules that apply to all code, without exception. Regardless of the task — thes
 
 ## PHP
 
-Every PHP file must start with:
-
-```php
-<?php
-
-declare(strict_types=1);
-```
-
 ## Naming
 
 | Type | Convention |

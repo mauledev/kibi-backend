@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Models\Permission as PermissionModel;
 use App\Models\PermissionCategory;
 use App\Models\Role as RoleModel;

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Roles\Domain\Contracts;
 
 use App\Modules\Roles\Domain\Entities\Role;

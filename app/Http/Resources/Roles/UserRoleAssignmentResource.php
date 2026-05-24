@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Http\Resources\Roles;
 
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;

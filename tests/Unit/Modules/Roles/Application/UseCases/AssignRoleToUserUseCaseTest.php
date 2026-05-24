@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Common\Audit\AuditLogger;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserInput;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;

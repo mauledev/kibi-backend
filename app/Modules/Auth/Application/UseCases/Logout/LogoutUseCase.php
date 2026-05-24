@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\UseCases\Logout;
 
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;

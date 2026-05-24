@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 
 describe('UserRoleAssignment entity', function () {

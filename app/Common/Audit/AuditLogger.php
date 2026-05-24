@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Common\Audit;
 
 use Illuminate\Support\Facades\DB;
