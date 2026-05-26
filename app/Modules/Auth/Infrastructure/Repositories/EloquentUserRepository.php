@@ -2,86 +2,107 @@
 
 namespace App\Modules\Auth\Infrastructure\Repositories;
 
+use App\Common\Tenant\TenantContext;
 use App\Models\User as UserModel;
+use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Entities\User;
-use App\Modules\Auth\Domain\Repositories\UserRepositoryInterface;
-use App\Modules\Auth\Domain\ValueObjects\Email;
 
-/**
- * EloquentUserRepository
- * Implementación concreta usando Eloquent
- * Esta es la ÚNICA que conoce de Eloquent/BD
- */
 class EloquentUserRepository implements UserRepositoryInterface
 {
+    public function __construct(
+        private readonly TenantContext $context,
+    ) {}
+
+    /** {@inheritDoc} */
+    public function findByEmail(string $email): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('email', $email)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findById(int $id): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->find($id);
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByGoogleId(string $googleId): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('google_id', $googleId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByMicrosoftId(string $microsoftId): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('microsoft_id', $microsoftId)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function save(User $user): User
     {
         $model = UserModel::create([
-            'id' => $user->getId(),
+            'tenant_id' => $user->getTenantId(),
             'email' => $user->getEmail(),
-            'name' => $user->getName(),
-            'password' => $user->getPasswordHash(),
-            'role' => $user->getRole(),
-            'school_id' => $user->getSchoolId(),
+            'full_name' => $user->getFullName(),
+            'password_hash' => $user->getPasswordHash(),
+            'google_id' => $user->getGoogleId(),
+            'microsoft_id' => $user->getMicrosoftId(),
             'status' => $user->getStatus(),
         ]);
 
         return $this->toDomain($model);
     }
 
-    public function findById(string $id): ?User
-    {
-        $model = UserModel::find($id);
-
-        return $model ? $this->toDomain($model) : null;
-    }
-
-    public function findByEmail(Email $email): ?User
-    {
-        $model = UserModel::where('email', $email->getValue())->first();
-
-        return $model ? $this->toDomain($model) : null;
-    }
-
+    /** {@inheritDoc} */
     public function update(User $user): User
     {
-        $model = UserModel::findOrFail($user->getId());
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->findOrFail($user->getId());
+
         $model->update([
-            'email' => $user->getEmail(),
-            'name' => $user->getName(),
-            'password' => $user->getPasswordHash(),
-            'role' => $user->getRole(),
+            'full_name' => $user->getFullName(),
+            'password_hash' => $user->getPasswordHash(),
             'status' => $user->getStatus(),
         ]);
 
         return $this->toDomain($model);
     }
 
-    public function delete(string $id): bool
+    /** {@inheritDoc} */
+    public function delete(int $id): bool
     {
-        return UserModel::destroy($id) > 0;
+        return UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('id', $id)
+            ->delete() > 0;
     }
 
-    public function findBySchool(string $schoolId): array
-    {
-        $models = UserModel::where('school_id', $schoolId)->get();
-
-        return $models->map(fn ($model) => $this->toDomain($model))->toArray();
-    }
-
-    /**
-     * Mapea modelo Eloquent a Entity de dominio
-     */
     private function toDomain(UserModel $model): User
     {
         return new User(
-            id: (string) $model->id,
+            id: $model->id,
+            publicId: $model->public_id,
+            tenantId: $model->tenant_id,
             email: $model->email,
-            name: $model->name,
-            passwordHash: $model->password,
-            role: $model->role,
-            schoolId: $model->school_id,
-            status: $model->status
+            fullName: $model->full_name,
+            passwordHash: $model->password_hash,
+            status: $model->status,
+            googleId: $model->google_id,
+            microsoftId: $model->microsoft_id,
         );
     }
 }

@@ -31,7 +31,10 @@ bootstrap/cache/
 # Logs de Laravel
 storage/logs/
 
-# Sesiones
+# Archivos generados por Laravel en runtime (se regeneran solos)
+storage/framework/cache/data/
+storage/framework/sessions/
+storage/framework/views/
 storage/sessions/
 
 # ================================================================

@@ -105,7 +105,6 @@ CREATE TABLE escuela1.grades (
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Services;
 
@@ -178,7 +177,6 @@ class TenantResolver
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Models;
 
@@ -235,7 +233,6 @@ class Tenant extends Model
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
@@ -369,7 +366,6 @@ class OAuthController extends Controller
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Repositories\Contracts;
 
@@ -393,7 +389,6 @@ interface UserRepositoryInterface
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Repositories;
 
@@ -493,7 +488,6 @@ class UserRepository implements UserRepositoryInterface
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Services;
 
@@ -617,7 +611,6 @@ class UserService
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Providers;
 
@@ -647,7 +640,6 @@ class RepositoryServiceProvider extends ServiceProvider
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
@@ -704,7 +696,6 @@ class UserController extends Controller
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Services;
 
@@ -718,7 +709,6 @@ use Illuminate\Support\Facades\Log;
 
 **Rules:**
 - ✅ `<?php` on first line
-- ✅ `declare(strict_types=1);` after opening tag
 - ✅ Blank line after namespace
 - ✅ Use statements grouped and alphabetically sorted
 - ✅ No closing `?>` tag
@@ -728,7 +718,6 @@ use Illuminate\Support\Facades\Log;
 ```php
 <?php
 
-declare(strict_types=1);
 
 namespace App\Services;
 

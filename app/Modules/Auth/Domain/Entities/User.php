@@ -4,54 +4,36 @@ namespace App\Modules\Auth\Domain\Entities;
 
 use DateTime;
 
-/**
- * User Entity - Lógica de negocio pura
- * No depende de Laravel ni de la BD
- */
 class User
 {
-    private string $id;
-
-    private string $email;
-
-    private string $name;
-
-    private string $passwordHash;
-
-    private string $role;
-
-    private string $schoolId;
-
-    private string $status;
-
-    private DateTime $createdAt;
-
-    private ?DateTime $updatedAt;
+    private ?DateTime $updatedAt = null;
 
     public function __construct(
-        string $id,
-        string $email,
-        string $name,
-        string $passwordHash,
-        string $role,
-        string $schoolId,
-        string $status = 'active'
-    ) {
-        $this->id = $id;
-        $this->email = $email;
-        $this->name = $name;
-        $this->passwordHash = $passwordHash;
-        $this->role = $role;
-        $this->schoolId = $schoolId;
-        $this->status = $status;
-        $this->createdAt = new DateTime;
-        $this->updatedAt = null;
-    }
+        private readonly int $id,
+        private readonly string $publicId,
+        private readonly ?int $tenantId,
+        private readonly string $email,
+        private readonly string $fullName,
+        private ?string $passwordHash,
+        private string $status = 'active',
+        private readonly DateTime $createdAt = new DateTime,
+        private readonly ?string $googleId = null,
+        private readonly ?string $microsoftId = null,
+    ) {}
 
-    // Getters
-    public function getId(): string
+    public function getId(): int
     {
         return $this->id;
+    }
+
+    public function getPublicId(): string
+    {
+        return $this->publicId;
+    }
+
+    public function getTenantId(): ?int
+    {
+        return $this->tenantId;
     }
 
     public function getEmail(): string
@@ -59,24 +41,24 @@ class User
         return $this->email;
     }
 
-    public function getName(): string
+    public function getFullName(): string
     {
-        return $this->name;
+        return $this->fullName;
     }
 
-    public function getPasswordHash(): string
+    public function getPasswordHash(): ?string
     {
         return $this->passwordHash;
     }
 
-    public function getRole(): string
+    public function getGoogleId(): ?string
     {
-        return $this->role;
+        return $this->googleId;
     }
 
-    public function getSchoolId(): string
+    public function getMicrosoftId(): ?string
     {
-        return $this->schoolId;
+        return $this->microsoftId;
     }
 
     public function getStatus(): string
@@ -94,7 +76,16 @@ class User
         return $this->updatedAt;
     }
 
-    // Métodos de negocio
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->tenantId === null;
+    }
+
     public function deactivate(): void
     {
         $this->status = 'inactive';
@@ -107,20 +98,9 @@ class User
         $this->updatedAt = new DateTime;
     }
 
-    public function isActive(): bool
-    {
-        return $this->status === 'active';
-    }
-
     public function changePassword(string $newPasswordHash): void
     {
         $this->passwordHash = $newPasswordHash;
-        $this->updatedAt = new DateTime;
-    }
-
-    public function updateProfile(string $name): void
-    {
-        $this->name = $name;
         $this->updatedAt = new DateTime;
     }
 }

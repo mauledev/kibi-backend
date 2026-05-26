@@ -1,52 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Roles\PermissionController;
+use App\Http\Controllers\Roles\RoleController;
+use App\Http\Controllers\Roles\RolePermissionController;
+use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\User\UserController;
+use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| Health check
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
+Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 
-// ============================================
-// Public Routes (sin autenticación)
-// ============================================
-Route::group(['prefix' => 'auth'], function () {
-    Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
-    Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
-});
+/*
+|--------------------------------------------------------------------------
+| Staff routes — app.kibi.com
+| No tenant middleware. Users have tenant_id IS NULL.
+|--------------------------------------------------------------------------
+*/
+Route::prefix('staff')->group(function () {
+    // Public
+    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:5,15')->name('staff.auth.login');
 
-// ============================================
-// Protected Routes (requiere autenticación)
-// ============================================
-Route::middleware('auth:sanctum')->group(function () {
-    // Auth routes
-    Route::group(['prefix' => 'auth'], function () {
-        Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
-    });
-
-    // User routes (CRUD)
-    Route::apiResource('users', UserController::class);
-
-    // User middleware (authorization)
-    Route::middleware('can:view-users')->group(function () {
-        Route::get('/users', [UserController::class, 'index']);
+    // Authenticated
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
     });
 });
 
-// ============================================
-// Health check
-// ============================================
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'message' => 'API is running',
-    ]);
+/*
+|--------------------------------------------------------------------------
+| Tenant routes — {tenant_slug}.kibi.com
+| TenantMiddleware resolves TenantContext from subdomain.
+|--------------------------------------------------------------------------
+*/
+Route::middleware('tenant')->group(function () {
+    // Public (login needs tenant context to scope user lookup)
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,15')->name('auth.login');
+    Route::post('/auth/oauth/{provider}', [AuthController::class, 'oauthLogin'])->whereIn('provider', ['google', 'microsoft'])->name('auth.oauth');
+
+    // Authenticated
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'me'])->name('auth.me');
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+
+        Route::apiResource('users', UserController::class);
+
+        // Roles and Permissions
+        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::get('/roles/{public_id}', [RoleController::class, 'show'])->name('roles.show');
+        Route::put('/roles/{public_id}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{public_id}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+        Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
+
+        Route::post('/roles/{public_id}/permissions', [RolePermissionController::class, 'store'])
+            ->name('roles.permissions.store');
+        Route::delete('/roles/{public_id}/permissions/{permission_public_id}', [RolePermissionController::class, 'destroy'])
+            ->name('roles.permissions.destroy');
+
+        Route::post('/users/{public_id}/roles', [UserRoleController::class, 'store'])
+            ->name('users.roles.store');
+        Route::delete('/users/{public_id}/roles/{role_public_id}', [UserRoleController::class, 'destroy'])
+            ->name('users.roles.destroy');
+    });
 });
