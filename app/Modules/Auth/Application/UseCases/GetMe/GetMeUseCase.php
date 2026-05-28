@@ -40,7 +40,10 @@ class GetMeUseCase
         );
     }
 
-    /** @param array<Role> $roles @return array<string> */
+    /**
+     * @param  array<Role>  $roles
+     * @return list<string>
+     */
     private function extractPermissionSlugs(array $roles): array
     {
         $slugs = [];

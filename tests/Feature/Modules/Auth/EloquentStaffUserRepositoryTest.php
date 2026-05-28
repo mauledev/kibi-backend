@@ -2,7 +2,6 @@
 
 use App\Models\Tenant;
 use App\Models\User;
-use App\Modules\Auth\Domain\Entities\User as UserEntity;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
