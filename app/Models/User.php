@@ -16,7 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
  * Business logic lives in App\Modules\Auth\Domain\Entities\User.
  *
  * @property int $id
- * @property string $public_id
+ * @property string $uuid
  * @property int|null $tenant_id
  * @property string $email
  * @property string $password_hash
@@ -31,7 +31,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'public_id',
+        'uuid',
         'tenant_id',
         'email',
         'password_hash',

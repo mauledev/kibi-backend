@@ -158,7 +158,7 @@ Every request must resolve a tenant context before reaching any UseCase or Repos
 Tenant is resolved from the subdomain on every request:
 `{tenant_slug}.kibi.com` → find `Tenant` by slug → bind `TenantContext` with `tenant_id`
 
-The subdomain identifies the **company (tenant)**, not a specific school. School context is resolved inside the application — from the route (`/schools/{publicId}/...`) or from the user's active role assignment.
+The subdomain identifies the **company (tenant)**, not a specific school. School context is resolved inside the application — from the route (`/schools/{schoolUuid}/...`) or from the user's active role assignment.
 
 ```php
 // TenantMiddleware binds into the container

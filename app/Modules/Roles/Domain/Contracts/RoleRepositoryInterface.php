@@ -17,7 +17,7 @@ interface RoleRepositoryInterface
     /**
      * Find a single role by its public UUID within the current tenant scope.
      */
-    public function findByPublicId(string $publicId): ?Role;
+    public function findByUuid(string $uuid): ?Role;
 
     /**
      * Find a role by its internal ID within the current tenant scope.
@@ -48,7 +48,7 @@ interface RoleRepositoryInterface
     /**
      * Soft-delete a role by its public UUID.
      */
-    public function delete(string $publicId): bool;
+    public function delete(string $uuid): bool;
 
     /**
      * Return all active roles for a user by their internal user ID.

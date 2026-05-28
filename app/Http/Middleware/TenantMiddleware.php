@@ -3,23 +3,25 @@
 namespace App\Http\Middleware;
 
 use App\Common\Tenant\TenantContext;
+use App\Common\Tenant\TenantRepositoryInterface;
 use App\Http\Response\ApiResponse;
-use App\Models\Tenant;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class TenantMiddleware
 {
+    public function __construct(
+        private readonly TenantRepositoryInterface $tenants,
+    ) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $slug = $this->resolveSlug($request);
 
-        $tenant = Tenant::where('slug', $slug)
-            ->where('status', 'active')
-            ->first();
+        $tenant = $this->tenants->findActiveBySlug($slug);
 
-        if (! $tenant) {
+        if ($tenant === null) {
             return ApiResponse::notFound('Tenant not found');
         }
 

@@ -48,13 +48,13 @@ describe('RolePermissionController', function () {
         $this->tenant = Tenant::factory()->create();
     });
 
-    describe('POST /api/roles/{public_id}/permissions', function () {
+    describe('POST /api/roles/{uuid}/permissions', function () {
         it('returns 401 when unauthenticated', function () {
             $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'some_role']);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$role->public_id}/permissions", [
-                    'permission_public_id' => 'any-uuid',
+                ->postJson("/api/roles/{$role->uuid}/permissions", [
+                    'permission_uuid' => 'any-uuid',
                 ])
                 ->assertStatus(401);
         });
@@ -70,8 +70,8 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ])
                 ->assertStatus(403);
         });
@@ -87,8 +87,8 @@ describe('RolePermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ]);
 
             $response->assertStatus(200);
@@ -115,8 +115,8 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$sameLevel->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$sameLevel->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ])
                 ->assertStatus(403);
         });
@@ -132,8 +132,8 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$systemRole->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$systemRole->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ])
                 ->assertStatus(403);
         });
@@ -148,8 +148,8 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->public_id}/permissions", [
-                    'permission_public_id' => '00000000-0000-0000-0000-000000000000',
+                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                    'permission_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
                 ->assertStatus(404);
         });
@@ -164,8 +164,8 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ])
                 ->assertStatus(200);
         });
@@ -185,8 +185,8 @@ describe('RolePermissionController', function () {
             // Make the request again
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->public_id}/permissions", [
-                    'permission_public_id' => $permission->public_id,
+                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                    'permission_uuid' => $permission->uuid,
                 ])
                 ->assertStatus(200);
 
@@ -197,7 +197,7 @@ describe('RolePermissionController', function () {
         });
     });
 
-    describe('DELETE /api/roles/{public_id}/permissions/{permission_public_id}', function () {
+    describe('DELETE /api/roles/{uuid}/permissions/{permission_uuid}', function () {
         it('revokes permission from role and writes audit log', function () {
             $user = User::factory()->for($this->tenant)->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_revoke_perm']);
@@ -210,7 +210,7 @@ describe('RolePermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$targetRole->public_id}/permissions/{$permission->public_id}");
+                ->deleteJson("/api/roles/{$targetRole->uuid}/permissions/{$permission->uuid}");
 
             $response->assertStatus(200);
 
@@ -237,7 +237,7 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$targetRole->public_id}/permissions/{$permission->public_id}")
+                ->deleteJson("/api/roles/{$targetRole->uuid}/permissions/{$permission->uuid}")
                 ->assertStatus(403);
         });
     });

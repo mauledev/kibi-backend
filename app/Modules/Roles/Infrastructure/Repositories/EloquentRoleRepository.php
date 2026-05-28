@@ -29,14 +29,14 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function findByPublicId(string $publicId): ?Role
+    public function findByUuid(string $uuid): ?Role
     {
         $model = RoleModel::with('permissions')
             ->where(function ($q) {
                 $q->where('tenant_id', $this->context->tenantId)
                     ->orWhereNull('tenant_id');
             })
-            ->where('public_id', $publicId)
+            ->where('uuid', $uuid)
             ->withTrashed()
             ->first();
 
@@ -87,7 +87,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
             'is_system_role' => $isSystemRole,
         ]);
 
-        // Refresh to load DB-generated defaults (e.g. public_id from gen_random_uuid())
+        // Refresh to load DB-generated defaults (e.g. uuid from gen_random_uuid())
         $model->refresh();
         $model->load('permissions');
 
@@ -97,10 +97,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     /** {@inheritDoc} */
     public function update(Role $role): Role
     {
-        $model = RoleModel::where(function ($q) {
-            $q->where('tenant_id', $this->context->tenantId)
-                ->orWhereNull('tenant_id');
-        })
+        $model = RoleModel::where('tenant_id', $this->context->tenantId)
             ->findOrFail($role->getId());
 
         $model->update(['name' => $role->getName()]);
@@ -110,13 +107,13 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function delete(string $publicId): bool
+    public function delete(string $uuid): bool
     {
         return RoleModel::where(function ($q) {
             $q->where('tenant_id', $this->context->tenantId)
                 ->orWhereNull('tenant_id');
         })
-            ->where('public_id', $publicId)
+            ->where('uuid', $uuid)
             ->delete() > 0;
     }
 
@@ -125,6 +122,10 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     {
         $models = RoleModel::with('permissions')
             ->join('user_role_assignments', 'user_role_assignments.role_id', '=', 'roles.id')
+            ->where(function ($q) {
+                $q->where('roles.tenant_id', $this->context->tenantId)
+                    ->orWhereNull('roles.tenant_id');
+            })
             ->where('user_role_assignments.user_id', $userId)
             ->whereNull('user_role_assignments.revoked_at')
             ->select('roles.*')
@@ -136,13 +137,19 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     /** {@inheritDoc} */
     public function attachPermission(int $roleId, int $permissionId): void
     {
-        RoleModel::findOrFail($roleId)->permissions()->syncWithoutDetaching([$permissionId]);
+        RoleModel::where('tenant_id', $this->context->tenantId)
+            ->findOrFail($roleId)
+            ->permissions()
+            ->syncWithoutDetaching([$permissionId]);
     }
 
     /** {@inheritDoc} */
     public function detachPermission(int $roleId, int $permissionId): void
     {
-        RoleModel::findOrFail($roleId)->permissions()->detach($permissionId);
+        RoleModel::where('tenant_id', $this->context->tenantId)
+            ->findOrFail($roleId)
+            ->permissions()
+            ->detach($permissionId);
     }
 
     private function toDomain(RoleModel $model): Role
@@ -151,7 +158,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
             ? $model->permissions->map(function (\App\Models\Permission $p): Permission {
                 return new Permission(
                     id: $p->id,
-                    publicId: $p->public_id,
+                    uuid: $p->uuid,
                     categoryId: $p->category_id,
                     name: $p->name,
                     slug: $p->slug,
@@ -162,7 +169,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
 
         return new Role(
             id: $model->id,
-            publicId: $model->public_id,
+            uuid: $model->uuid,
             tenantId: $model->tenant_id,
             name: $model->name,
             slug: $model->slug,

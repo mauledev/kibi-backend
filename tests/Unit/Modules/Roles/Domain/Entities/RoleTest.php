@@ -8,7 +8,7 @@ describe('Role entity', function () {
     {
         return new Role(
             id: $overrides['id'] ?? 1,
-            publicId: $overrides['publicId'] ?? 'uuid-1',
+            uuid: $overrides['uuid'] ?? 'uuid-1',
             tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
@@ -20,11 +20,11 @@ describe('Role entity', function () {
         );
     }
 
-    function makePermission(string $slug = 'grade.publish', string $publicId = 'perm-uuid-1'): Permission
+    function makePermission(string $slug = 'grade.publish', string $uuid = 'perm-uuid-1'): Permission
     {
         return new Permission(
             id: 1,
-            publicId: $publicId,
+            uuid: $uuid,
             categoryId: 1,
             name: 'Publish Grade',
             slug: $slug,
@@ -35,7 +35,7 @@ describe('Role entity', function () {
         $role = makeRole();
 
         expect($role->getId())->toBe(1);
-        expect($role->getPublicId())->toBe('uuid-1');
+        expect($role->getUuid())->toBe('uuid-1');
         expect($role->getTenantId())->toBe(10);
         expect($role->getName())->toBe('Director');
         expect($role->getSlug())->toBe('director');

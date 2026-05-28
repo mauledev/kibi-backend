@@ -61,7 +61,7 @@ describe('AssignRoleUseCase', function () {
 ### Controllers / HTTP (Feature)
 - Test the full HTTP flow with `postJson`, `getJson`, etc.
 - Use `withServerVariables(['HTTP_HOST' => '{slug}.kibi.test'])` to simulate subdomain
-- Assert `public_id` fields only — never internal `id`
+- Assert `uuid` fields only — never internal `id`
 - Assert status codes and response structure
 
 ## Tenant context in tests
@@ -92,7 +92,7 @@ actingAs($staff)->getJson('/api/staff/tenants')->assertStatus(200);
 - Never mock repositories in Feature tests — use the real database
 - Mock only external service interfaces (mailers, payment gateways) that make network calls
 - Use factory states (`->staff()`, `->inactive()`) — never pass raw attribute arrays to override behavior
-- Never assert internal `id` — always assert `public_id`
+- Never assert internal `id` — always assert `uuid`
 - Every role/permission mutation test must verify an `audit_logs` entry was created
 - Tenant isolation tests must always create two tenants and verify data from one is invisible to the other
 

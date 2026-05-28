@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Roles;
 use App\Http\Controller;
 use App\Http\Requests\Roles\AssignPermissionRequest;
 use App\Http\Response\ApiResponse;
-use App\Models\User;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleInput;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleInput;
@@ -21,11 +20,11 @@ use Illuminate\Http\Request;
 class RolePermissionController extends Controller
 {
     /**
-     * POST /roles/{public_id}/permissions — Assign a permission to a role.
+     * POST /roles/{uuid}/permissions — Assign a permission to a role.
      */
     public function store(
         AssignPermissionRequest $request,
-        string $public_id,
+        string $uuid,
         AssignPermissionToRoleUseCase $useCase,
     ): JsonResponse {
         $this->authorize('manage.permissions');
@@ -38,8 +37,8 @@ class RolePermissionController extends Controller
                 actorUserId: $actor->id,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
                 actorCanManagePermissions: $actor->hasRole('owner') || $actor->hasPermissionTo('manage.permissions'),
-                rolePublicId: $public_id,
-                permissionPublicId: $request->validated('permission_public_id'),
+                roleUuid: $uuid,
+                permissionUuid: $request->validated('permission_uuid'),
             ));
 
             return ApiResponse::success(null, 'Permission assigned to role');
@@ -53,12 +52,12 @@ class RolePermissionController extends Controller
     }
 
     /**
-     * DELETE /roles/{public_id}/permissions/{permission_public_id} — Revoke a permission from a role.
+     * DELETE /roles/{uuid}/permissions/{permission_uuid} — Revoke a permission from a role.
      */
     public function destroy(
         Request $request,
-        string $public_id,
-        string $permission_public_id,
+        string $uuid,
+        string $permission_uuid,
         RevokePermissionFromRoleUseCase $useCase,
     ): JsonResponse {
         $this->authorize('manage.permissions');
@@ -71,8 +70,8 @@ class RolePermissionController extends Controller
                 actorUserId: $actor->id,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
                 actorCanManagePermissions: $actor->hasRole('owner') || $actor->hasPermissionTo('manage.permissions'),
-                rolePublicId: $public_id,
-                permissionPublicId: $permission_public_id,
+                roleUuid: $uuid,
+                permissionUuid: $permission_uuid,
             ));
 
             return ApiResponse::success(null, 'Permission revoked from role');

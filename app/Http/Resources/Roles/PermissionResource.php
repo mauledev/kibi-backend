@@ -20,7 +20,7 @@ class PermissionResource extends JsonResource
         $permission = $this->resource;
 
         return [
-            'id' => $permission->getPublicId(),
+            'uuid' => $permission->getUuid(),
             'name' => $permission->getName(),
             'slug' => $permission->getSlug(),
             'created_at' => $permission->getCreatedAt()->format('c'),

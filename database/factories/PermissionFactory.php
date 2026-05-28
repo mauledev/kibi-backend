@@ -21,7 +21,7 @@ class PermissionFactory extends Factory
         $model = fake()->randomElement(['grade', 'payment', 'role', 'user', 'report', 'schedule']);
 
         return [
-            'public_id' => (string) Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'category_id' => PermissionCategory::factory(),
             'name' => ucfirst($model).' '.ucfirst($verb),
             'slug' => $model.'.'.$verb,

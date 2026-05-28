@@ -24,7 +24,7 @@ class UpdateRoleUseCase
      */
     public function execute(UpdateRoleInput $input): Role
     {
-        $role = $this->roles->findByPublicId($input->publicId);
+        $role = $this->roles->findByUuid($input->uuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
@@ -57,7 +57,7 @@ class UpdateRoleUseCase
     {
         return [
             'id' => $role->getId(),
-            'public_id' => $role->getPublicId(),
+            'uuid' => $role->getUuid(),
             'name' => $role->getName(),
             'hierarchy_level' => $role->getHierarchyLevel(),
         ];

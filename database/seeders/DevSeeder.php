@@ -17,8 +17,13 @@ class DevSeeder extends Seeder
         // Login: POST /api/staff/auth/login
         // -------------------------------------------------------
         $staffAccounts = [
-            ['full_name' => 'Tadeo AC',      'email' => 'tadeo@softlinkia.com'],
-            ['full_name' => 'Dev 2',          'email' => 'dev2@softlinkia.com'],
+            ['full_name' => 'Fernando Brayan', 'email' => 'fernando.bryan.m.g@gmail.com'],
+            ['full_name' => 'Tadeo Andrade', 'email' => 'andradet.dev@gmail.com'],
+            ['full_name' => 'Mauricio Ledesma', 'email' => 'mauledc@gmail.com'],
+            ['full_name' => 'Damian Palomo', 'email' => 'pedrodamian411@gmail.com'],
+            ['full_name' => 'Jesus Soto', 'email' => 'soto.tovar.jesus@gmail.com'],
+            ['full_name' => 'Fernando Manuel', 'email' => 'fernandomanuel640@gmail.com'],
+            ['full_name' => 'Erick ', 'email' => 'eriktrabajo24@gmail.com'],
         ];
 
         foreach ($staffAccounts as $account) {

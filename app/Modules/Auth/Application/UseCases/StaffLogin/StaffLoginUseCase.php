@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Application\UseCases\StaffLogin;
 
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
@@ -19,6 +20,7 @@ class StaffLoginUseCase
         private readonly UserRepositoryInterface $userRepository,
         private readonly TokenServiceInterface $tokens,
         private readonly RoleRepositoryInterface $roles,
+        private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**
@@ -44,8 +46,10 @@ class StaffLoginUseCase
 
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
+        $this->audit->log(action: 'auth.login', userId: $user->getId());
+
         return new LoginOutput(
-            publicId: $user->getPublicId(),
+            uuid: $user->getUuid(),
             email: $user->getEmail(),
             fullName: $user->getFullName(),
             isStaff: true,

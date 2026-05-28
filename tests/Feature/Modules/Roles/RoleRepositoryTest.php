@@ -46,25 +46,25 @@ describe('EloquentRoleRepository', function () {
             expect($slugs)->not->toContain('director_b');
         });
 
-        it('findByPublicId returns null when role belongs to a different tenant', function () {
+        it('findByUuid returns null when role belongs to a different tenant', function () {
             bindTenantContext($this->tenantA);
 
             $roleB = RoleModel::factory()->forTenant($this->tenantB)->atLevel(5)->create(['slug' => 'other_role']);
 
-            $result = makeRepo()->findByPublicId($roleB->public_id);
+            $result = makeRepo()->findByUuid($roleB->uuid);
 
             expect($result)->toBeNull();
         });
 
-        it('findByPublicId returns role when it belongs to current tenant', function () {
+        it('findByUuid returns role when it belongs to current tenant', function () {
             bindTenantContext($this->tenantA);
 
             $roleA = RoleModel::factory()->forTenant($this->tenantA)->atLevel(4)->create(['name' => 'Director', 'slug' => 'director']);
 
-            $result = makeRepo()->findByPublicId($roleA->public_id);
+            $result = makeRepo()->findByUuid($roleA->uuid);
 
             expect($result)->not->toBeNull();
-            expect($result->getPublicId())->toBe($roleA->public_id);
+            expect($result->getUuid())->toBe($roleA->uuid);
         });
 
         it('create persists a role and returns it', function () {
@@ -91,19 +91,19 @@ describe('EloquentRoleRepository', function () {
 
             $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(4)->create(['slug' => 'to_delete']);
 
-            $result = makeRepo()->delete($role->public_id);
+            $result = makeRepo()->delete($role->uuid);
 
             expect($result)->toBeTrue();
             $this->assertSoftDeleted('roles', ['id' => $role->id]);
         });
 
-        it('findByPublicId returns soft-deleted role via withTrashed', function () {
+        it('findByUuid returns soft-deleted role via withTrashed', function () {
             bindTenantContext($this->tenantA);
 
             $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(4)->create(['slug' => 'deleted_role']);
             $role->delete();
 
-            $found = makeRepo()->findByPublicId($role->public_id);
+            $found = makeRepo()->findByUuid($role->uuid);
 
             expect($found)->not->toBeNull();
             expect($found->isDeleted())->toBeTrue();

@@ -21,7 +21,7 @@ class RegisterRequest extends FormRequest
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'name' => 'required|string|min:3|max:255',
-            'school_id' => 'required|string|exists:schools,id',
+            'school_uuid' => 'required|string|uuid|exists:schools,uuid',
             'role' => 'required|in:director,teacher,parent,student',
         ];
     }
@@ -36,8 +36,8 @@ class RegisterRequest extends FormRequest
             'password.min' => 'La contraseña debe tener al menos 8 caracteres',
             'password.confirmed' => 'Las contraseñas no coinciden',
             'name.required' => 'El nombre es requerido',
-            'school_id.required' => 'La escuela es requerida',
-            'school_id.exists' => 'La escuela seleccionada no existe',
+            'school_uuid.required' => 'La escuela es requerida',
+            'school_uuid.exists' => 'La escuela seleccionada no existe',
             'role.required' => 'El rol es requerido',
             'role.in' => 'El rol seleccionado es inválido',
         ];

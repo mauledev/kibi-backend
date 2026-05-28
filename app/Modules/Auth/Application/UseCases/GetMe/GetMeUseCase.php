@@ -31,7 +31,7 @@ class GetMeUseCase
         $roles = $this->roles->findActiveRolesForUser($userId);
 
         return new MeOutput(
-            publicId: $user->getPublicId(),
+            uuid: $user->getUuid(),
             email: $user->getEmail(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),

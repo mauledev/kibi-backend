@@ -141,7 +141,7 @@ describe('RoleController', function () {
                 ]);
 
             $response->assertStatus(201)
-                ->assertJsonStructure(['success', 'data' => ['id', 'name', 'slug', 'hierarchy_level']]);
+                ->assertJsonStructure(['success', 'data' => ['uuid', 'name', 'slug', 'hierarchy_level']]);
 
             expect($response->json('data.slug'))->toBe('new_director');
         });
@@ -198,7 +198,7 @@ describe('RoleController', function () {
             ]);
         });
 
-        it('response uses public_id not internal id', function () {
+        it('response uses uuid not internal id', function () {
             $user = User::factory()->for($this->tenant)->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_pubid']);
             assignRole($user, $actorRole);
@@ -208,13 +208,13 @@ describe('RoleController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
                     'name' => 'Public Id Role',
-                    'slug' => 'public_id_role',
+                    'slug' => 'uuid_role',
                     'hierarchy_level' => 5,
                 ]);
 
             $response->assertStatus(201);
 
-            $id = $response->json('data.id');
+            $id = $response->json('data.uuid');
 
             // Must be a UUID, not an integer
             expect($id)->toBeString();
@@ -222,7 +222,7 @@ describe('RoleController', function () {
         });
     });
 
-    describe('GET /api/roles/{public_id}', function () {
+    describe('GET /api/roles/{uuid}', function () {
         it('returns 404 for non-existent role', function () {
             $user = User::factory()->for($this->tenant)->create();
             $role = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
@@ -243,13 +243,13 @@ describe('RoleController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/roles/{$targetRole->public_id}")
+                ->getJson("/api/roles/{$targetRole->uuid}")
                 ->assertStatus(200)
-                ->assertJsonStructure(['data' => ['id', 'name', 'slug', 'hierarchy_level', 'permissions']]);
+                ->assertJsonStructure(['data' => ['uuid', 'name', 'slug', 'hierarchy_level', 'permissions']]);
         });
     });
 
-    describe('PUT /api/roles/{public_id}', function () {
+    describe('PUT /api/roles/{uuid}', function () {
         it('updates role name and writes audit log', function () {
             $user = User::factory()->for($this->tenant)->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_update']);
@@ -260,7 +260,7 @@ describe('RoleController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/roles/{$targetRole->public_id}", ['name' => 'New Name']);
+                ->putJson("/api/roles/{$targetRole->uuid}", ['name' => 'New Name']);
 
             $response->assertStatus(200);
             expect($response->json('data.name'))->toBe('New Name');
@@ -281,12 +281,12 @@ describe('RoleController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/roles/{$targetRole->public_id}", ['name' => 'Blocked'])
+                ->putJson("/api/roles/{$targetRole->uuid}", ['name' => 'Blocked'])
                 ->assertStatus(403);
         });
     });
 
-    describe('DELETE /api/roles/{public_id}', function () {
+    describe('DELETE /api/roles/{uuid}', function () {
         it('soft-deletes role and writes audit log', function () {
             $user = User::factory()->for($this->tenant)->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_delete']);
@@ -297,7 +297,7 @@ describe('RoleController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$targetRole->public_id}")
+                ->deleteJson("/api/roles/{$targetRole->uuid}")
                 ->assertStatus(200);
 
             $this->assertSoftDeleted('roles', ['id' => $targetRole->id]);
@@ -317,7 +317,7 @@ describe('RoleController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$systemRole->public_id}")
+                ->deleteJson("/api/roles/{$systemRole->uuid}")
                 ->assertStatus(403);
         });
     });

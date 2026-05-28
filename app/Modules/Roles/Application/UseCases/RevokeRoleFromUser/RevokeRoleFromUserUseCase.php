@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\RevokeRoleFromUser;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
+use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
@@ -13,8 +18,10 @@ use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 class RevokeRoleFromUserUseCase
 {
     public function __construct(
+        private readonly UserRepositoryInterface $users,
         private readonly RoleRepositoryInterface $roles,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
+        private readonly SchoolRepositoryInterface $schools,
         private readonly AuditLoggerInterface $audit,
     ) {}
 
@@ -22,13 +29,22 @@ class RevokeRoleFromUserUseCase
      * Revoke an active role assignment from a user.
      * The actor must have a strictly lower hierarchy_level than the target role.
      *
+     * @throws UserNotFoundException
      * @throws RoleNotFoundException
      * @throws HierarchyViolationException
      * @throws AssignmentNotFoundException
      */
     public function execute(RevokeRoleFromUserInput $input): UserRoleAssignment
     {
-        $role = $this->roles->findByPublicId($input->rolePublicId);
+        $actor = $this->users->findByUuid($input->actorUuid);
+
+        $targetUser = $this->users->findByUuid($input->targetUserUuid);
+
+        if ($targetUser === null) {
+            throw new UserNotFoundException;
+        }
+
+        $role = $this->roles->findByUuid($input->roleUuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
@@ -40,10 +56,14 @@ class RevokeRoleFromUserUseCase
             );
         }
 
+        $schoolId = $input->schoolUuid !== null
+            ? $this->schools->findIdByUuid($input->schoolUuid)
+            : null;
+
         $assignment = $this->assignments->findActiveByUserAndRole(
-            $input->targetUserId,
+            $targetUser->getId(),
             $role->getId(),
-            $input->schoolId,
+            $schoolId,
         );
 
         if ($assignment === null) {
@@ -54,13 +74,13 @@ class RevokeRoleFromUserUseCase
 
         $this->audit->log(
             action: 'role.revoke',
-            userId: $input->actorUserId,
+            userId: $actor?->getId(),
             entityId: $assignment->getId(),
             structBefore: [
-                'user_id' => $input->targetUserId,
+                'user_id' => $targetUser->getId(),
                 'role_id' => $role->getId(),
                 'role_slug' => $role->getSlug(),
-                'school_id' => $input->schoolId,
+                'school_id' => $schoolId,
             ],
         );
 

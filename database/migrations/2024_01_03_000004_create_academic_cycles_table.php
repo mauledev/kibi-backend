@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('academic_cycles', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('public_id')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
             $table->foreignId('school_id')->constrained('schools');
             $table->string('name', 100);
             $table->date('starts_at');

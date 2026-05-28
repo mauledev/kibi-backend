@@ -39,7 +39,7 @@ class AssignPermissionToRoleUseCase
             throw new AuthorizationException('Actor does not hold the manage.permissions permission.');
         }
 
-        $role = $this->roles->findByPublicId($input->rolePublicId);
+        $role = $this->roles->findByUuid($input->roleUuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
@@ -55,7 +55,7 @@ class AssignPermissionToRoleUseCase
             );
         }
 
-        $permission = $this->permissions->findByPublicId($input->permissionPublicId);
+        $permission = $this->permissions->findByUuid($input->permissionUuid);
 
         if ($permission === null) {
             throw new PermissionNotFoundException;

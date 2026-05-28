@@ -18,7 +18,7 @@ class RoleFactory extends Factory
     public function definition(): array
     {
         return [
-            'public_id' => (string) Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'tenant_id' => Tenant::factory(),
             'name' => fake()->jobTitle(),
             'slug' => fake()->unique()->slug(1),

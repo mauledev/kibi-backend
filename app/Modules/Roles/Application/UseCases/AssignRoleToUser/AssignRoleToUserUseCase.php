@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\AssignRoleToUser;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
+use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -12,8 +17,10 @@ use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 class AssignRoleToUserUseCase
 {
     public function __construct(
+        private readonly UserRepositoryInterface $users,
         private readonly RoleRepositoryInterface $roles,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
+        private readonly SchoolRepositoryInterface $schools,
         private readonly AuditLoggerInterface $audit,
     ) {}
 
@@ -22,12 +29,21 @@ class AssignRoleToUserUseCase
      * The actor can only assign roles with a hierarchy_level strictly greater than their own.
      * If the user already holds an active assignment for this role, a new one is NOT created.
      *
+     * @throws UserNotFoundException
      * @throws RoleNotFoundException
      * @throws HierarchyViolationException
      */
     public function execute(AssignRoleToUserInput $input): UserRoleAssignment
     {
-        $role = $this->roles->findByPublicId($input->rolePublicId);
+        $actor = $this->users->findByUuid($input->actorUuid);
+
+        $targetUser = $this->users->findByUuid($input->targetUserUuid);
+
+        if ($targetUser === null) {
+            throw new UserNotFoundException;
+        }
+
+        $role = $this->roles->findByUuid($input->roleUuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
@@ -39,11 +55,14 @@ class AssignRoleToUserUseCase
             );
         }
 
-        // Idempotency: return existing active assignment if present
+        $schoolId = $input->schoolUuid !== null
+            ? $this->schools->findIdByUuid($input->schoolUuid)
+            : null;
+
         $existing = $this->assignments->findActiveByUserAndRole(
-            $input->targetUserId,
+            $targetUser->getId(),
             $role->getId(),
-            $input->schoolId,
+            $schoolId,
         );
 
         if ($existing !== null) {
@@ -51,21 +70,21 @@ class AssignRoleToUserUseCase
         }
 
         $assignment = $this->assignments->create(
-            userId: $input->targetUserId,
+            userId: $targetUser->getId(),
             roleId: $role->getId(),
-            schoolId: $input->schoolId,
-            assignedBy: $input->actorUserId,
+            schoolId: $schoolId,
+            assignedBy: $actor?->getId(),
         );
 
         $this->audit->log(
             action: 'role.assign',
-            userId: $input->actorUserId,
+            userId: $actor?->getId(),
             entityId: $assignment->getId(),
             structAfter: [
-                'user_id' => $input->targetUserId,
+                'user_id' => $targetUser->getId(),
                 'role_id' => $role->getId(),
                 'role_slug' => $role->getSlug(),
-                'school_id' => $input->schoolId,
+                'school_id' => $schoolId,
             ],
         );
 

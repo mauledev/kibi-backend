@@ -15,7 +15,7 @@ class AssignPermissionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'permission_public_id' => ['required', 'string', 'uuid'],
+            'permission_uuid' => ['required', 'string', 'uuid'],
         ];
     }
 }

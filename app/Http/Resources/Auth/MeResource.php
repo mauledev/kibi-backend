@@ -20,12 +20,12 @@ class MeResource extends JsonResource
         $output = $this->resource;
 
         return [
-            'id' => $output->publicId,
+            'id' => $output->uuid,
             'email' => $output->email,
             'full_name' => $output->fullName,
             'is_staff' => $output->isStaff,
             'roles' => array_map(fn (Role $role) => [
-                'id' => $role->getPublicId(),
+                'uuid' => $role->getUuid(),
                 'name' => $role->getName(),
                 'slug' => $role->getSlug(),
                 'hierarchy_level' => $role->getHierarchyLevel(),

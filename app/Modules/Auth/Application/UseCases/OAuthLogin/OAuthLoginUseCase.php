@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Application\UseCases\OAuthLogin;
 
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
 use App\Modules\Auth\Application\DTOs\OAuthLoginInput;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
@@ -20,6 +21,7 @@ class OAuthLoginUseCase
         private readonly UserRepositoryInterface $userRepository,
         private readonly TokenServiceInterface $tokens,
         private readonly RoleRepositoryInterface $roles,
+        private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**
@@ -51,7 +53,7 @@ class OAuthLoginUseCase
 
             $newUser = new User(
                 id: 0,
-                publicId: '',
+                uuid: '',
                 tenantId: $input->tenantId,
                 email: $oauthData->email,
                 fullName: $oauthData->name,
@@ -66,8 +68,14 @@ class OAuthLoginUseCase
 
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
+        $this->audit->log(
+            action: 'auth.oauth_login',
+            userId: $user->getId(),
+            structAfter: ['provider' => $input->provider],
+        );
+
         return new LoginOutput(
-            publicId: $user->getPublicId(),
+            uuid: $user->getUuid(),
             email: $user->getEmail(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),

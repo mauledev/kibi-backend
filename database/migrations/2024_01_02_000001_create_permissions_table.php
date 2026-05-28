@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('permissions', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('public_id')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
             $table->foreignId('category_id')->constrained('permission_categories');
             $table->string('name', 100)->notNull();
             $table->string('slug', 100)->unique()->notNull();

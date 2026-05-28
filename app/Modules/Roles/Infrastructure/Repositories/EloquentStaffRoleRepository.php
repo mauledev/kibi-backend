@@ -21,11 +21,11 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function findByPublicId(string $publicId): ?Role
+    public function findByUuid(string $uuid): ?Role
     {
         $model = RoleModel::with('permissions')
             ->where('is_system_role', true)
-            ->where('public_id', $publicId)
+            ->where('uuid', $uuid)
             ->withTrashed()
             ->first();
 
@@ -87,10 +87,10 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function delete(string $publicId): bool
+    public function delete(string $uuid): bool
     {
         return RoleModel::where('is_system_role', true)
-            ->where('public_id', $publicId)
+            ->where('uuid', $uuid)
             ->delete() > 0;
     }
 
@@ -132,7 +132,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
             ? $model->permissions->map(function (\App\Models\Permission $p): Permission {
                 return new Permission(
                     id: $p->id,
-                    publicId: $p->public_id,
+                    uuid: $p->uuid,
                     categoryId: $p->category_id,
                     name: $p->name,
                     slug: $p->slug,
@@ -143,7 +143,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
 
         return new Role(
             id: $model->id,
-            publicId: $model->public_id,
+            uuid: $model->uuid,
             tenantId: $model->tenant_id,
             name: $model->name,
             slug: $model->slug,

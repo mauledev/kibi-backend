@@ -9,6 +9,9 @@ interface UserRepositoryInterface
     /** Find a user by their internal ID within the current scope. */
     public function findById(int $id): ?User;
 
+    /** Find a user by their public UUID within the current scope. */
+    public function findByUuid(string $uuid): ?User;
+
     /** Find a user by email within the current scope. */
     public function findByEmail(string $email): ?User;
 

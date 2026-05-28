@@ -9,6 +9,16 @@ use App\Modules\Auth\Domain\Entities\User;
 class EloquentStaffUserRepository implements UserRepositoryInterface
 {
     /** {@inheritDoc} */
+    public function findByUuid(string $uuid): ?User
+    {
+        $model = UserModel::whereNull('tenant_id')
+            ->where('uuid', $uuid)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function findByEmail(string $email): ?User
     {
         $model = UserModel::whereNull('tenant_id')
@@ -88,7 +98,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     {
         return new User(
             id: $model->id,
-            publicId: $model->public_id,
+            uuid: $model->uuid,
             tenantId: null,
             email: $model->email,
             fullName: $model->full_name,

@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('groups', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('public_id')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
             $table->foreignId('grade_id')->constrained('grades');
             $table->string('name', 50);
             $table->timestampsTz();

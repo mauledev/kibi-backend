@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * PermissionCategory Eloquent Model — Infrastructure only.
  *
  * @property int $id
- * @property string $public_id
+ * @property string $uuid
  * @property int|null $school_id
  * @property string $name
  */
@@ -23,7 +23,7 @@ class PermissionCategory extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'public_id',
+        'uuid',
         'school_id',
         'name',
     ];

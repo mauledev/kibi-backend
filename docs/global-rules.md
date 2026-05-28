@@ -17,7 +17,7 @@ Rules that apply to all code, without exception. Regardless of the task — thes
 | Database columns | `snake_case` |
 | Permission slugs | `{model}.{verb}` — `grade.publish`, `payment.approve` |
 | Role slugs | `snake_case` — `gestor_escuelas`, `control_escolar` |
-| Public IDs in routes | `{public_id}` — never `{id}` |
+| Public IDs in routes | `{uuid}` — never `{id}` |
 
 ## Docblocks
 
@@ -48,7 +48,8 @@ Always use `ApiResponse` for JSON responses. Never use `response()->json()` dire
 
 - Every repository method that queries tenant-owned data must scope by `tenant_id` as the **first** filter — a query without this scope is a bug, not a shortcut
 - `TenantContext` is injected into repositories via constructor — never resolve the tenant from inside a UseCase or Repository directly
-- Never expose `id` (BIGSERIAL) in any response or route — always use `public_id` (UUID)
+- Never expose `id` (BIGSERIAL) in any response or route — always use `uuid` (UUID)
+- **Read vs write scoping rule**: read methods (`find*`) use `WHERE tenant_id = X OR tenant_id IS NULL` to include system roles that can be assigned to tenant users. Mutation methods (`update`, `attachPermission`, `detachPermission`) use `WHERE tenant_id = X` only — a tenant must never be able to modify a system role (`tenant_id IS NULL`).
 
 ## Roles and permissions
 

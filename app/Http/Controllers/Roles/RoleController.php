@@ -7,7 +7,6 @@ use App\Http\Requests\Roles\CreateRoleRequest;
 use App\Http\Requests\Roles\UpdateRoleRequest;
 use App\Http\Resources\Roles\RoleResource;
 use App\Http\Response\ApiResponse;
-use App\Models\User;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleInput;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleUseCase;
 use App\Modules\Roles\Application\UseCases\DeleteRole\DeleteRoleInput;
@@ -65,14 +64,14 @@ class RoleController extends Controller
     }
 
     /**
-     * GET /roles/{public_id} — Get a single role with its permissions.
+     * GET /roles/{uuid} — Get a single role with its permissions.
      */
-    public function show(Request $request, string $public_id, GetRoleUseCase $useCase): JsonResponse
+    public function show(Request $request, string $uuid, GetRoleUseCase $useCase): JsonResponse
     {
         $this->authorize('role.view');
 
         try {
-            $role = $useCase->execute(new GetRoleInput($public_id));
+            $role = $useCase->execute(new GetRoleInput($uuid));
 
             return ApiResponse::success((new RoleResource($role))->resolve());
         } catch (RoleNotFoundException $e) {
@@ -81,9 +80,9 @@ class RoleController extends Controller
     }
 
     /**
-     * PUT /roles/{public_id} — Update a role's name.
+     * PUT /roles/{uuid} — Update a role's name.
      */
-    public function update(UpdateRoleRequest $request, string $public_id, UpdateRoleUseCase $useCase): JsonResponse
+    public function update(UpdateRoleRequest $request, string $uuid, UpdateRoleUseCase $useCase): JsonResponse
     {
         $this->authorize('manage.permissions');
 
@@ -94,7 +93,7 @@ class RoleController extends Controller
             $role = $useCase->execute(new UpdateRoleInput(
                 actorUserId: $actor->id,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                publicId: $public_id,
+                uuid: $uuid,
                 name: $request->validated('name'),
             ));
 
@@ -107,9 +106,9 @@ class RoleController extends Controller
     }
 
     /**
-     * DELETE /roles/{public_id} — Soft-delete a role.
+     * DELETE /roles/{uuid} — Soft-delete a role.
      */
-    public function destroy(Request $request, string $public_id, DeleteRoleUseCase $useCase): JsonResponse
+    public function destroy(Request $request, string $uuid, DeleteRoleUseCase $useCase): JsonResponse
     {
         $this->authorize('manage.permissions');
 
@@ -120,7 +119,7 @@ class RoleController extends Controller
             $useCase->execute(new DeleteRoleInput(
                 actorUserId: $actor->id,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                publicId: $public_id,
+                uuid: $uuid,
             ));
 
             return ApiResponse::success(null, 'Role deleted successfully');

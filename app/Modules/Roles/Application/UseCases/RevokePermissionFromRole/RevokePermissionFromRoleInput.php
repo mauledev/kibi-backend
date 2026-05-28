@@ -8,7 +8,7 @@ class RevokePermissionFromRoleInput
         public readonly int $actorUserId,
         public readonly int $actorHierarchyLevel,
         public readonly bool $actorCanManagePermissions,
-        public readonly string $rolePublicId,
-        public readonly string $permissionPublicId,
+        public readonly string $roleUuid,
+        public readonly string $permissionUuid,
     ) {}
 }

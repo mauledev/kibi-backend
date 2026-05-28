@@ -19,7 +19,7 @@ class TenantFactory extends Factory
         $name = fake()->company();
 
         return [
-            'public_id' => (string) Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'name' => $name,
             'slug' => fake()->unique()->slug(2),
             'legal_name' => $name.' S.A. de C.V.',
