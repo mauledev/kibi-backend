@@ -39,7 +39,7 @@ class AuthController extends Controller
                 password: $request->validated('password'),
             ));
 
-            return ApiResponse::success(new LoginResource($output), 'Login exitoso');
+            return ApiResponse::success(new LoginResource($output), 'Login successful');
 
         } catch (InvalidCredentialsException $e) {
             return ApiResponse::unauthorized($e->getMessage());
@@ -58,7 +58,7 @@ class AuthController extends Controller
                 password: $request->validated('password'),
             ));
 
-            return ApiResponse::success(new LoginResource($output), 'Login exitoso');
+            return ApiResponse::success(new LoginResource($output), 'Login successful');
 
         } catch (InvalidCredentialsException $e) {
             return ApiResponse::unauthorized($e->getMessage());
@@ -81,7 +81,7 @@ class AuthController extends Controller
                 tenantId: $context->tenantId,
             ));
 
-            return ApiResponse::success(new LoginResource($output), 'Login exitoso');
+            return ApiResponse::success(new LoginResource($output), 'Login successful');
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 503);
         }
@@ -117,6 +117,6 @@ class AuthController extends Controller
 
         $this->logoutUseCase->execute($tokenId);
 
-        return ApiResponse::success(null, 'Sesión cerrada');
+        return ApiResponse::success(null, 'Logged out successfully');
     }
 }

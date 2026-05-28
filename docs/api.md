@@ -176,6 +176,14 @@ Authentication endpoints (login, logout) sit outside both groups — no `auth:sa
 
 ---
 
+## Postman collection
+
+The project ships a Postman collection (`kibi-api.postman_collection.json`) that is **not versioned** (excluded via `.gitignore`). It must be kept in sync manually.
+
+**Rule:** every time an endpoint is created, removed, or has its path, method, body, or response shape changed, update the Postman collection to reflect those changes before closing the task.
+
+---
+
 ## Endpoints
 
 ### Auth

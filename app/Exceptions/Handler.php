@@ -61,7 +61,7 @@ class Handler extends ExceptionHandler
         $this->renderable(function (ValidationException $e, $request) {
             if ($request->expectsJson()) {
                 return ApiResponse::error(
-                    'Validación fallida',
+                    'Validation failed',
                     422,
                     $e->errors()
                 );
@@ -71,21 +71,21 @@ class Handler extends ExceptionHandler
         // Model not found
         $this->renderable(function (ModelNotFoundException $e, $request) {
             if ($request->expectsJson()) {
-                return ApiResponse::notFound('Recurso no encontrado');
+                return ApiResponse::notFound('Resource not found');
             }
         });
 
         // Authentication
         $this->renderable(function (AuthenticationException $e, $request) {
             if ($request->expectsJson()) {
-                return ApiResponse::unauthorized('No autenticado');
+                return ApiResponse::unauthorized('Unauthenticated');
             }
         });
 
         // Authorization
         $this->renderable(function (AuthorizationException $e, $request) {
             if ($request->expectsJson()) {
-                return ApiResponse::forbidden('Acceso denegado');
+                return ApiResponse::forbidden('Access denied');
             }
         });
     }

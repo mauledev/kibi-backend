@@ -44,6 +44,8 @@ Or both together: `composer quality`.
 
 Always use `ApiResponse` for JSON responses. Never use `response()->json()` directly.
 
+All response messages (success, error, exception defaults) must be written in **English** — no exceptions. This includes string literals in controllers, exception constructors, and the `Handler`.
+
 ## Multi-tenancy
 
 - Every repository method that queries tenant-owned data must scope by `tenant_id` as the **first** filter — a query without this scope is a bug, not a shortcut
