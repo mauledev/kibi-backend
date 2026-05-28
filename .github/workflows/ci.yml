@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  quality:
+    name: Lint, type-check, test & build
     runs-on: ubuntu-latest
 
     services:
