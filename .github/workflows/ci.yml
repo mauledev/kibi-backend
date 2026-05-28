@@ -55,6 +55,9 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
+      - name: Prepare Laravel cache directory
+        run: mkdir -p bootstrap/cache
+
       - name: Format check (Pint)
         run: composer format:test
 
