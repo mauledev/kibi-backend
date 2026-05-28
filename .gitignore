@@ -149,6 +149,14 @@ logs/
 database.sqlite
 
 # ================================================================
+# API TOOLING
+# ================================================================
+
+# Postman collections (local, not versioned — update manually per endpoint change)
+*.postman_collection.json
+*.postman_environment.json
+
+# ================================================================
 # MISC
 # ================================================================
 

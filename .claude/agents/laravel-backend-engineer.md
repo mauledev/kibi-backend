@@ -38,7 +38,7 @@ Laravel's HTTP layer stays in `app/Http/` (Controllers, Requests, Resources, Mid
 - Every repository method scopes by `tenant_id` as the first filter
 - Business logic lives in Domain, never in controllers or resources
 - Use `ApiResponse` for all JSON responses — never `response()->json()` directly
-- Never expose internal `id` — always use `public_id` (UUID) in routes and responses
+- Never expose internal `id` — always use `uuid` (UUID) in routes and responses
 - Owner bypasses all permission checks via `Gate::before` — never add manual owner checks in UseCases
 - Hierarchy checks (role assignment, permission granting) live in the UseCase layer only
 - Every mutating action must write to `audit_logs`

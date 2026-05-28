@@ -23,9 +23,9 @@ class EloquentPermissionRepository implements PermissionRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function findByPublicId(string $publicId): ?Permission
+    public function findByUuid(string $uuid): ?Permission
     {
-        $model = PermissionModel::where('public_id', $publicId)->first();
+        $model = PermissionModel::where('uuid', $uuid)->first();
 
         return $model ? $this->toDomain($model) : null;
     }
@@ -66,7 +66,7 @@ class EloquentPermissionRepository implements PermissionRepositoryInterface
     {
         return new Permission(
             id: $model->id,
-            publicId: $model->public_id,
+            uuid: $model->uuid,
             categoryId: $model->category_id,
             name: $model->name,
             slug: $model->slug,

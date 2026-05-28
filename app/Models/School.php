@@ -11,7 +11,7 @@ class School extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'public_id',
+        'uuid',
         'tenant_id',
         'name',
         'slug',

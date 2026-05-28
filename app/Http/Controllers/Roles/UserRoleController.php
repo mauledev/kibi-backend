@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
 use App\Http\Requests\Roles\AssignRoleToUserRequest;
+use App\Http\Requests\Roles\RevokeRoleFromUserRequest;
 use App\Http\Resources\Roles\UserRoleAssignmentResource;
 use App\Http\Response\ApiResponse;
-use App\Models\User;
-use App\Models\User as UserModel;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserInput;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserInput;
@@ -16,41 +18,33 @@ use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class UserRoleController extends Controller
 {
     /**
-     * POST /users/{public_id}/roles — Assign a role to a user.
+     * POST /users/{uuid}/roles — Assign a role to a user.
      */
     public function store(
         AssignRoleToUserRequest $request,
-        string $public_id,
+        string $uuid,
         AssignRoleToUserUseCase $useCase,
     ): JsonResponse {
         $this->authorize('role.assign');
 
-        $targetUser = UserModel::where('public_id', $public_id)->first();
-
-        if ($targetUser === null) {
-            return ApiResponse::notFound('User not found');
-        }
-
-        /** @var User $actor */
         $actor = $request->user();
 
         try {
             $assignment = $useCase->execute(new AssignRoleToUserInput(
-                actorUserId: $actor->id,
+                actorUuid: $actor->uuid,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                targetUserId: $targetUser->id,
-                rolePublicId: $request->validated('role_public_id'),
-                schoolId: $request->validated('school_id') !== null
-                    ? (int) $request->validated('school_id')
-                    : null,
+                targetUserUuid: $uuid,
+                roleUuid: $request->validated('role_uuid'),
+                schoolUuid: $request->validated('school_uuid'),
             ));
 
-            return ApiResponse::created((new UserRoleAssignmentResource($assignment))->resolve());
+            return ApiResponse::created(new UserRoleAssignmentResource($assignment));
+        } catch (UserNotFoundException) {
+            return ApiResponse::notFound('User not found');
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         } catch (HierarchyViolationException $e) {
@@ -59,38 +53,33 @@ class UserRoleController extends Controller
     }
 
     /**
-     * DELETE /users/{public_id}/roles/{role_public_id} — Revoke a role from a user.
+     * DELETE /users/{uuid}/roles/{role_uuid} — Revoke a role from a user.
      */
     public function destroy(
-        Request $request,
-        string $public_id,
-        string $role_public_id,
+        RevokeRoleFromUserRequest $request,
+        string $uuid,
+        string $role_uuid,
         RevokeRoleFromUserUseCase $useCase,
     ): JsonResponse {
         $this->authorize('role.revoke');
 
-        $targetUser = UserModel::where('public_id', $public_id)->first();
-
-        if ($targetUser === null) {
-            return ApiResponse::notFound('User not found');
-        }
-
-        /** @var User $actor */
         $actor = $request->user();
 
         try {
             $assignment = $useCase->execute(new RevokeRoleFromUserInput(
-                actorUserId: $actor->id,
+                actorUuid: $actor->uuid,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                targetUserId: $targetUser->id,
-                rolePublicId: $role_public_id,
-                schoolId: null,
+                targetUserUuid: $uuid,
+                roleUuid: $role_uuid,
+                schoolUuid: $request->validated('school_uuid'),
             ));
 
             return ApiResponse::success(
-                (new UserRoleAssignmentResource($assignment))->resolve(),
+                new UserRoleAssignmentResource($assignment),
                 'Role revoked from user'
             );
+        } catch (UserNotFoundException) {
+            return ApiResponse::notFound('User not found');
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         } catch (HierarchyViolationException $e) {

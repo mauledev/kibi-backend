@@ -14,6 +14,16 @@ class EloquentUserRepository implements UserRepositoryInterface
     ) {}
 
     /** {@inheritDoc} */
+    public function findByUuid(string $uuid): ?User
+    {
+        $model = UserModel::where('tenant_id', $this->context->tenantId)
+            ->where('uuid', $uuid)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function findByEmail(string $email): ?User
     {
         $model = UserModel::where('tenant_id', $this->context->tenantId)
@@ -95,7 +105,7 @@ class EloquentUserRepository implements UserRepositoryInterface
     {
         return new User(
             id: $model->id,
-            publicId: $model->public_id,
+            uuid: $model->uuid,
             tenantId: $model->tenant_id,
             email: $model->email,
             fullName: $model->full_name,

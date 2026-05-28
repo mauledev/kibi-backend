@@ -144,7 +144,7 @@ it('returns 200 with user data on valid login', function () {
 });
 ```
 
-Never assert internal IDs — assert `public_id` fields only.
+Never assert internal IDs — assert `uuid` fields only.
 
 ---
 

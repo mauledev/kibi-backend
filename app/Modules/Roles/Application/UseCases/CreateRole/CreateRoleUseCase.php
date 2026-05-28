@@ -51,7 +51,7 @@ class CreateRoleUseCase
     {
         return [
             'id' => $role->getId(),
-            'public_id' => $role->getPublicId(),
+            'uuid' => $role->getUuid(),
             'tenant_id' => $role->getTenantId(),
             'name' => $role->getName(),
             'slug' => $role->getSlug(),

@@ -8,7 +8,7 @@ class Permission
 {
     public function __construct(
         private readonly int $id,
-        private readonly string $publicId,
+        private readonly string $uuid,
         private readonly int $categoryId,
         private readonly string $name,
         private readonly string $slug,
@@ -20,9 +20,9 @@ class Permission
         return $this->id;
     }
 
-    public function getPublicId(): string
+    public function getUuid(): string
     {
-        return $this->publicId;
+        return $this->uuid;
     }
 
     public function getCategoryId(): int

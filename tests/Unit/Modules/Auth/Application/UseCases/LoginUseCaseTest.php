@@ -1,0 +1,188 @@
+<?php
+
+use Tests\TestCase;
+
+uses(TestCase::class);
+
+use App\Common\Audit\AuditLoggerInterface;
+use App\Modules\Auth\Application\DTOs\LoginInput;
+use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
+use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
+use App\Modules\Auth\Domain\Entities\User;
+use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
+use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
+use App\Modules\Roles\Domain\Entities\Permission;
+use App\Modules\Roles\Domain\Entities\Role;
+use Illuminate\Support\Facades\Hash;
+
+describe('LoginUseCase', function () {
+    beforeEach(function () {
+        $this->userRepo = Mockery::mock(UserRepositoryInterface::class);
+        $this->tokens = Mockery::mock(TokenServiceInterface::class);
+        $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
+        $this->audit = Mockery::mock(AuditLoggerInterface::class);
+        $this->useCase = new LoginUseCase(
+            $this->userRepo,
+            $this->tokens,
+            $this->roleRepo,
+            $this->audit,
+        );
+    });
+
+    afterEach(function () {
+        Mockery::close();
+    });
+
+    function loginMakeUser(array $overrides = []): User
+    {
+        return new User(
+            id: $overrides['id'] ?? 1,
+            uuid: $overrides['uuid'] ?? 'user-uuid',
+            tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
+            email: $overrides['email'] ?? 'user@test.com',
+            fullName: $overrides['fullName'] ?? 'Test User',
+            passwordHash: array_key_exists('passwordHash', $overrides) ? $overrides['passwordHash'] : Hash::make('secret'),
+            status: $overrides['status'] ?? 'active',
+        );
+    }
+
+    it('throws InvalidCredentialsException when user is not found', function () {
+        $this->userRepo->shouldReceive('findByEmail')
+            ->once()
+            ->with('unknown@test.com')
+            ->andReturn(null);
+
+        $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('throws InvalidCredentialsException when password does not match', function () {
+        $user = loginMakeUser(['passwordHash' => Hash::make('correct')]);
+
+        $this->userRepo->shouldReceive('findByEmail')
+            ->once()
+            ->andReturn($user);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'wrong');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('throws InvalidCredentialsException when user password hash is null', function () {
+        $user = loginMakeUser(['passwordHash' => null]);
+
+        $this->userRepo->shouldReceive('findByEmail')
+            ->once()
+            ->andReturn($user);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('throws InvalidCredentialsException when user is inactive', function () {
+        $user = loginMakeUser(['status' => 'inactive']);
+
+        $this->userRepo->shouldReceive('findByEmail')
+            ->once()
+            ->andReturn($user);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('returns LoginOutput with token on valid credentials', function () {
+        $user = loginMakeUser();
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
+        $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('plain-text-token');
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+        $output = $this->useCase->execute($input);
+
+        expect($output)->toBeInstanceOf(LoginOutput::class);
+        expect($output->token)->toBe('plain-text-token');
+        expect($output->email)->toBe('user@test.com');
+        expect($output->uuid)->toBe('user-uuid');
+        expect($output->isStaff)->toBeFalse();
+    });
+
+    it('includes merged permission slugs from all active roles in the output', function () {
+        $user = loginMakeUser();
+
+        $permA = new Permission(id: 1, uuid: 'perm-a', categoryId: 1, name: 'A', slug: 'grade.publish');
+        $permB = new Permission(id: 2, uuid: 'perm-b', categoryId: 1, name: 'B', slug: 'payment.approve');
+
+        $roleA = new Role(
+            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
+            hierarchyLevel: 4, isSystemRole: false, permissions: [$permA],
+            createdAt: new DateTimeImmutable,
+        );
+        $roleB = new Role(
+            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
+            hierarchyLevel: 5, isSystemRole: false, permissions: [$permB],
+            createdAt: new DateTimeImmutable,
+        );
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([$roleA, $roleB]);
+        $this->tokens->shouldReceive('generate')->once()->andReturn('token');
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+        $output = $this->useCase->execute($input);
+
+        expect($output->permissions)->toContain('grade.publish');
+        expect($output->permissions)->toContain('payment.approve');
+        expect($output->roles)->toHaveCount(2);
+    });
+
+    it('deduplicates permission slugs when multiple roles share the same permission', function () {
+        $user = loginMakeUser();
+
+        $perm = new Permission(id: 1, uuid: 'perm-shared', categoryId: 1, name: 'Shared', slug: 'role.view');
+
+        $roleA = new Role(
+            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
+            hierarchyLevel: 4, isSystemRole: false, permissions: [$perm],
+            createdAt: new DateTimeImmutable,
+        );
+        $roleB = new Role(
+            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
+            hierarchyLevel: 5, isSystemRole: false, permissions: [$perm],
+            createdAt: new DateTimeImmutable,
+        );
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([$roleA, $roleB]);
+        $this->tokens->shouldReceive('generate')->once()->andReturn('token');
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+        $output = $this->useCase->execute($input);
+
+        expect(array_count_values($output->permissions)['role.view'])->toBe(1);
+    });
+
+    it('always writes an audit log on successful login', function () {
+        $user = loginMakeUser();
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
+        $this->tokens->shouldReceive('generate')->once()->andReturn('token');
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+        $this->useCase->execute($input);
+    });
+});

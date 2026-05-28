@@ -73,7 +73,7 @@ The Softlinkia support team needs to access tenant environments to debug issues,
 An **impersonation** feature on staff routes:
 
 ```
-POST /staff/tenants/{public_id}/impersonate
+POST /staff/tenants/{uuid}/impersonate
 ```
 
 This endpoint (Superadmin only) generates a short-lived Sanctum token scoped to the target tenant with a special `impersonated_by` claim. All audit log entries written during an impersonation session record both the real actor (`staff_user_id`) and the tenant context. The session expires after a fixed window (e.g., 2 hours) and cannot be renewed.

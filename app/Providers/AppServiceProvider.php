@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Common\Audit\AuditLogger;
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Tenant\EloquentTenantRepository;
+use App\Common\Tenant\TenantRepositoryInterface;
 use App\Models\User;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
+use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
+use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
@@ -19,9 +23,11 @@ use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
+use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentPermissionRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
+use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
 use Illuminate\Support\Facades\Gate;
@@ -36,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // --- Common ---
         $this->app->bind(AuditLoggerInterface::class, AuditLogger::class);
+        $this->app->bind(TenantRepositoryInterface::class, EloquentTenantRepository::class);
 
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
@@ -74,10 +81,20 @@ class AppServiceProvider extends ServiceProvider
             ->needs(RoleRepositoryInterface::class)
             ->give(EloquentStaffRoleRepository::class);
 
+        // AssignRoleToUser / RevokeRoleFromUser — resolve target user via tenant-scoped repository
+        $this->app->when(AssignRoleToUserUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentUserRepository::class);
+
+        $this->app->when(RevokeRoleFromUserUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentUserRepository::class);
+
         // --- Roles module ---
         $this->app->bind(RoleRepositoryInterface::class, EloquentRoleRepository::class);
         $this->app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
         $this->app->bind(UserRoleAssignmentRepositoryInterface::class, EloquentUserRoleAssignmentRepository::class);
+        $this->app->bind(SchoolRepositoryInterface::class, EloquentSchoolRepository::class);
     }
 
     /**

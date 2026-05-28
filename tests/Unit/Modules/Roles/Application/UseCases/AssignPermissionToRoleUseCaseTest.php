@@ -33,7 +33,7 @@ describe('AssignPermissionToRoleUseCase', function () {
     {
         return new Role(
             id: $overrides['id'] ?? 10,
-            publicId: $overrides['publicId'] ?? 'role-uuid',
+            uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
@@ -49,7 +49,7 @@ describe('AssignPermissionToRoleUseCase', function () {
     {
         return new Permission(
             id: 20,
-            publicId: 'perm-uuid',
+            uuid: 'perm-uuid',
             categoryId: 1,
             name: 'Publish Grade',
             slug: $slug,
@@ -61,8 +61,8 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: false,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         expect(fn () => $this->useCase->execute($input))
@@ -74,11 +74,11 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'nonexistent-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'nonexistent-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->with('nonexistent-uuid')
             ->andReturn(null);
@@ -92,13 +92,13 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         $role = makeRoleEntity(['deletedAt' => new DateTimeImmutable('2025-01-01')]);
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
@@ -111,13 +111,13 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         $role = makeRoleEntity(['isSystemRole' => true]);
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
@@ -130,13 +130,13 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 4, // same as role
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         $role = makeRoleEntity(['hierarchyLevel' => 4]);
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
@@ -149,13 +149,13 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 4,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         $role = makeRoleEntity(['hierarchyLevel' => 3]); // more privileged
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
@@ -168,17 +168,17 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'nonexistent-perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'nonexistent-perm-uuid',
         );
 
         $role = makeRoleEntity(['hierarchyLevel' => 5]);
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
-        $this->permissionRepo->shouldReceive('findByPublicId')
+        $this->permissionRepo->shouldReceive('findByUuid')
             ->once()
             ->with('nonexistent-perm-uuid')
             ->andReturn(null);
@@ -192,18 +192,18 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         $role = makeRoleEntity(['hierarchyLevel' => 5]);
         $permission = makePermissionEntity('grade.publish');
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
-        $this->permissionRepo->shouldReceive('findByPublicId')
+        $this->permissionRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($permission);
 
@@ -225,8 +225,8 @@ describe('AssignPermissionToRoleUseCase', function () {
             actorUserId: 1,
             actorHierarchyLevel: 3,
             actorCanManagePermissions: true,
-            rolePublicId: 'role-uuid',
-            permissionPublicId: 'perm-uuid',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
         );
 
         // Role already has the permission in its collection
@@ -235,11 +235,11 @@ describe('AssignPermissionToRoleUseCase', function () {
             'permissions' => [$permission],
         ]);
 
-        $this->roleRepo->shouldReceive('findByPublicId')
+        $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
-        $this->permissionRepo->shouldReceive('findByPublicId')
+        $this->permissionRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($permission);
 

@@ -17,7 +17,7 @@ filter. No exceptions.
 ## Conventions
 
 - Primary keys: `BIGSERIAL` — internal only, never exposed outside the system
-- Public identifiers: `public_id UUID DEFAULT gen_random_uuid()` — used in all endpoints, routes and views
+- Public identifiers: `uuid UUID DEFAULT gen_random_uuid()` — used in all endpoints, routes and views
 - Soft deletes: `deleted_at TIMESTAMPTZ` on every table that represents a domain entity. Junction/pivot tables do not need soft delete.
 - Timestamps: every domain entity table must have both `created_at` and `updated_at` as `TIMESTAMPTZ`. Use `timestampsTz()` in migrations — never `timestamps()` (which generates `TIMESTAMP` without timezone). Exception: `audit_logs` is append-only and only has `created_at`.
 - JSON fields: `JSONB` always, never `JSON`
@@ -40,7 +40,7 @@ filter. No exceptions.
 ```sql
 Table tenants {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   name varchar(255) [not null]
   slug varchar(100) [unique, not null]
   legal_name varchar(255)
@@ -59,7 +59,7 @@ Table tenants {
 ```sql
 Table schools {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   tenant_id bigint [not null, ref: > tenants.id]
   name varchar(255) [not null]
   slug varchar(100) [unique]
@@ -79,7 +79,7 @@ Table schools {
 ```sql
 Table levels {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   school_id bigint [not null, ref: > schools.id]
   name varchar(100) [not null, note: 'Primaria, Secundaria, Preparatoria']
   created_at timestamptz [default: `now()`]
@@ -95,7 +95,7 @@ Table levels {
 ```sql
 Table grades {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   level_id bigint [not null, ref: > levels.id]
   name varchar(50) [not null, note: '1°, 2°, 3°']
   sequence smallint [not null]
@@ -112,7 +112,7 @@ Table grades {
 ```sql
 Table groups {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   grade_id bigint [not null, ref: > grades.id]
   name varchar(50) [not null, note: 'A, B, C']
   created_at timestamptz [default: `now()`]
@@ -128,7 +128,7 @@ Table groups {
 ```sql
 Table subjects {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   level_id bigint [not null, ref: > levels.id]
   name varchar(200) [not null, note: 'Matemáticas I, Física II']
   created_at timestamptz [default: `now()`]
@@ -144,7 +144,7 @@ Table subjects {
 ```sql
 Table academic_cycles {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   school_id bigint [not null, ref: > schools.id]
   name varchar(100) [not null, note: '2025-2026']
   starts_at date [not null]
@@ -162,7 +162,7 @@ Table academic_cycles {
 ```sql
 Table users {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   tenant_id bigint [ref: > tenants.id, note: 'NULL = Softlinkia staff']
   email varchar(255) [unique, not null]
   password_hash varchar(255)
@@ -185,7 +185,7 @@ Table users {
 ```sql
 Table permission_categories {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   school_id bigint [ref: > schools.id,
     note: 'NULL = system category (Softlinkia), NOT NULL = school category']
   name varchar(100) [not null,
@@ -203,7 +203,7 @@ Table permission_categories {
 ```sql
 Table permissions {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   category_id bigint [not null, ref: > permission_categories.id]
   name varchar(100) [not null]
   slug varchar(100) [unique, not null,
@@ -221,7 +221,7 @@ Table permissions {
 ```sql
 Table roles {
   id bigserial [pk, increment]
-  public_id uuid [unique, not null, default: `gen_random_uuid()`]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
   tenant_id bigint [ref: > tenants.id,
     note: 'NULL = Softlinkia system role']
   name varchar(100) [not null]

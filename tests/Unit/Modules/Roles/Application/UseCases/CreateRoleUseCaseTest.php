@@ -30,7 +30,7 @@ describe('CreateRoleUseCase', function () {
 
         $role = new Role(
             id: 99,
-            publicId: 'public-uuid',
+            uuid: 'public-uuid',
             tenantId: 10,
             name: 'Director',
             slug: 'director',
@@ -112,7 +112,7 @@ describe('CreateRoleUseCase', function () {
 
         $role = new Role(
             id: 1,
-            publicId: 'owner-uuid',
+            uuid: 'owner-uuid',
             tenantId: null,
             name: 'Owner',
             slug: 'owner',
@@ -145,7 +145,7 @@ describe('CreateRoleUseCase', function () {
 
         $role = new Role(
             id: 7,
-            publicId: 'custom-uuid',
+            uuid: 'custom-uuid',
             tenantId: 10,
             name: 'Custom Role',
             slug: 'custom_role',

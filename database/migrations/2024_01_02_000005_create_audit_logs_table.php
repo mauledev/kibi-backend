@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->bigIncrements('id');
+            $table->foreignId('tenant_id')->nullable()->constrained('tenants');
             $table->foreignId('school_id')->nullable()->constrained('schools');
             $table->foreignId('user_id')->nullable()->constrained('users');
             $table->string('action', 100)->notNull();
@@ -18,6 +19,7 @@ return new class extends Migration
             $table->jsonb('struct_after')->nullable();
             $table->timestampTz('created_at')->useCurrent();
 
+            $table->index(['tenant_id', 'created_at']);
             $table->index(['school_id', 'created_at']);
             $table->index(['user_id', 'created_at']);
             $table->index(['action', 'entity_id']);

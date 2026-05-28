@@ -56,20 +56,20 @@ Route::middleware('tenant')->group(function () {
         // Roles and Permissions
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
-        Route::get('/roles/{public_id}', [RoleController::class, 'show'])->name('roles.show');
-        Route::put('/roles/{public_id}', [RoleController::class, 'update'])->name('roles.update');
-        Route::delete('/roles/{public_id}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        Route::get('/roles/{uuid}', [RoleController::class, 'show'])->name('roles.show');
+        Route::put('/roles/{uuid}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{uuid}', [RoleController::class, 'destroy'])->name('roles.destroy');
 
         Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
 
-        Route::post('/roles/{public_id}/permissions', [RolePermissionController::class, 'store'])
+        Route::post('/roles/{uuid}/permissions', [RolePermissionController::class, 'store'])
             ->name('roles.permissions.store');
-        Route::delete('/roles/{public_id}/permissions/{permission_public_id}', [RolePermissionController::class, 'destroy'])
+        Route::delete('/roles/{uuid}/permissions/{permission_uuid}', [RolePermissionController::class, 'destroy'])
             ->name('roles.permissions.destroy');
 
-        Route::post('/users/{public_id}/roles', [UserRoleController::class, 'store'])
+        Route::post('/users/{uuid}/roles', [UserRoleController::class, 'store'])
             ->name('users.roles.store');
-        Route::delete('/users/{public_id}/roles/{role_public_id}', [UserRoleController::class, 'destroy'])
+        Route::delete('/users/{uuid}/roles/{role_uuid}', [UserRoleController::class, 'destroy'])
             ->name('users.roles.destroy');
     });
 });

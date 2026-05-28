@@ -20,7 +20,7 @@ class RoleResource extends JsonResource
         $role = $this->resource;
 
         return [
-            'id' => $role->getPublicId(),
+            'uuid' => $role->getUuid(),
             'name' => $role->getName(),
             'slug' => $role->getSlug(),
             'hierarchy_level' => $role->getHierarchyLevel(),

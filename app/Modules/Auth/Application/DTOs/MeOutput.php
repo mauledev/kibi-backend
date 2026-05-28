@@ -13,7 +13,7 @@ class MeOutput
      * @param  array<string>  $permissions
      */
     public function __construct(
-        public readonly string $publicId,
+        public readonly string $uuid,
         public readonly string $email,
         public readonly string $fullName,
         public readonly bool $isStaff,

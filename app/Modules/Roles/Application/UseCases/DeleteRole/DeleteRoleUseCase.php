@@ -26,7 +26,7 @@ class DeleteRoleUseCase
      */
     public function execute(DeleteRoleInput $input): void
     {
-        $role = $this->roles->findByPublicId($input->publicId);
+        $role = $this->roles->findByUuid($input->uuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
@@ -42,7 +42,7 @@ class DeleteRoleUseCase
             );
         }
 
-        $this->roles->delete($input->publicId);
+        $this->roles->delete($input->uuid);
 
         $this->audit->log(
             action: 'role.delete',
@@ -50,7 +50,7 @@ class DeleteRoleUseCase
             entityId: $role->getId(),
             structBefore: [
                 'id' => $role->getId(),
-                'public_id' => $role->getPublicId(),
+                'uuid' => $role->getUuid(),
                 'name' => $role->getName(),
                 'slug' => $role->getSlug(),
             ],

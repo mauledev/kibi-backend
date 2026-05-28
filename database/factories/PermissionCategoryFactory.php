@@ -17,7 +17,7 @@ class PermissionCategoryFactory extends Factory
     public function definition(): array
     {
         return [
-            'public_id' => (string) Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'school_id' => null, // system category by default
             'name' => fake()->randomElement(['academic', 'financial', 'hr', 'communication', 'configuration']),
         ];

@@ -19,7 +19,7 @@ class GetRoleUseCase
      */
     public function execute(GetRoleInput $input): Role
     {
-        $role = $this->roles->findByPublicId($input->publicId);
+        $role = $this->roles->findByUuid($input->uuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;

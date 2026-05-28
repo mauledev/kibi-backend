@@ -10,7 +10,7 @@ Before any task, identify which docs are relevant and read them.
 |---|---|---|
 | `docs/architecture.md` | When creating or modifying modules, UseCases, repositories | Layer patterns, UseCase vs Service, contracts, data flow, how to add a module |
 | `docs/database.md` | When creating migrations, factories, seeders or touching multi-tenancy | Table schema, relationships, tenancy strategy, DB conventions |
-| `docs/api.md` | When creating endpoints, controllers, requests or responses | ApiResponse, HTTP codes, route conventions, authentication |
+| `docs/api.md` | When creating endpoints, controllers, requests or responses | ApiResponse, HTTP codes, route conventions, authentication, Postman collection rule |
 | `docs/testing.md` | When writing any test | Pest conventions, what to test per layer, factories in tests, tenant context |
 | `docs/global-rules.md` | Always | Cross-cutting code rules that apply to every task |
 | `docs/oauth.md` | When working on OAuth, Socialite, or social login | Full OAuth flow diagram, lookup logic, gateway pattern, Socialite integration guide |

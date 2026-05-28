@@ -16,7 +16,7 @@ interface PermissionRepositoryInterface
     /**
      * Find a permission by its public UUID.
      */
-    public function findByPublicId(string $publicId): ?Permission;
+    public function findByUuid(string $uuid): ?Permission;
 
     /**
      * Find a permission by its internal ID.

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * Permission Eloquent Model — Infrastructure only, never leaves the repository layer.
  *
  * @property int $id
- * @property string $public_id
+ * @property string $uuid
  * @property int $category_id
  * @property string $name
  * @property string $slug
@@ -23,7 +23,7 @@ class Permission extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'public_id',
+        'uuid',
         'category_id',
         'name',
         'slug',

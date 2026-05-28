@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Role Eloquent Model — Infrastructure only, never leaves the repository layer.
  *
  * @property int $id
- * @property string $public_id
+ * @property string $uuid
  * @property int|null $tenant_id
  * @property string $name
  * @property string $slug
@@ -26,7 +26,7 @@ class Role extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'public_id',
+        'uuid',
         'tenant_id',
         'name',
         'slug',

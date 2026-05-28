@@ -10,7 +10,7 @@ class User
 
     public function __construct(
         private readonly int $id,
-        private readonly string $publicId,
+        private readonly string $uuid,
         private readonly ?int $tenantId,
         private readonly string $email,
         private readonly string $fullName,
@@ -26,9 +26,9 @@ class User
         return $this->id;
     }
 
-    public function getPublicId(): string
+    public function getUuid(): string
     {
-        return $this->publicId;
+        return $this->uuid;
     }
 
     public function getTenantId(): ?int

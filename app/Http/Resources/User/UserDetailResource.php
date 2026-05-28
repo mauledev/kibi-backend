@@ -19,7 +19,7 @@ class UserDetailResource extends JsonResource
         $user = $this->resource;
 
         return [
-            'id' => $user->public_id,
+            'uuid' => $user->uuid,
             'email' => $user->email,
             'full_name' => $user->full_name,
             'phone' => $user->phone,

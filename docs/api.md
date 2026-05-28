@@ -73,7 +73,7 @@ Staff routes do not go through `TenantMiddleware`. School routes always do.
 When a user holds multiple roles, the frontend sends the currently selected role:
 
 ```
-X-Active-Role: {role_public_id}
+X-Active-Role: {role_uuid}
 ```
 
 This header is **UI context only**. The frontend uses it to decide which dashboard to render. It does **not** participate in permission checks on the backend.
@@ -122,13 +122,37 @@ Any endpoint that assigns a role or grants a permission must verify that the act
 
 ## Public identifiers
 
-Internal `id` (BIGSERIAL) is never exposed in any endpoint. All routes and responses use `public_id` (UUID):
+Internal `id` (BIGSERIAL) is never exposed in any endpoint. This rule applies in both directions:
+
+- **Responses and route parameters** always use `uuid`. Internal `id` is never serialized nor returned.
+- **Requests (body and query string)** always accept `uuid`. FormRequests never validate an `*_id` field received from an external client.
 
 ```
-GET /schools/{public_id}
-GET /users/{public_id}
-GET /roles/{public_id}
+GET /schools/{uuid}
+GET /users/{uuid}
+GET /roles/{uuid}
 ```
+
+**JSON response key**: the identifier field in every Resource must be named `uuid`, never `id`.
+
+```php
+// Correct
+'uuid' => $user->uuid,
+
+// Wrong — never expose 'id'
+'id' => $user->uuid,
+```
+
+When a UseCase or repository requires an integer `id` (e.g. for FK writes or joins), the Controller is responsible for resolving the UUID to the internal `id` before constructing the Input DTO:
+
+```php
+// Controller — resolve UUID → id before entering Application layer
+$school = School::where('uuid', $request->validated('school_uuid'))->value('id');
+
+new AssignRoleToUserInput(schoolId: $school);
+```
+
+The Application and Domain layers only ever see integer ids for internal references; they never perform UUID lookups themselves.
 
 ---
 
@@ -152,6 +176,14 @@ Authentication endpoints (login, logout) sit outside both groups — no `auth:sa
 
 ---
 
+## Postman collection
+
+The project ships a Postman collection (`kibi-api.postman_collection.json`) that is **not versioned** (excluded via `.gitignore`). It must be kept in sync manually.
+
+**Rule:** every time an endpoint is created, removed, or has its path, method, body, or response shape changed, update the Postman collection to reflect those changes before closing the task.
+
+---
+
 ## Endpoints
 
 ### Auth
@@ -169,12 +201,12 @@ POST   /auth/oauth/{provider}    OAuth login/register (provider: google | micros
 ```
 GET    /roles                                              List roles for current tenant
 POST   /roles                                             Create role (requires manage.permissions)
-GET    /roles/{public_id}                                 Get role with its permissions
-PUT    /roles/{public_id}                                 Update role
-DELETE /roles/{public_id}                                 Delete role
+GET    /roles/{uuid}                                 Get role with its permissions
+PUT    /roles/{uuid}                                 Update role
+DELETE /roles/{uuid}                                 Delete role
 GET    /permissions                                       List permissions grouped by category
-POST   /roles/{public_id}/permissions                     Assign permission to role
-DELETE /roles/{public_id}/permissions/{permission_public_id}   Revoke permission from role
-POST   /users/{public_id}/roles                           Assign role to user
-DELETE /users/{public_id}/roles/{role_public_id}          Revoke role from user
+POST   /roles/{uuid}/permissions                     Assign permission to role
+DELETE /roles/{uuid}/permissions/{permission_uuid}   Revoke permission from role
+POST   /users/{uuid}/roles                           Assign role to user
+DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
 ```
