@@ -2,6 +2,7 @@
 
 namespace App\Modules\Roles\Infrastructure\Repositories;
 
+use App\Models\Role as RoleModel;
 use App\Models\UserRoleAssignment as AssignmentModel;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
@@ -60,6 +61,25 @@ class EloquentUserRoleAssignmentRepository implements UserRoleAssignmentReposito
     {
         $model = AssignmentModel::findOrFail($assignmentId);
         $model->update(['revoked_at' => now()]);
+
+        return $this->toDomain($model);
+    }
+
+    /** {@inheritDoc} */
+    public function createOwnerAssignment(int $userId): UserRoleAssignment
+    {
+        $ownerRole = RoleModel::firstOrCreate(
+            ['slug' => 'owner', 'tenant_id' => null],
+            ['name' => 'Owner', 'hierarchy_level' => 2, 'is_system_role' => false],
+        );
+
+        $model = AssignmentModel::create([
+            'user_id' => $userId,
+            'role_id' => $ownerRole->id,
+            'school_id' => null,
+            'assigned_by' => null,
+            'assigned_at' => now(),
+        ]);
 
         return $this->toDomain($model);
     }

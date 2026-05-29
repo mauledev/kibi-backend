@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\UseCases\Login;
 
 use App\Common\Audit\AuditLoggerInterface;
@@ -47,6 +45,9 @@ class LoginUseCase
         return new LoginOutput(
             uuid: $user->getUuid(),
             email: $user->getEmail(),
+            firstName: $user->getFirstName(),
+            lastNamePaternal: $user->getLastNamePaternal(),
+            lastNameMaternal: $user->getLastNameMaternal(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),
             token: $this->tokens->generate($user->getId()),

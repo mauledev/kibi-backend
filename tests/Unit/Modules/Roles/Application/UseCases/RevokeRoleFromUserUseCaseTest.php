@@ -39,9 +39,11 @@ describe('RevokeRoleFromUserUseCase', function () {
         return new User(
             id: $id,
             uuid: $uuid,
-            tenantId: 1,
+            isStaff: false,
             email: "{$uuid}@test.com",
-            fullName: 'Test User',
+            firstName: 'Test',
+            lastNamePaternal: 'User',
+            lastNameMaternal: null,
             passwordHash: 'hash',
         );
     }

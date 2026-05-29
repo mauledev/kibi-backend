@@ -50,7 +50,7 @@ Authorization: Bearer {token}
 
 | Domain | Audience | Tenant resolution |
 |---|---|---|
-| `app.kibi.com` | Softlinkia staff | None — `tenant_id IS NULL` |
+| `app.kibi.com` | Softlinkia staff | None — `is_staff = true` |
 | `{tenant_slug}.kibi.com` | School users | Resolved from subdomain slug |
 
 Staff routes do not go through `TenantMiddleware`. School routes always do.
@@ -192,9 +192,23 @@ The project ships a Postman collection (`kibi-api.postman_collection.json`) that
 POST   /auth/login               Authenticate with email + password, returns token
 POST   /auth/logout              Revoke current token
 POST   /auth/oauth/{provider}    OAuth login/register (provider: google | microsoft)
+POST   /auth/activate            Activate owner account via signed URL (public, no tenant middleware)
 ```
 
 `POST /auth/oauth/{provider}` accepts `{ "access_token": "..." }` and returns the same `LoginOutput` as a password login. See `docs/oauth.md` for the full flow.
+
+`POST /auth/activate` is a public endpoint (no `auth:sanctum`, no `TenantMiddleware`). It expects the signed URL query params (`user`, `expires`, `signature`) forwarded from the frontend SPA, plus a JSON body `{ "password": "...", "password_confirmation": "..." }`. On success it returns the same `LoginOutput` as a standard login, plus a 24h Sanctum token.
+
+### Staff
+
+```
+POST   /staff/auth/login         Authenticate Softlinkia staff
+GET    /staff/auth/me            Return authenticated staff user data
+POST   /staff/auth/logout        Revoke staff token
+POST   /staff/tenants            Create a new tenant + owner (requires auth:sanctum)
+```
+
+`POST /staff/tenants` creates the tenant with `status = 'pending'`, creates the owner user with no password, assigns the `owner` role, and sends an activation email with a 48h signed URL. Returns 201 with the tenant and embedded owner. Returns 409 when the slug or email is already taken.
 
 ### Roles and permissions
 
@@ -210,3 +224,14 @@ DELETE /roles/{uuid}/permissions/{permission_uuid}   Revoke permission from role
 POST   /users/{uuid}/roles                           Assign role to user
 DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
 ```
+
+---
+
+## Tenant lifecycle
+
+```
+pending  → active     POST /auth/activate (owner sets password)
+active   → suspended  Staff action (future)
+```
+
+`TenantMiddleware` rejects requests to a tenant with `status = 'pending'` with `403 Forbidden`. Only active tenants can receive authenticated requests via subdomain routing.

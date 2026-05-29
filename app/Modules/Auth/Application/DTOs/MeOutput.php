@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\DTOs;
 
 use App\Modules\Roles\Domain\Entities\Role;
@@ -15,6 +13,9 @@ class MeOutput
     public function __construct(
         public readonly string $uuid,
         public readonly string $email,
+        public readonly string $firstName,
+        public readonly string $lastNamePaternal,
+        public readonly ?string $lastNameMaternal,
         public readonly string $fullName,
         public readonly bool $isStaff,
         public readonly array $roles = [],

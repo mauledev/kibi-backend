@@ -15,6 +15,21 @@ beforeEach(function () {
     Cache::flush();
 });
 
+/**
+ * Create a user scoped to a tenant by assigning them a tenant-level role
+ * owned by that tenant. Accepts optional attributes for the user model.
+ */
+function authCreateTenantUser(Tenant $tenant, array $attributes = []): User
+{
+    $user = User::factory()->create(array_merge(['tenant_id' => $tenant->id], $attributes));
+    $role = RoleModel::factory()->forTenant($tenant)->atLevel(5)->create([
+        'slug' => 'auth_test_role_'.uniqid(),
+    ]);
+    UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
+
+    return $user;
+}
+
 describe('AuthController', function () {
     describe('POST /api/auth/login', function () {
         it('returns 401 when email does not exist for the tenant', function () {
@@ -30,7 +45,7 @@ describe('AuthController', function () {
 
         it('returns 401 when password is wrong', function () {
             $tenant = Tenant::factory()->create(['slug' => 'wrongpw']);
-            User::factory()->for($tenant)->create([
+            authCreateTenantUser($tenant, [
                 'email' => 'user@test.com',
                 'password_hash' => Hash::make('correct'),
             ]);
@@ -45,9 +60,10 @@ describe('AuthController', function () {
 
         it('returns 401 when user is inactive', function () {
             $tenant = Tenant::factory()->create(['slug' => 'inactive-tenant']);
-            User::factory()->for($tenant)->inactive()->create([
+            authCreateTenantUser($tenant, [
                 'email' => 'inactive@test.com',
                 'password_hash' => Hash::make('secret'),
+                'status' => 'inactive',
             ]);
 
             $this->withHeader('X-Tenant-Slug', $tenant->slug)
@@ -85,7 +101,7 @@ describe('AuthController', function () {
 
         it('returns 200 with token and uuid on valid credentials', function () {
             $tenant = Tenant::factory()->create(['slug' => 'valid-tenant']);
-            User::factory()->for($tenant)->create([
+            authCreateTenantUser($tenant, [
                 'email' => 'valid@test.com',
                 'password_hash' => Hash::make('secret'),
             ]);
@@ -99,7 +115,7 @@ describe('AuthController', function () {
             $response->assertStatus(200)
                 ->assertJsonStructure([
                     'success',
-                    'data' => ['uuid', 'email', 'full_name', 'is_staff', 'token', 'roles', 'permissions'],
+                    'data' => ['uuid', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'token', 'roles', 'permissions'],
                 ]);
 
             // uuid must be a UUID, not an integer
@@ -111,7 +127,7 @@ describe('AuthController', function () {
 
         it('writes audit log on successful login', function () {
             $tenant = Tenant::factory()->create(['slug' => 'audit-tenant']);
-            $user = User::factory()->for($tenant)->create([
+            $user = authCreateTenantUser($tenant, [
                 'email' => 'audit@test.com',
                 'password_hash' => Hash::make('secret'),
             ]);
@@ -132,7 +148,7 @@ describe('AuthController', function () {
             $tenantA = Tenant::factory()->create(['slug' => 'tenant-a']);
             $tenantB = Tenant::factory()->create(['slug' => 'tenant-b']);
 
-            User::factory()->for($tenantA)->create([
+            authCreateTenantUser($tenantA, [
                 'email' => 'user@test.com',
                 'password_hash' => Hash::make('secret'),
             ]);
@@ -169,9 +185,8 @@ describe('AuthController', function () {
                 ->assertStatus(401);
         });
 
-        it('returns 401 when a tenant user tries to use the staff endpoint', function () {
-            $tenant = Tenant::factory()->create();
-            User::factory()->for($tenant)->create([
+        it('returns 401 when a non-staff user tries to use the staff endpoint', function () {
+            User::factory()->create([
                 'email' => 'tenant@test.com',
                 'password_hash' => Hash::make('secret'),
             ]);
@@ -216,7 +231,7 @@ describe('AuthController', function () {
 
         it('returns 200 with user data when authenticated', function () {
             $tenant = Tenant::factory()->create(['slug' => 'me-valid']);
-            $user = User::factory()->for($tenant)->create();
+            $user = authCreateTenantUser($tenant);
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $tenant->slug)
@@ -224,7 +239,7 @@ describe('AuthController', function () {
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
-                    'data' => ['id', 'email', 'full_name', 'is_staff', 'roles', 'permissions'],
+                    'data' => ['id', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'roles', 'permissions'],
                 ]);
 
             // id must be a UUID
@@ -235,7 +250,7 @@ describe('AuthController', function () {
 
         it('returns user roles in the me response', function () {
             $tenant = Tenant::factory()->create(['slug' => 'me-roles']);
-            $user = User::factory()->for($tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $tenant->id]);
             $role = RoleModel::factory()->forTenant($tenant)->atLevel(4)->create(['slug' => 'director', 'name' => 'Director']);
             UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
 
@@ -278,7 +293,7 @@ describe('AuthController', function () {
 
         it('revokes the token and returns 200 on logout', function () {
             $tenant = Tenant::factory()->create(['slug' => 'logout-valid']);
-            $user = User::factory()->for($tenant)->create();
+            $user = authCreateTenantUser($tenant);
 
             // Create a real Sanctum token so currentAccessToken()->id is available.
             $token = $user->createToken('test-token')->plainTextToken;

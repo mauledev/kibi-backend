@@ -13,6 +13,10 @@ uses(RefreshDatabase::class);
 describe('PermissionController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
+        // The tenant owner is the user whose id matches TenantContext::ownerId.
+        $this->owner = User::find($this->tenant->owner_id);
+        // No level-1 role needed for PermissionController — no hierarchy checks
+        // are involved in GET /api/permissions.
     });
 
     function pcAssignRole(User $user, RoleModel $role): UserRoleAssignment
@@ -41,7 +45,7 @@ describe('PermissionController', function () {
         });
 
         it('returns 403 when user lacks manage.permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'no_perm_view']);
             pcAssignRole($user, $role);
             // No manage.permissions granted
@@ -53,7 +57,7 @@ describe('PermissionController', function () {
         });
 
         it('returns 200 with permissions when user has manage.permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_perm_list']);
             pcAssignRole($user, $actorRole);
             pcGrantPermission($actorRole, 'manage.permissions');
@@ -77,18 +81,14 @@ describe('PermissionController', function () {
         });
 
         it('owner bypasses permission check and can list permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            pcAssignRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions')
                 ->assertStatus(200);
         });
 
         it('returns permission uuids not internal ids', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_uuid_check']);
             pcAssignRole($user, $actorRole);
             pcGrantPermission($actorRole, 'manage.permissions');

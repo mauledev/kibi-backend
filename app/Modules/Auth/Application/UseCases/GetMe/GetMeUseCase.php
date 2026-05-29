@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\UseCases\GetMe;
 
 use App\Modules\Auth\Application\DTOs\MeOutput;
@@ -33,6 +31,9 @@ class GetMeUseCase
         return new MeOutput(
             uuid: $user->getUuid(),
             email: $user->getEmail(),
+            firstName: $user->getFirstName(),
+            lastNamePaternal: $user->getLastNamePaternal(),
+            lastNameMaternal: $user->getLastNameMaternal(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),
             roles: $roles,

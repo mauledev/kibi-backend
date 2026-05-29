@@ -11,6 +11,7 @@ use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
+use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 
 describe('AssignRoleToUserUseCase', function () {
@@ -38,9 +39,11 @@ describe('AssignRoleToUserUseCase', function () {
         return new User(
             id: $id,
             uuid: $uuid,
-            tenantId: 1,
+            isStaff: false,
             email: "{$uuid}@test.com",
-            fullName: 'Test User',
+            firstName: 'Test',
+            lastNamePaternal: 'User',
+            lastNameMaternal: null,
             passwordHash: 'hash',
         );
     }
@@ -232,5 +235,35 @@ describe('AssignRoleToUserUseCase', function () {
         $this->audit->shouldReceive('log')->once();
 
         $this->useCase->execute($input);
+    });
+
+    it('throws OwnerRoleAssignmentException when trying to assign the owner role', function () {
+        mockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorHierarchyLevel: 1,
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'owner-role-uuid',
+            schoolUuid: null,
+        );
+
+        $ownerRole = new Role(
+            id: 2,
+            uuid: 'owner-role-uuid',
+            tenantId: null,
+            name: 'Owner',
+            slug: 'owner',
+            hierarchyLevel: 2,
+            isSystemRole: false,
+            permissions: [],
+            createdAt: new DateTimeImmutable,
+            deletedAt: null,
+        );
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->with('owner-role-uuid')->andReturn($ownerRole);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(OwnerRoleAssignmentException::class);
     });
 });

@@ -11,7 +11,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function findByUuid(string $uuid): ?User
     {
-        $model = UserModel::whereNull('tenant_id')
+        $model = UserModel::where('is_staff', true)
             ->where('uuid', $uuid)
             ->first();
 
@@ -21,7 +21,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function findByEmail(string $email): ?User
     {
-        $model = UserModel::whereNull('tenant_id')
+        $model = UserModel::where('is_staff', true)
             ->where('email', $email)
             ->first();
 
@@ -31,7 +31,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function findById(int $id): ?User
     {
-        $model = UserModel::whereNull('tenant_id')->find($id);
+        $model = UserModel::where('is_staff', true)->find($id);
 
         return $model ? $this->toDomain($model) : null;
     }
@@ -39,7 +39,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function findByGoogleId(string $googleId): ?User
     {
-        $model = UserModel::whereNull('tenant_id')
+        $model = UserModel::where('is_staff', true)
             ->where('google_id', $googleId)
             ->first();
 
@@ -49,7 +49,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function findByMicrosoftId(string $microsoftId): ?User
     {
-        $model = UserModel::whereNull('tenant_id')
+        $model = UserModel::where('is_staff', true)
             ->where('microsoft_id', $microsoftId)
             ->first();
 
@@ -60,9 +60,11 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     public function save(User $user): User
     {
         $model = UserModel::create([
-            'tenant_id' => null,
+            'is_staff' => true,
             'email' => $user->getEmail(),
-            'full_name' => $user->getFullName(),
+            'first_name' => $user->getFirstName(),
+            'last_name_paternal' => $user->getLastNamePaternal(),
+            'last_name_maternal' => $user->getLastNameMaternal(),
             'password_hash' => $user->getPasswordHash(),
             'google_id' => $user->getGoogleId(),
             'microsoft_id' => $user->getMicrosoftId(),
@@ -75,10 +77,12 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function update(User $user): User
     {
-        $model = UserModel::whereNull('tenant_id')->findOrFail($user->getId());
+        $model = UserModel::where('is_staff', true)->findOrFail($user->getId());
 
         $model->update([
-            'full_name' => $user->getFullName(),
+            'first_name' => $user->getFirstName(),
+            'last_name_paternal' => $user->getLastNamePaternal(),
+            'last_name_maternal' => $user->getLastNameMaternal(),
             'password_hash' => $user->getPasswordHash(),
             'status' => $user->getStatus(),
         ]);
@@ -89,7 +93,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function delete(int $id): bool
     {
-        return UserModel::whereNull('tenant_id')
+        return UserModel::where('is_staff', true)
             ->where('id', $id)
             ->delete() > 0;
     }
@@ -99,13 +103,16 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
         return new User(
             id: $model->id,
             uuid: $model->uuid,
-            tenantId: null,
             email: $model->email,
-            fullName: $model->full_name,
+            firstName: $model->first_name,
+            lastNamePaternal: $model->last_name_paternal,
+            lastNameMaternal: $model->last_name_maternal,
             passwordHash: $model->password_hash,
             status: $model->status,
             googleId: $model->google_id,
             microsoftId: $model->microsoft_id,
+            isStaff: true,
+            tenantId: null,
         );
     }
 }

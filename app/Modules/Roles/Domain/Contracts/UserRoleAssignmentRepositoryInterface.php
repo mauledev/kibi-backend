@@ -32,4 +32,13 @@ interface UserRoleAssignmentRepositoryInterface
      * Revoke an assignment by setting revoked_at to now().
      */
     public function revoke(int $assignmentId): UserRoleAssignment;
+
+    /**
+     * First-or-create the system 'owner' role (tenant_id = null, hierarchy_level = 2)
+     * and create an assignment for the given user at tenant level (school_id = null).
+     *
+     * This is the only place where the owner role may be assigned.
+     * The role slug 'owner' is reserved — use AssignRoleToUserUseCase for any other role.
+     */
+    public function createOwnerAssignment(int $userId): UserRoleAssignment;
 }

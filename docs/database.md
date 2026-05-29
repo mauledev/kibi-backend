@@ -9,7 +9,7 @@ Database decisions, table schema, relationships and multi-tenancy strategy.
 Single database with `tenant_id` on every table as the multi-tenancy isolation key.
 Subdomains handle routing to the correct tenant context at the HTTP layer.
 
-Every query that touches tenant-owned data must include `tenant_id` as the first
+Every query that touches tenant-owned data must include a tenant scope as the first
 filter. No exceptions.
 
 ---
@@ -28,7 +28,12 @@ filter. No exceptions.
 ## Multi-tenancy rules
 
 - `tenants` is the root table. Every other table that belongs to a tenant has `tenant_id BIGINT NOT NULL FK tenants.id`
-- `users.tenant_id` is nullable — NULL means Softlinkia staff
+- `users.tenant_id` is nullable — `NULL` means Softlinkia staff. During tenant creation the owner user is created first (no `tenant_id` yet), the tenant is created with `owner_id`, then `users.tenant_id` is set in the same transaction.
+- `users.is_staff BOOLEAN NOT NULL DEFAULT false` — explicit flag for Softlinkia staff. More readable than relying solely on `tenant_id IS NULL`.
+- `tenants.owner_id BIGINT FK users.id` — the single owner of the tenant. Immutable after creation.
+- `users.tenant_id FK tenants.id` is added after `tenants` is created (end of `create_tenants_table` migration) to break the circular FK insertion order.
+- `tenants.status = 'pending'` is set when a tenant is created by staff. It transitions to `'active'` when the owner activates their account via the signed URL flow. `TenantMiddleware` blocks all subdomain requests while the tenant is `pending`.
+- `users.email_verified_at` is `NULL` for newly created owner users. It is set by `EloquentActivationRepository::activate()` inside the same transaction that sets the password and activates the tenant.
 - Tables that operate at school level carry `school_id` only. Reaching `tenant_id` from `school_id` is done via join when needed — no denormalization unless a specific query justifies it
 - `audit_logs` and `schools` are the only tables that carry both `tenant_id` and `school_id` explicitly
 
@@ -41,6 +46,7 @@ filter. No exceptions.
 Table tenants {
   id bigserial [pk, increment]
   uuid uuid [unique, not null, default: `gen_random_uuid()`]
+  owner_id bigint [ref: > users.id, note: 'Immutable. The single owner of this tenant.']
   name varchar(255) [not null]
   slug varchar(100) [unique, not null]
   legal_name varchar(255)
@@ -49,7 +55,7 @@ Table tenants {
   contact_email varchar(255)
   contact_phone varchar(30)
   status varchar(20) [not null, default: 'active',
-    note: 'active, suspended, grace_period, offboarding']
+    note: 'pending, active, suspended, grace_period, offboarding']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 }
@@ -164,11 +170,15 @@ Table users {
   id bigserial [pk, increment]
   uuid uuid [unique, not null, default: `gen_random_uuid()`]
   tenant_id bigint [ref: > tenants.id, note: 'NULL = Softlinkia staff']
+  is_staff boolean [not null, default: false, note: 'true = Softlinkia internal staff']
   email varchar(255) [unique, not null]
+  email_verified_at timestamptz [note: 'NULL = account not yet activated']
   password_hash varchar(255)
   google_id varchar(100)
   microsoft_id varchar(100)
-  full_name varchar(255) [not null]
+  first_name varchar(100) [not null]
+  last_name_paternal varchar(100) [not null]
+  last_name_maternal varchar(100)
   phone varchar(30)
   status varchar(20) [not null, default: 'active']
   created_at timestamptz [default: `now()`]
@@ -177,6 +187,8 @@ Table users {
   indexes {
     (tenant_id, status)
     email
+    is_staff
+    (last_name_paternal, first_name) [note: 'for alphabetical school lists']
   }
 }
 ```

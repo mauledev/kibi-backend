@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -19,11 +20,15 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int $id
  * @property string $uuid
  * @property int|null $tenant_id
+ * @property bool $is_staff
  * @property string $email
+ * @property Carbon|null $email_verified_at
  * @property string $password_hash
  * @property string|null $google_id
  * @property string|null $microsoft_id
- * @property string $full_name
+ * @property string $first_name
+ * @property string $last_name_paternal
+ * @property string|null $last_name_maternal
  * @property string|null $phone
  * @property string $status
  */
@@ -32,29 +37,40 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
+    protected static function booting(): void
+    {
+        static::creating(function (self $model): void {
+            $model->uuid ??= (string) Str::uuid();
+        });
+    }
+
     protected $fillable = [
         'uuid',
         'tenant_id',
+        'is_staff',
         'email',
+        'email_verified_at',
         'password_hash',
         'google_id',
         'microsoft_id',
-        'full_name',
+        'first_name',
+        'last_name_paternal',
+        'last_name_maternal',
         'phone',
         'status',
     ];
 
     protected $hidden = ['password_hash'];
 
+    protected $casts = [
+        'tenant_id' => 'integer',
+        'is_staff' => 'boolean',
+        'email_verified_at' => 'datetime',
+    ];
+
     public function getAuthPassword(): string
     {
         return $this->password_hash;
-    }
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     /** @return HasMany<UserRoleAssignment, $this> */

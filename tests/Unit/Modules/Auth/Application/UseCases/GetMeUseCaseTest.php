@@ -25,9 +25,11 @@ describe('GetMeUseCase', function () {
         return new User(
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'user-uuid',
-            tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
+            isStaff: $overrides['isStaff'] ?? false,
             email: $overrides['email'] ?? 'user@test.com',
-            fullName: $overrides['fullName'] ?? 'Test User',
+            firstName: $overrides['firstName'] ?? 'Test',
+            lastNamePaternal: $overrides['lastNamePaternal'] ?? 'User',
+            lastNameMaternal: $overrides['lastNameMaternal'] ?? null,
             passwordHash: 'hash',
             status: $overrides['status'] ?? 'active',
         );

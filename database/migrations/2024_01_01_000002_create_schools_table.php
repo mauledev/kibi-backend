@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('schools', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->constrained('tenants');
             $table->string('name');
             $table->string('slug', 100)->unique();

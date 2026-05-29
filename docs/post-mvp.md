@@ -62,7 +62,7 @@ Revisit before onboarding tenants with more than 3 schools or any staff member h
 
 **Current behavior**
 
-Superadmin holds a `Gate::before` bypass identical to Owner, granting full access to all `/staff` routes. However, Superadmin cannot access tenant environments. Staff users have `tenant_id IS NULL` — the tenant repositories scope by `tenant_id`, so a staff user authenticating on `{tenant_slug}.kibi.com` would not be found and could not log in.
+Superadmin holds a `Gate::before` bypass identical to Owner, granting full access to all `/staff` routes. However, Superadmin cannot access tenant environments. Staff users have `is_staff = true` — the tenant repositories scope by owner match and role assignments, so a staff user authenticating on `{tenant_slug}.kibi.com` would not be found and could not log in.
 
 **Problem at scale**
 

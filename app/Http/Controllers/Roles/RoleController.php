@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Roles;
 
+use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\Roles\CreateRoleRequest;
 use App\Http\Requests\Roles\UpdateRoleRequest;
@@ -41,7 +42,7 @@ class RoleController extends Controller
     /**
      * POST /roles — Create a new role.
      */
-    public function store(CreateRoleRequest $request, CreateRoleUseCase $useCase): JsonResponse
+    public function store(CreateRoleRequest $request, CreateRoleUseCase $useCase, TenantContext $context): JsonResponse
     {
         $this->authorize('manage.permissions');
 
@@ -52,7 +53,7 @@ class RoleController extends Controller
             $role = $useCase->execute(new CreateRoleInput(
                 actorUserId: $actor->id,
                 actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                tenantId: $actor->tenant_id,
+                tenantId: $context->tenantId,
                 name: $request->validated('name'),
                 slug: $request->validated('slug'),
                 hierarchyLevel: (int) $request->validated('hierarchy_level'),
