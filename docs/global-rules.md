@@ -49,6 +49,10 @@ protected static function booting(): void
 
 The `??=` preserves any UUID explicitly set by a factory or test. Migration columns declare `->uuid('uuid')->unique()` **without** `->default(DB::raw('gen_random_uuid()'))`. Seeders that bypass Eloquent (raw `DB::table()->insertOrIgnore()`) must include `'uuid' => (string) Str::uuid()` explicitly.
 
+## strict_types
+
+Never add `declare(strict_types=1);` to any PHP file. It is not used in this codebase.
+
 ## Docblocks
 
 All public methods require a docblock.

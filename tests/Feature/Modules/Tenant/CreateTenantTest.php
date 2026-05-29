@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Common\Mail\MailerInterface;
 use App\Mail\OwnerActivationMail;
 use App\Models\Tenant;

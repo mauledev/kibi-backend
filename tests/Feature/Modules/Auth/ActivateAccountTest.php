@@ -1,11 +1,10 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -85,7 +84,7 @@ describe('POST /api/auth/activate', function () {
 
     it('returns 404 when user uuid does not exist', function () {
         // Generate a validly signed URL but with a UUID that has no matching user.
-        $nonExistentUuid = (string) \Illuminate\Support\Str::uuid();
+        $nonExistentUuid = (string) Str::uuid();
 
         $signedUrl = URL::temporarySignedRoute(
             'auth.activate',

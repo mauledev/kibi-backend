@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Tenant\Domain\Entities;
 
 use App\Modules\Auth\Domain\Entities\User;

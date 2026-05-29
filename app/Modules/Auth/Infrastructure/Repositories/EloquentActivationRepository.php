@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Infrastructure\Repositories;
 
 use App\Models\Tenant as TenantModel;

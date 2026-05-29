@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Roles\PermissionController;
 use App\Http\Controllers\Roles\RoleController;

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\DTOs;
 
 use App\Modules\Roles\Domain\Entities\Role;
