@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\PermissionCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
  */
 class PermissionCategory extends Model
 {
+    /** @use HasFactory<PermissionCategoryFactory> */
     use HasFactory, SoftDeletes;
 
     protected static function booting(): void

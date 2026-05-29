@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\UserRoleAssignmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class UserRoleAssignment extends Model
 {
+    /** @use HasFactory<UserRoleAssignmentFactory> */
     use HasFactory;
 
     public $timestamps = false;

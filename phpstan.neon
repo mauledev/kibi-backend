@@ -6,4 +6,4 @@ parameters:
         - app
         - config
         - routes
-    level: 5
+    level: 6
