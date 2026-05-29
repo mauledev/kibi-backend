@@ -15,6 +15,7 @@ class RegisterRequest extends FormRequest
         return true; // Registro es público
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
