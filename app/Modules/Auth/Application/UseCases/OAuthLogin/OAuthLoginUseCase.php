@@ -123,7 +123,10 @@ class OAuthLoginUseCase
         return [$firstName, $lastNamePaternal, $lastNameMaternal];
     }
 
-    /** @param array<Role> $roles @return array<string> */
+    /**
+     * @param  array<Role>  $roles
+     * @return array<string>
+     */
     private function extractPermissionSlugs(array $roles): array
     {
         $slugs = [];
