@@ -3,7 +3,6 @@
 use App\Common\Tenant\TenantContext;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Entities\User as UserEntity;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;

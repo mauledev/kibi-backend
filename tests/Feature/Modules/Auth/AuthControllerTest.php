@@ -5,13 +5,14 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Clear the array cache between tests to avoid hitting rate limits (5 req / 15 min).
-    \Illuminate\Support\Facades\Cache::flush();
+    Cache::flush();
 });
 
 describe('AuthController', function () {

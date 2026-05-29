@@ -9,7 +9,7 @@ use App\Modules\Roles\Domain\Entities\Role;
 class MeOutput
 {
     /**
-     * @param  array<Role>    $roles
+     * @param  array<Role>  $roles
      * @param  array<string>  $permissions
      */
     public function __construct(
