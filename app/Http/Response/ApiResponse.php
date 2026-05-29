@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 class ApiResponse
 {
     public static function success(
-        $data = null,
+        mixed $data = null,
         string $message = 'Operación exitosa',
         int $status = 200
     ): JsonResponse {
@@ -26,17 +26,18 @@ class ApiResponse
     }
 
     public static function created(
-        $data,
+        mixed $data,
         string $message = 'Recurso creado exitosamente'
     ): JsonResponse {
         return self::success($data, $message, 201);
     }
 
+    /** @param array<string, mixed>|null $errors */
     public static function error(
         string $message,
         int $status = 400,
         ?array $errors = null,
-        ?array $data = null
+        mixed $data = null
     ): JsonResponse {
         return response()->json([
             'success' => false,
@@ -63,11 +64,13 @@ class ApiResponse
         return self::error($message, 403);
     }
 
+    /** @param array<string, mixed> $errors */
     public static function conflict(string $message, array $errors = []): JsonResponse
     {
         return self::error($message, 409, $errors);
     }
 
+    /** @return array<string, mixed> */
     private static function getMeta(): array
     {
         return [

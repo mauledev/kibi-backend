@@ -9,6 +9,7 @@ use App\Http\Resources\User\UserCreateResource;
 use App\Http\Resources\User\UserDetailResource;
 use App\Http\Resources\User\UserListResource;
 use App\Http\Response\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -23,7 +24,7 @@ class UserController extends Controller
      * GET /api/users
      * Parámetros: page, per_page, filter[role], filter[status]
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         // Aquí iría ListUsersUseCase
         // $output = $this->listUsersUseCase->execute(...)
@@ -38,7 +39,7 @@ class UserController extends Controller
      * Obtener usuario por ID
      * GET /api/users/{id}
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
         // Aquí iría GetUserUseCase
         // $output = $this->getUserUseCase->execute($id)
@@ -53,7 +54,7 @@ class UserController extends Controller
      * Crear usuario
      * POST /api/users
      */
-    public function store(CreateUserRequest $request)
+    public function store(CreateUserRequest $request): JsonResponse
     {
         try {
             // Aquí iría CreateUserUseCase
@@ -75,7 +76,7 @@ class UserController extends Controller
      * Actualizar usuario
      * PATCH /api/users/{id}
      */
-    public function update(UpdateUserRequest $request, string $id)
+    public function update(UpdateUserRequest $request, string $id): JsonResponse
     {
         try {
             // Aquí iría UpdateUserUseCase
@@ -97,7 +98,7 @@ class UserController extends Controller
      * Eliminar usuario
      * DELETE /api/users/{id}
      */
-    public function destroy(string $id)
+    public function destroy(string $id): JsonResponse
     {
         try {
             // Aquí iría DeleteUserUseCase

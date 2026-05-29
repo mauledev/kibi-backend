@@ -7,6 +7,7 @@ use App\Http\Requests\Roles\CreateRoleRequest;
 use App\Http\Requests\Roles\UpdateRoleRequest;
 use App\Http\Resources\Roles\RoleResource;
 use App\Http\Response\ApiResponse;
+use App\Models\User;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleInput;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleUseCase;
 use App\Modules\Roles\Application\UseCases\DeleteRole\DeleteRoleInput;

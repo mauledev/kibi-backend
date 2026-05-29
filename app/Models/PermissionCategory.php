@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\PermissionCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class PermissionCategory extends Model
 {
+    /** @use HasFactory<PermissionCategoryFactory> */
     use HasFactory, SoftDeletes;
 
     public $timestamps = false;
