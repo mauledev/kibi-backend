@@ -7,6 +7,7 @@ use App\Http\Controllers\Roles\PermissionController;
 use App\Http\Controllers\Roles\RoleController;
 use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
+use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -71,5 +72,11 @@ Route::middleware('tenant')->group(function () {
             ->name('users.roles.store');
         Route::delete('/users/{uuid}/roles/{role_uuid}', [UserRoleController::class, 'destroy'])
             ->name('users.roles.destroy');
+
+        Route::get('/schools', [SchoolController::class, 'index'])->name('schools.index');
+        Route::post('/schools', [SchoolController::class, 'store'])->name('schools.store');
+        Route::get('/schools/{uuid}', [SchoolController::class, 'show'])->name('schools.show');
+        Route::put('/schools/{uuid}', [SchoolController::class, 'update'])->name('schools.update');
+        Route::post('/schools/{uuid}/deactivate', [SchoolController::class, 'deactivate'])->name('schools.deactivate');
     });
 });

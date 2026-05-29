@@ -67,6 +67,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ['category' => 'hr', 'name' => 'Ver usuarios',                      'slug' => 'user.view'],
 
             // Configuration
+            ['category' => 'configuration', 'name' => 'Ver escuelas',          'slug' => 'school.view'],
+            ['category' => 'configuration', 'name' => 'Crear escuelas',        'slug' => 'school.create'],
+            ['category' => 'configuration', 'name' => 'Actualizar escuelas',   'slug' => 'school.update'],
             ['category' => 'configuration', 'name' => 'Ver roles',             'slug' => 'role.view'],
             ['category' => 'configuration', 'name' => 'Asignar roles',         'slug' => 'role.assign'],
             ['category' => 'configuration', 'name' => 'Revocar roles',         'slug' => 'role.revoke'],

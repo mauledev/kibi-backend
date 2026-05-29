@@ -8,8 +8,6 @@ use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantRepositoryInterface;
 use App\Models\User;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
-use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
-use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
@@ -21,6 +19,8 @@ use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
+use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
+use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
@@ -95,6 +95,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
         $this->app->bind(UserRoleAssignmentRepositoryInterface::class, EloquentUserRoleAssignmentRepository::class);
         $this->app->bind(SchoolRepositoryInterface::class, EloquentSchoolRepository::class);
+
+        // --- Schools module ---
+        $this->app->bind(
+            \App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface::class,
+            \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
+        );
     }
 
     /**
