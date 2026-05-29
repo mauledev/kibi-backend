@@ -21,7 +21,9 @@ describe('EloquentRoleRepository', function () {
 
     function bindTenantContext(Tenant $tenant): void
     {
-        app()->instance(TenantContext::class, new TenantContext(tenantId: $tenant->id));
+        app()->instance(TenantContext::class, new TenantContext(
+            tenantId: $tenant->id,
+        ));
     }
 
     function makeRepo(): RoleRepositoryInterface
@@ -114,7 +116,7 @@ describe('EloquentRoleRepository', function () {
         it('returns active roles for a user', function () {
             bindTenantContext($this->tenantA);
 
-            $user = User::factory()->for($this->tenantA)->create();
+            $user = User::factory()->create();
             $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(5)->create(['slug' => 'docente']);
 
             UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
@@ -128,7 +130,7 @@ describe('EloquentRoleRepository', function () {
         it('does not return revoked assignments', function () {
             bindTenantContext($this->tenantA);
 
-            $user = User::factory()->for($this->tenantA)->create();
+            $user = User::factory()->create();
             $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(5)->create(['slug' => 'revoked_role']);
 
             UserRoleAssignment::factory()->forUser($user)->forRole($role)->revoked()->create();

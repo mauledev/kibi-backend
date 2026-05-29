@@ -2,6 +2,7 @@
 
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
+use App\Modules\Auth\Domain\Entities\User;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserInput;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -12,7 +13,6 @@ use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
-use App\Modules\Auth\Domain\Entities\User;
 
 describe('RevokeRoleFromUserUseCase', function () {
     beforeEach(function () {
@@ -39,9 +39,11 @@ describe('RevokeRoleFromUserUseCase', function () {
         return new User(
             id: $id,
             uuid: $uuid,
-            tenantId: 1,
+            isStaff: false,
             email: "{$uuid}@test.com",
-            fullName: 'Test User',
+            firstName: 'Test',
+            lastNamePaternal: 'User',
+            lastNameMaternal: null,
             passwordHash: 'hash',
         );
     }

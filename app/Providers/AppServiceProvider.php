@@ -4,32 +4,44 @@ namespace App\Providers;
 
 use App\Common\Audit\AuditLogger;
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Mail\LaravelMailer;
+use App\Common\Mail\MailerInterface;
 use App\Common\Tenant\EloquentTenantRepository;
+use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
 use App\Models\User;
+use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
-use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
-use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
+use App\Modules\Auth\Domain\Contracts\ActivationRepositoryInterface;
+use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentActivationRepository;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
+use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
+use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
+use App\Modules\Roles\Infrastructure\Repositories\EloquentGlobalRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentPermissionRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
+use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
+use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
+use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -43,6 +55,22 @@ class AppServiceProvider extends ServiceProvider
         // --- Common ---
         $this->app->bind(AuditLoggerInterface::class, AuditLogger::class);
         $this->app->bind(TenantRepositoryInterface::class, EloquentTenantRepository::class);
+        $this->app->bind(MailerInterface::class, LaravelMailer::class);
+
+        // --- Tenant module ---
+        $this->app->bind(TenantModuleRepositoryInterface::class, TenantModuleEloquentRepository::class);
+        $this->app->bind(GlobalUserRepositoryInterface::class, EloquentGlobalUserRepository::class);
+        $this->app->bind(ActivationRepositoryInterface::class, EloquentActivationRepository::class);
+
+        // CreateTenantUseCase — tenant-scoped role assignment repo, no TenantContext
+        $this->app->when(CreateTenantUseCase::class)
+            ->needs(UserRoleAssignmentRepositoryInterface::class)
+            ->give(EloquentUserRoleAssignmentRepository::class);
+
+        // ActivateAccountUseCase — uses global role repo (no TenantContext available during activation)
+        $this->app->when(ActivateAccountUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentGlobalRoleRepository::class);
 
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
@@ -110,18 +138,19 @@ class AppServiceProvider extends ServiceProvider
      *
      * Two mechanisms work in tandem:
      *
-     * 1. Gate::before — Owner bypass: any user holding an active 'owner' role
-     *    assignment is granted every ability unconditionally. This runs before
-     *    any Gate::define check.
+     * 1. Gate::before — Owner bypass: the user whose id matches TenantContext::ownerId
+     *    is granted every ability unconditionally. Staff routes do not bind TenantContext,
+     *    so this bypass is skipped entirely for staff requests.
      *
-     * 2. Gate::define('*') dynamic gate — For every other user, we load the
-     *    merged set of permission slugs from all active role assignments and
-     *    check whether the requested ability slug is present in that set.
-     *    Returning null delegates to any additional gates or policies.
+     * 2. Gate::after — Dynamic permission gate: for every other user we load the merged
+     *    set of permission slugs from all active role assignments and check whether the
+     *    requested ability slug is present. Returning null delegates to any additional
+     *    gates or policies.
      */
     private function registerGates(): void
     {
-        // Owner bypass — runs before any ability check
+        // Owner bypass — runs before any ability check.
+        // Skipped on staff routes where TenantContext is never bound.
         Gate::before(function (User $user, string $ability): ?bool {
             if ($user->hasRole('owner')) {
                 return true;

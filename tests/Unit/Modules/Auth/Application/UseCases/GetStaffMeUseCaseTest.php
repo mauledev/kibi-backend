@@ -25,9 +25,11 @@ describe('GetStaffMeUseCase', function () {
         return new User(
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'staff-uuid',
-            tenantId: null,
+            isStaff: true,
             email: $overrides['email'] ?? 'staff@kibi.com',
-            fullName: $overrides['fullName'] ?? 'Staff User',
+            firstName: $overrides['firstName'] ?? 'Staff',
+            lastNamePaternal: $overrides['lastNamePaternal'] ?? 'User',
+            lastNameMaternal: $overrides['lastNameMaternal'] ?? null,
             passwordHash: 'hash',
             status: 'active',
         );

@@ -4,7 +4,6 @@ use App\Models\Permission as PermissionModel;
 use App\Models\PermissionCategory;
 use App\Models\Role as RoleModel;
 use App\Models\Tenant;
-use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Permission;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentPermissionRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;

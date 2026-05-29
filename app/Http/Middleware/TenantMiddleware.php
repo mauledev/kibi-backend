@@ -19,10 +19,14 @@ class TenantMiddleware
     {
         $slug = $this->resolveSlug($request);
 
-        $tenant = $this->tenants->findActiveBySlug($slug);
+        $tenant = $this->tenants->findBySlug($slug);
 
         if ($tenant === null) {
             return ApiResponse::notFound('Tenant not found');
+        }
+
+        if ($tenant->status === 'pending') {
+            return ApiResponse::forbidden('Tenant account is pending activation');
         }
 
         app()->instance(TenantContext::class, new TenantContext(

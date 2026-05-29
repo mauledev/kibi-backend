@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 /**
  * Permission Eloquent Model — Infrastructure only, never leaves the repository layer.
@@ -19,6 +20,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Permission extends Model
 {
     use HasFactory;
+
+    protected static function booting(): void
+    {
+        static::creating(function (self $model): void {
+            $model->uuid ??= (string) Str::uuid();
+        });
+    }
 
     public $timestamps = false;
 

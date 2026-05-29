@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * Role Eloquent Model — Infrastructure only, never leaves the repository layer.
@@ -22,6 +23,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Role extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected static function booting(): void
+    {
+        static::creating(function (self $model): void {
+            $model->uuid ??= (string) Str::uuid();
+        });
+    }
 
     public $timestamps = false;
 

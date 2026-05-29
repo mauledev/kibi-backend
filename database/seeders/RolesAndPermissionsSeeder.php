@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -27,6 +28,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         foreach ($categories as $category) {
             DB::table('permission_categories')->insertOrIgnore([
+                'uuid' => (string) Str::uuid(),
                 'school_id' => null,
                 'name' => $category['name'],
                 'created_at' => now(),
@@ -84,6 +86,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         foreach ($permissions as $permission) {
             DB::table('permissions')->insertOrIgnore([
+                'uuid' => (string) Str::uuid(),
                 'category_id' => $categoryId($permission['category']),
                 'name' => $permission['name'],
                 'slug' => $permission['slug'],
@@ -185,6 +188,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         foreach ($roles as $role) {
             DB::table('roles')->insertOrIgnore([
+                'uuid' => (string) Str::uuid(),
                 'tenant_id' => $role['tenant_id'],
                 'name' => $role['name'],
                 'slug' => $role['slug'],

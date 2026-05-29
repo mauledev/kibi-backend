@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Roles;
 use App\Http\Controller;
 use App\Http\Requests\Roles\AssignPermissionRequest;
 use App\Http\Response\ApiResponse;
+use App\Models\User;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleInput;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleInput;

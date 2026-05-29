@@ -23,10 +23,17 @@ function rpAssignRole(User $user, RoleModel $role): UserRoleAssignment
 }
 
 /**
- * Create a permission with the given slug in a system category.
+ * Find or create a permission with the given slug in a system category.
+ * Using firstOrCreate to avoid unique slug constraint violations when the
+ * same slug is used across multiple helpers in a test.
  */
 function rpCreatePermission(string $slug): PermissionModel
 {
+    $existing = PermissionModel::where('slug', $slug)->first();
+    if ($existing !== null) {
+        return $existing;
+    }
+
     $category = PermissionCategory::factory()->system()->create();
 
     return PermissionModel::factory()->withSlug($slug)->create(['category_id' => $category->id]);
@@ -46,6 +53,16 @@ function rpGrantPermission(RoleModel $role, string $slug): PermissionModel
 describe('RolePermissionController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
+        // The tenant owner is the user whose id matches TenantContext::ownerId.
+        // Give them a level-1 role with manage.permissions so the UseCase's
+        // actorCanManagePermissions check passes, and their lowestHierarchyLevel()
+        // allows managing roles at any level.
+        $this->owner = User::find($this->tenant->owner_id);
+        $ownerFixtureRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(1)->create([
+            'slug' => 'rp_owner_fixture',
+        ]);
+        rpGrantPermission($ownerFixtureRole, 'manage.permissions');
+        rpAssignRole($this->owner, $ownerFixtureRole);
     });
 
     describe('POST /api/roles/{uuid}/permissions', function () {
@@ -60,7 +77,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 403 when user lacks manage.permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'no_perm_role']);
             rpAssignRole($user, $actorRole);
             // No manage.permissions granted
@@ -77,7 +94,7 @@ describe('RolePermissionController', function () {
         });
 
         it('assigns permission to role and writes audit log when valid', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_perm']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -105,7 +122,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 403 when target role has same hierarchy as actor', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_actor']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -122,7 +139,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 403 when target role is a system role', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_sys']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -139,7 +156,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 404 when permission does not exist', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_404']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -155,14 +172,10 @@ describe('RolePermissionController', function () {
         });
 
         it('owner bypasses gate and can assign permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            rpAssignRole($user, $ownerRole);
-
             $targetRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'owner_grant_target']);
             $permission = rpCreatePermission('schedule.view');
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
@@ -171,7 +184,7 @@ describe('RolePermissionController', function () {
         });
 
         it('is idempotent — assigning already-present permission does not create duplicate audit log', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_idem']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -199,7 +212,7 @@ describe('RolePermissionController', function () {
 
     describe('DELETE /api/roles/{uuid}/permissions/{permission_uuid}', function () {
         it('revokes permission from role and writes audit log', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_revoke_perm']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
@@ -226,7 +239,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 403 when actor lacks manage.permissions', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'no_perm_revoke']);
             rpAssignRole($user, $actorRole);
             // No manage.permissions

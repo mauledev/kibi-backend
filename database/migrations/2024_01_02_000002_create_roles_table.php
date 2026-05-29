@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('roles', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants');
             $table->string('name', 100)->notNull();
             $table->string('slug', 100)->notNull();

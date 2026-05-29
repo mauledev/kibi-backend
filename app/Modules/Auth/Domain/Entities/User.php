@@ -11,14 +11,17 @@ class User
     public function __construct(
         private readonly int $id,
         private readonly string $uuid,
-        private readonly ?int $tenantId,
         private readonly string $email,
-        private readonly string $fullName,
+        private readonly string $firstName,
+        private readonly string $lastNamePaternal,
+        private readonly ?string $lastNameMaternal,
         private ?string $passwordHash,
         private string $status = 'active',
         private readonly DateTime $createdAt = new DateTime,
         private readonly ?string $googleId = null,
         private readonly ?string $microsoftId = null,
+        private readonly bool $isStaff = false,
+        private readonly ?int $tenantId = null,
     ) {}
 
     public function getId(): int
@@ -31,19 +34,38 @@ class User
         return $this->uuid;
     }
 
-    public function getTenantId(): ?int
-    {
-        return $this->tenantId;
-    }
-
     public function getEmail(): string
     {
         return $this->email;
     }
 
+    public function getFirstName(): string
+    {
+        return $this->firstName;
+    }
+
+    public function getLastNamePaternal(): string
+    {
+        return $this->lastNamePaternal;
+    }
+
+    public function getLastNameMaternal(): ?string
+    {
+        return $this->lastNameMaternal;
+    }
+
+    /**
+     * Concatenates first name and paternal last name, appending maternal last name when present.
+     */
     public function getFullName(): string
     {
-        return $this->fullName;
+        $name = "{$this->firstName} {$this->lastNamePaternal}";
+
+        if ($this->lastNameMaternal !== null) {
+            $name .= " {$this->lastNameMaternal}";
+        }
+
+        return $name;
     }
 
     public function getPasswordHash(): ?string
@@ -83,7 +105,13 @@ class User
 
     public function isStaff(): bool
     {
-        return $this->tenantId === null;
+        return $this->isStaff;
+    }
+
+    /** Return the tenant ID this user belongs to, or null for staff users. */
+    public function getTenantId(): ?int
+    {
+        return $this->tenantId;
     }
 
     public function deactivate(): void

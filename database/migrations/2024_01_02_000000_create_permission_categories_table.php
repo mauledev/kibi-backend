@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('permission_categories', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->uuid('uuid')->unique()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('uuid')->unique();
             $table->foreignId('school_id')->nullable()->constrained('schools');
             $table->string('name', 100)->notNull();
             $table->timestampTz('created_at')->useCurrent();

@@ -1,13 +1,15 @@
 <?php
 
 use App\Models\Role as RoleModel;
+use App\Models\School;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment as AssignmentModel;
-use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -15,7 +17,7 @@ describe('EloquentUserRoleAssignmentRepository', function () {
     beforeEach(function () {
         $this->repo = new EloquentUserRoleAssignmentRepository;
         $this->tenant = Tenant::factory()->create();
-        $this->user = User::factory()->for($this->tenant)->create();
+        $this->user = User::factory()->create();
         $this->role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'test_role']);
     });
 
@@ -80,8 +82,8 @@ describe('EloquentUserRoleAssignmentRepository', function () {
         });
 
         it('does not match school-scoped assignment when looking for tenant-level', function () {
-            $school = \App\Models\School::create([
-                'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            $school = School::create([
+                'uuid' => (string) Str::uuid(),
                 'tenant_id' => $this->tenant->id,
                 'name' => 'Test School',
                 'slug' => 'test-school',
@@ -119,7 +121,7 @@ describe('EloquentUserRoleAssignmentRepository', function () {
         });
 
         it('stores the assignedBy user id when provided', function () {
-            $assigner = User::factory()->for($this->tenant)->create();
+            $assigner = User::factory()->create();
 
             $result = $this->repo->create(
                 userId: $this->user->id,
@@ -152,7 +154,7 @@ describe('EloquentUserRoleAssignmentRepository', function () {
 
         it('throws when assignment id does not exist', function () {
             expect(fn () => $this->repo->revoke(99999))
-                ->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
+                ->toThrow(ModelNotFoundException::class);
         });
     });
 

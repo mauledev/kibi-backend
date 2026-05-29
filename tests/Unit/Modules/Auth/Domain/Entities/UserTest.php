@@ -8,9 +8,11 @@ describe('User entity', function () {
         return new User(
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'user-uuid-1',
-            tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
+            isStaff: $overrides['isStaff'] ?? false,
             email: $overrides['email'] ?? 'test@example.com',
-            fullName: $overrides['fullName'] ?? 'Test User',
+            firstName: $overrides['firstName'] ?? 'Test',
+            lastNamePaternal: $overrides['lastNamePaternal'] ?? 'User',
+            lastNameMaternal: array_key_exists('lastNameMaternal', $overrides) ? $overrides['lastNameMaternal'] : null,
             passwordHash: array_key_exists('passwordHash', $overrides) ? $overrides['passwordHash'] : 'hashed_password',
             status: $overrides['status'] ?? 'active',
             googleId: $overrides['googleId'] ?? null,
@@ -23,13 +25,27 @@ describe('User entity', function () {
 
         expect($user->getId())->toBe(1);
         expect($user->getUuid())->toBe('user-uuid-1');
-        expect($user->getTenantId())->toBe(10);
+        expect($user->isStaff())->toBeFalse();
         expect($user->getEmail())->toBe('test@example.com');
-        expect($user->getFullName())->toBe('Test User');
+        expect($user->getFirstName())->toBe('Test');
+        expect($user->getLastNamePaternal())->toBe('User');
+        expect($user->getLastNameMaternal())->toBeNull();
         expect($user->getPasswordHash())->toBe('hashed_password');
         expect($user->getStatus())->toBe('active');
         expect($user->getGoogleId())->toBeNull();
         expect($user->getMicrosoftId())->toBeNull();
+    });
+
+    it('getFullName concatenates first and paternal last name when materno is null', function () {
+        $user = makeUser(['firstName' => 'Juan', 'lastNamePaternal' => 'García', 'lastNameMaternal' => null]);
+
+        expect($user->getFullName())->toBe('Juan García');
+    });
+
+    it('getFullName includes maternal last name when not null', function () {
+        $user = makeUser(['firstName' => 'Mauricio', 'lastNamePaternal' => 'Ledesma', 'lastNameMaternal' => 'García']);
+
+        expect($user->getFullName())->toBe('Mauricio Ledesma García');
     });
 
     it('isActive returns true when status is active', function () {
@@ -44,14 +60,14 @@ describe('User entity', function () {
         expect($user->isActive())->toBeFalse();
     });
 
-    it('isStaff returns true when tenantId is null', function () {
-        $user = makeUser(['tenantId' => null]);
+    it('isStaff returns true when isStaff is true', function () {
+        $user = makeUser(['isStaff' => true]);
 
         expect($user->isStaff())->toBeTrue();
     });
 
-    it('isStaff returns false when tenantId is set', function () {
-        $user = makeUser(['tenantId' => 5]);
+    it('isStaff returns false when isStaff is false', function () {
+        $user = makeUser(['isStaff' => false]);
 
         expect($user->isStaff())->toBeFalse();
     });

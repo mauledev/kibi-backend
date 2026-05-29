@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -20,10 +19,12 @@ class UserFactory extends Factory
     {
         return [
             'uuid' => (string) Str::uuid(),
-            'tenant_id' => Tenant::factory(),
+            'is_staff' => false,
             'email' => fake()->unique()->safeEmail(),
             'password_hash' => Hash::make('password'),
-            'full_name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name_paternal' => fake()->lastName(),
+            'last_name_maternal' => fake()->optional(0.8)->lastName(),
             'phone' => fake()->optional()->phoneNumber(),
             'status' => 'active',
         ];
@@ -31,7 +32,7 @@ class UserFactory extends Factory
 
     public function staff(): static
     {
-        return $this->state(fn () => ['tenant_id' => null]);
+        return $this->state(fn () => ['is_staff' => true]);
     }
 
     public function inactive(): static

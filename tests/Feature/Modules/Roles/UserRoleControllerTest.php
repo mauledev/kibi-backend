@@ -32,11 +32,21 @@ function urGrantPermission(RoleModel $role, string $slug): PermissionModel
 describe('UserRoleController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
+        // The tenant owner is automatically created by TenantFactory.
+        // Assign them a low-level role so that their lowestHierarchyLevel()
+        // allows assigning any role with a higher level number.
+        $this->owner = User::find($this->tenant->owner_id);
+        $ownerRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(1)->create([
+            'slug' => 'owner_role_fixture',
+        ]);
+        urAssignRole($this->owner, $ownerRole);
     });
 
     describe('POST /api/users/{uuid}/roles', function () {
         it('returns 401 when unauthenticated', function () {
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'target_unauth']);
+            urAssignRole($target, $targetRole);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/users/{$target->uuid}/roles", [
@@ -46,13 +56,14 @@ describe('UserRoleController', function () {
         });
 
         it('returns 403 when actor lacks role.assign permission', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'no_assign_perm']);
             urAssignRole($actor, $actorRole);
             // No role.assign granted
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToAssign = RoleModel::factory()->forTenant($this->tenant)->atLevel(7)->create(['slug' => 'docente_assign']);
+            urAssignRole($target, $roleToAssign);
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
@@ -63,12 +74,15 @@ describe('UserRoleController', function () {
         });
 
         it('assigns role to user and writes audit log when valid', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_assign']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetScopeRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(6)->create(['slug' => 'target_scope_assign']);
+            urAssignRole($target, $targetScopeRole);
+
             $roleToAssign = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_assign']);
 
             $response = $this->actingAs($actor)
@@ -92,13 +106,14 @@ describe('UserRoleController', function () {
         });
 
         it('returns 403 when actor tries to assign role at same hierarchy level', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'director_same']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $sameLevel = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'director_same_target']);
+            urAssignRole($target, $sameLevel);
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
@@ -109,11 +124,7 @@ describe('UserRoleController', function () {
         });
 
         it('returns 404 when target user does not exist', function () {
-            $actor = User::factory()->for($this->tenant)->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            urAssignRole($actor, $actorRole);
-
-            $this->actingAs($actor)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/users/00000000-0000-0000-0000-000000000000/roles', [
                     'role_uuid' => '00000000-0000-0000-0000-000000000000',
@@ -122,12 +133,14 @@ describe('UserRoleController', function () {
         });
 
         it('returns 404 when role does not exist', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_404']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetScopeRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(6)->create(['slug' => 'target_scope_404']);
+            urAssignRole($target, $targetScopeRole);
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
@@ -138,16 +151,16 @@ describe('UserRoleController', function () {
         });
 
         it('returns existing assignment when same role already assigned (idempotent)', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_idem']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToAssign = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'idem_role']);
 
             // First assignment
-            $existingAssignment = urAssignRole($target, $roleToAssign);
+            urAssignRole($target, $roleToAssign);
 
             // Second request — should be idempotent
             $response = $this->actingAs($actor)
@@ -168,14 +181,14 @@ describe('UserRoleController', function () {
         });
 
         it('owner bypasses permission check and can assign roles', function () {
-            $actor = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            urAssignRole($actor, $ownerRole);
+            // The owner is the user whose id matches TenantContext::ownerId (set by TenantMiddleware).
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetScopeRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(6)->create(['slug' => 'owner_target_scope']);
+            urAssignRole($target, $targetScopeRole);
 
-            $target = User::factory()->for($this->tenant)->create();
             $roleToAssign = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'owner_assign_target']);
 
-            $response = $this->actingAs($actor)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
@@ -185,29 +198,47 @@ describe('UserRoleController', function () {
         });
 
         it('validation fails when role_uuid is not a uuid', function () {
-            $actor = User::factory()->for($this->tenant)->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            urAssignRole($actor, $actorRole);
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetScopeRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(6)->create(['slug' => 'target_scope_val']);
+            urAssignRole($target, $targetScopeRole);
 
-            $target = User::factory()->for($this->tenant)->create();
-
-            $this->actingAs($actor)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => 'not-a-uuid',
                 ])
                 ->assertStatus(422);
         });
+
+        it('returns 422 when trying to assign the owner role', function () {
+            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->create([
+                'slug' => 'owner',
+                'name' => 'Owner',
+                'hierarchy_level' => 1,
+            ]);
+
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
+            $targetScopeRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(6)->create(['slug' => 'target_scope_owner']);
+            urAssignRole($target, $targetScopeRole);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->postJson("/api/users/{$target->uuid}/roles", [
+                    'role_uuid' => $ownerRole->uuid,
+                ]);
+
+            $response->assertStatus(422);
+        });
     });
 
     describe('DELETE /api/users/{uuid}/roles/{role_uuid}', function () {
         it('revokes role assignment and sets revoked_at', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_revoke']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToRevoke = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_revoke']);
             urAssignRole($target, $roleToRevoke);
 
@@ -227,12 +258,12 @@ describe('UserRoleController', function () {
         });
 
         it('creates audit log with action role.revoke', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_revoke_log']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToRevoke = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_revoke_log']);
             urAssignRole($target, $roleToRevoke);
 
@@ -248,12 +279,12 @@ describe('UserRoleController', function () {
         });
 
         it('returns 404 when no active assignment exists (already revoked)', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_already_revoked']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToRevoke = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'already_revoked_role']);
 
             // No active assignment — already revoked or never assigned
@@ -270,12 +301,12 @@ describe('UserRoleController', function () {
         });
 
         it('returns 403 when actor tries to revoke role at same hierarchy level', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_revoke_same']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $sameLevel = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'coord_same_level_target']);
             urAssignRole($target, $sameLevel);
 
@@ -286,12 +317,12 @@ describe('UserRoleController', function () {
         });
 
         it('returns 403 when actor lacks role.revoke permission', function () {
-            $actor = User::factory()->for($this->tenant)->create();
+            $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_no_revoke']);
             urAssignRole($actor, $actorRole);
             // No role.revoke granted
 
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToRevoke = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'forbidden_revoke_target']);
             urAssignRole($target, $roleToRevoke);
 
@@ -302,15 +333,11 @@ describe('UserRoleController', function () {
         });
 
         it('owner can revoke any role assignment', function () {
-            $actor = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            urAssignRole($actor, $ownerRole);
-
-            $target = User::factory()->for($this->tenant)->create();
+            $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleToRevoke = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'owner_revoke_target']);
             urAssignRole($target, $roleToRevoke);
 
-            $this->actingAs($actor)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
                 ->assertStatus(200);
@@ -321,7 +348,7 @@ describe('UserRoleController', function () {
         it('user with two roles sharing a permission retains it after one role is revoked', function () {
             $tenant = $this->tenant;
 
-            $user = User::factory()->for($tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $roleA = RoleModel::factory()->forTenant($tenant)->atLevel(5)->create(['slug' => 'union_role_a']);
             $roleB = RoleModel::factory()->forTenant($tenant)->atLevel(6)->create(['slug' => 'union_role_b']);
 
@@ -351,7 +378,7 @@ describe('UserRoleController', function () {
 
         it('hasRole returns true when any active assignment has that role slug', function () {
             $tenant = $this->tenant;
-            $user = User::factory()->for($tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $ownerRole = RoleModel::factory()->forTenant($tenant)->owner()->create();
             urAssignRole($user, $ownerRole);
 
@@ -362,7 +389,7 @@ describe('UserRoleController', function () {
 
         it('hasRole returns false when the only owner assignment is revoked', function () {
             $tenant = $this->tenant;
-            $user = User::factory()->for($tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $ownerRole = RoleModel::factory()->forTenant($tenant)->owner()->create();
             $assignment = urAssignRole($user, $ownerRole);
 
@@ -376,14 +403,14 @@ describe('UserRoleController', function () {
         });
 
         it('lowestHierarchyLevel returns PHP_INT_MAX when user has no active roles', function () {
-            $user = User::factory()->for($this->tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $this->tenant->id]);
 
             expect($user->lowestHierarchyLevel())->toBe(PHP_INT_MAX);
         });
 
         it('lowestHierarchyLevel returns the lowest level across active roles', function () {
             $tenant = $this->tenant;
-            $user = User::factory()->for($tenant)->create();
+            $user = User::factory()->create(['tenant_id' => $this->tenant->id]);
 
             $level3 = RoleModel::factory()->forTenant($tenant)->atLevel(3)->create(['slug' => 'gestor_lvl3']);
             $level5 = RoleModel::factory()->forTenant($tenant)->atLevel(5)->create(['slug' => 'coord_lvl5']);
@@ -402,14 +429,12 @@ describe('UserRoleController', function () {
             $tenantA = $this->tenant;
             $tenantB = Tenant::factory()->create();
 
-            $actorA = User::factory()->for($tenantA)->create();
-            $ownerRoleA = RoleModel::factory()->forTenant($tenantA)->owner()->create();
-            urAssignRole($actorA, $ownerRoleA);
+            $ownerA = User::find($tenantA->owner_id);
 
             // Role that belongs to tenant B
             $roleBOnly = RoleModel::factory()->forTenant($tenantB)->atLevel(5)->create(['slug' => 'tenant_b_role']);
 
-            $response = $this->actingAs($actorA)
+            $response = $this->actingAs($ownerA)
                 ->withHeader('X-Tenant-Slug', $tenantA->slug)
                 ->getJson('/api/roles');
 

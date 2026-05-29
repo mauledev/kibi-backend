@@ -129,7 +129,7 @@ $this->app->when(LoginUseCase::class)
 
 $this->app->when(StaffLoginUseCase::class)
     ->needs(UserRepositoryInterface::class)
-    ->give(EloquentStaffUserRepository::class);  // scoped by tenant_id IS NULL
+    ->give(EloquentStaffUserRepository::class);  // scoped by is_staff = true
 ```
 
 This is the pattern for staff vs tenant repositories — not conditional logic inside a shared repository.
@@ -179,23 +179,27 @@ School-level subdomains (`{school_slug}.kibi.com`) are reserved for public-facin
 
 ### Staff exception
 
-Staff routes (`app.kibi.com`) do not go through `TenantMiddleware`, so `TenantContext` is never bound in the container for those requests. Any repository used in a staff UseCase must **not** inject `TenantContext` — instead it scopes by `WHERE tenant_id IS NULL`.
+Staff routes (`app.kibi.com`) do not go through `TenantMiddleware`, so `TenantContext` is never bound in the container for those requests. Any repository used in a staff UseCase must **not** inject `TenantContext` — instead it scopes by `WHERE is_staff = true`.
 
 This is the only case where two implementations of the same repository interface coexist. Use contextual binding in `AppServiceProvider` to give each UseCase its correct implementation (see Dependency injection section). Do not add conditional logic inside a shared repository to handle both cases.
 
 ### Tenant isolation rule
 
-Every Repository method that queries tenant-owned data must scope by `tenant_id` as the **first** filter. Repositories receive `TenantContext` via constructor injection and apply the scope internally. Controllers and UseCases never apply tenant scoping directly.
+Every Repository method that queries tenant-owned data must apply a tenant scope as the **first** filter. Repositories receive `TenantContext` via constructor injection and apply the scope internally. Controllers and UseCases never apply tenant scoping directly.
+
+For user repositories, the scope matches users who are either the tenant owner (`TenantContext::ownerId`) or have active role assignments within the tenant (via school or tenant-level role). See `EloquentUserRepository::applyTenantScope()`.
+
+For all other tenant-owned tables (`roles`, `schools`, etc.), the scope is the standard `WHERE tenant_id = TenantContext::tenantId`.
 
 ### Request flow with tenant resolution
 
 ```
 HTTP Request ({tenant_slug}.kibi.com)
-  → TenantMiddleware (resolves Tenant by slug → binds TenantContext{tenantId})
+  → TenantMiddleware (resolves Tenant by slug → binds TenantContext{tenantId, ownerId})
   → routes/api.php
   → Controller → FormRequest → InputDTO
   → UseCase → Repository Contract
-  → EloquentRepository (scopes by tenant_id internally via TenantContext)
+  → EloquentRepository (applies tenant scope internally via TenantContext)
   → Entity → Resource → ApiResponse → JSON
 ```
 
@@ -205,30 +209,27 @@ HTTP Request ({tenant_slug}.kibi.com)
 
 ### Two separate systems
 
-**Softlinkia staff** (`users.tenant_id IS NULL`):
+**Softlinkia staff** (`users.is_staff = true`):
 - Roles are system roles (`roles.is_system_role = true`)
 - Permissions are fixed in code — no `role_permissions` rows
 - Access is controlled by domain: staff only accesses `app.kibi.com`
-- Guards check `tenant_id IS NULL` + role slug
+- Repositories scope by `WHERE is_staff = true`
 
-**School users** (`users.tenant_id IS NOT NULL`):
+**School users** (`users.is_staff = false`):
 - Roles belong to a tenant (`roles.tenant_id`)
 - Permissions are dynamic, managed via `role_permissions`
 - Access is controlled by subdomain: `{slug}.kibi.com`
+- Users belong to a tenant via `user_role_assignments` or by being the tenant owner (`tenants.owner_id`)
 
 ### Owner
 
-Owner is above the permission system. A `Gate::before` bypass applies globally for any user holding the `owner` role slug:
+Owner is above the permission system. A `Gate::before` bypass applies globally for the user whose `id` matches `TenantContext::ownerId`. The owner identity comes directly from `tenants.owner_id` — no `user_role_assignments` row is needed or consulted for this check.
 
-```php
-Gate::before(function (User $user) {
-    if ($user->hasRole('owner')) {
-        return true;
-    }
-});
-```
+The bypass is skipped entirely on staff routes because `TenantContext` is never bound in the container for those requests (the gate checks `app()->bound(TenantContext::class)` before resolving it).
 
 Owner never sees a permissions UI. All permission management flows downward from Owner → Gestor → Director.
+
+The `owner` role slug is kept in the seeder for hierarchy reference purposes, but assigning it via `AssignRoleToUserUseCase` is blocked by a domain guard (`OwnerRoleAssignmentException`). The owner bypass is determined solely by `tenants.owner_id`, not by role assignment.
 
 ### Hierarchy
 
@@ -260,13 +261,17 @@ The permission `manage.permissions` allows a role to assign permissions to roles
 
 Two gates are registered in `AppServiceProvider::boot()`:
 
-1. **`Gate::before` — Owner bypass**: any user whose active assignments include a role with slug `owner` is granted every ability and gate evaluation stops immediately. Owner is a tenant concept — do not add staff roles (e.g. `superadmin`) to this bypass. Staff routes do not use `$this->authorize()` and do not need a gate bypass.
+1. **`Gate::before` — Owner bypass**: the user whose `id` matches `TenantContext::ownerId` is granted every ability unconditionally. The gate first checks `app()->bound(TenantContext::class)` — if `TenantContext` is not bound (staff routes), the bypass is skipped entirely. Owner is a tenant concept — staff routes do not use `$this->authorize()` and do not need a gate bypass.
 
 2. **`Gate::after` — Dynamic permission gate**: for all other users, every `$this->authorize('some.slug')` call in a Controller resolves against the merged permission slugs from all active role assignments (`revoked_at IS NULL`). Returns `true` if the permission is found, `null` otherwise (letting any policy take precedence). Use `Gate::after` — not `Gate::define('*')` — to avoid overriding policies.
 
 ```php
 Gate::before(function (User $user, string $ability): ?bool {
-    if ($user->hasRole('owner')) {
+    if (! app()->bound(TenantContext::class)) {
+        return null;
+    }
+    $context = app(TenantContext::class);
+    if ($context->ownerId === $user->id) {
         return true;
     }
     return null;

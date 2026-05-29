@@ -6,6 +6,9 @@ use App\Http\Response\ApiResponse;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Domain\Exceptions\UserAlreadyExistsException;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
+use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
+use App\Modules\Tenant\Domain\Exceptions\EmailAlreadyTakenException;
+use App\Modules\Tenant\Domain\Exceptions\TenantSlugAlreadyExistsException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -53,6 +56,30 @@ class Handler extends ExceptionHandler
                 return ApiResponse::conflict(
                     $e->getMessage(),
                     ['email' => [$e->getMessage()]]
+                );
+            }
+        });
+
+        $this->renderable(function (OwnerRoleAssignmentException $e, $request) {
+            if ($request->expectsJson()) {
+                return ApiResponse::error($e->getMessage(), 422);
+            }
+        });
+
+        $this->renderable(function (TenantSlugAlreadyExistsException $e, $request) {
+            if ($request->expectsJson()) {
+                return ApiResponse::conflict(
+                    $e->getMessage(),
+                    ['tenant_slug' => [$e->getMessage()]]
+                );
+            }
+        });
+
+        $this->renderable(function (EmailAlreadyTakenException $e, $request) {
+            if ($request->expectsJson()) {
+                return ApiResponse::conflict(
+                    $e->getMessage(),
+                    ['owner_email' => [$e->getMessage()]]
                 );
             }
         });

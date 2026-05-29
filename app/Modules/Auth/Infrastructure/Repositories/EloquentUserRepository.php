@@ -66,9 +66,12 @@ class EloquentUserRepository implements UserRepositoryInterface
     public function save(User $user): User
     {
         $model = UserModel::create([
-            'tenant_id' => $user->getTenantId(),
+            'tenant_id' => $this->context->tenantId,
+            'is_staff' => false,
             'email' => $user->getEmail(),
-            'full_name' => $user->getFullName(),
+            'first_name' => $user->getFirstName(),
+            'last_name_paternal' => $user->getLastNamePaternal(),
+            'last_name_maternal' => $user->getLastNameMaternal(),
             'password_hash' => $user->getPasswordHash(),
             'google_id' => $user->getGoogleId(),
             'microsoft_id' => $user->getMicrosoftId(),
@@ -85,7 +88,9 @@ class EloquentUserRepository implements UserRepositoryInterface
             ->findOrFail($user->getId());
 
         $model->update([
-            'full_name' => $user->getFullName(),
+            'first_name' => $user->getFirstName(),
+            'last_name_paternal' => $user->getLastNamePaternal(),
+            'last_name_maternal' => $user->getLastNameMaternal(),
             'password_hash' => $user->getPasswordHash(),
             'status' => $user->getStatus(),
         ]);
@@ -106,13 +111,16 @@ class EloquentUserRepository implements UserRepositoryInterface
         return new User(
             id: $model->id,
             uuid: $model->uuid,
-            tenantId: $model->tenant_id,
             email: $model->email,
-            fullName: $model->full_name,
+            firstName: $model->first_name,
+            lastNamePaternal: $model->last_name_paternal,
+            lastNameMaternal: $model->last_name_maternal,
             passwordHash: $model->password_hash,
             status: $model->status,
             googleId: $model->google_id,
             microsoftId: $model->microsoft_id,
+            isStaff: (bool) $model->is_staff,
+            tenantId: $model->tenant_id,
         );
     }
 }

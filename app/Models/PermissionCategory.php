@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * PermissionCategory Eloquent Model — Infrastructure only.
@@ -19,6 +20,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PermissionCategory extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected static function booting(): void
+    {
+        static::creating(function (self $model): void {
+            $model->uuid ??= (string) Str::uuid();
+        });
+    }
 
     public $timestamps = false;
 

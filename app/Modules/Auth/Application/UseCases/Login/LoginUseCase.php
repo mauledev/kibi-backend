@@ -47,6 +47,9 @@ class LoginUseCase
         return new LoginOutput(
             uuid: $user->getUuid(),
             email: $user->getEmail(),
+            firstName: $user->getFirstName(),
+            lastNamePaternal: $user->getLastNamePaternal(),
+            lastNameMaternal: $user->getLastNameMaternal(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),
             token: $this->tokens->generate($user->getId()),

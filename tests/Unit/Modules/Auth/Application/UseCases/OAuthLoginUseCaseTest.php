@@ -36,9 +36,11 @@ describe('OAuthLoginUseCase', function () {
         return new User(
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'user-uuid',
-            tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
+            isStaff: $overrides['isStaff'] ?? false,
             email: $overrides['email'] ?? 'user@gmail.com',
-            fullName: $overrides['fullName'] ?? 'OAuth User',
+            firstName: $overrides['firstName'] ?? 'OAuth',
+            lastNamePaternal: $overrides['lastNamePaternal'] ?? 'User',
+            lastNameMaternal: $overrides['lastNameMaternal'] ?? null,
             passwordHash: null,
             status: 'active',
             googleId: $overrides['googleId'] ?? null,
@@ -65,7 +67,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('oauth-token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token');
         $output = $this->useCase->execute($input);
 
         expect($output)->toBeInstanceOf(LoginOutput::class);
@@ -83,7 +85,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token');
         $output = $this->useCase->execute($input);
 
         expect($output->email)->toBe('user@gmail.com');
@@ -104,7 +106,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->andReturn('new-token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token');
         $output = $this->useCase->execute($input);
 
         expect($output->uuid)->toBe('new-uuid');
@@ -120,7 +122,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->andReturn('ms-token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'microsoft', accessToken: 'ms-access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'microsoft', accessToken: 'ms-access-token');
         $output = $this->useCase->execute($input);
 
         expect($output)->toBeInstanceOf(LoginOutput::class);
@@ -141,7 +143,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->andReturn('ms-token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'microsoft', accessToken: 'ms-access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'microsoft', accessToken: 'ms-access-token');
         $output = $this->useCase->execute($input);
 
         expect($output->uuid)->toBe('ms-new-uuid');
@@ -157,7 +159,7 @@ describe('OAuthLoginUseCase', function () {
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token', tenantId: 10);
+        $input = new OAuthLoginInput(provider: 'google', accessToken: 'access-token');
         $this->useCase->execute($input);
     });
 });

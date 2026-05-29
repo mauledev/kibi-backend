@@ -5,10 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class School extends Model
 {
     use SoftDeletes;
+
+    protected static function booting(): void
+    {
+        static::creating(function (self $model): void {
+            $model->uuid ??= (string) Str::uuid();
+        });
+    }
 
     protected $fillable = [
         'uuid',

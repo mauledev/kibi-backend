@@ -12,6 +12,7 @@ use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
+use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 
 class AssignRoleToUserUseCase
@@ -31,6 +32,7 @@ class AssignRoleToUserUseCase
      *
      * @throws UserNotFoundException
      * @throws RoleNotFoundException
+     * @throws OwnerRoleAssignmentException
      * @throws HierarchyViolationException
      */
     public function execute(AssignRoleToUserInput $input): UserRoleAssignment
@@ -47,6 +49,10 @@ class AssignRoleToUserUseCase
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
+        }
+
+        if ($role->getSlug() === 'owner') {
+            throw new OwnerRoleAssignmentException;
         }
 
         if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
