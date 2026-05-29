@@ -21,7 +21,10 @@ class UserDetailResource extends JsonResource
         return [
             'uuid' => $user->uuid,
             'email' => $user->email,
-            'full_name' => $user->full_name,
+            'first_name' => $user->first_name,
+            'last_name_paternal' => $user->last_name_paternal,
+            'last_name_maternal' => $user->last_name_maternal,
+            'full_name' => $user->first_name.' '.$user->last_name_paternal.($user->last_name_maternal !== null ? ' '.$user->last_name_maternal : ''),
             'phone' => $user->phone,
             'status' => $user->status,
             'created_at' => $user->created_at?->toIso8601String(),

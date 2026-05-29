@@ -17,7 +17,7 @@ describe('EloquentUserRoleAssignmentRepository', function () {
     beforeEach(function () {
         $this->repo = new EloquentUserRoleAssignmentRepository;
         $this->tenant = Tenant::factory()->create();
-        $this->user = User::factory()->for($this->tenant)->create();
+        $this->user = User::factory()->create();
         $this->role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'test_role']);
     });
 
@@ -121,7 +121,7 @@ describe('EloquentUserRoleAssignmentRepository', function () {
         });
 
         it('stores the assignedBy user id when provided', function () {
-            $assigner = User::factory()->for($this->tenant)->create();
+            $assigner = User::factory()->create();
 
             $result = $this->repo->create(
                 userId: $this->user->id,

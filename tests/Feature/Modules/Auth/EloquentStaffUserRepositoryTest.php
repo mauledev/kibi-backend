@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Tenant;
 use App\Models\User;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,11 +9,10 @@ uses(RefreshDatabase::class);
 describe('EloquentStaffUserRepository', function () {
     beforeEach(function () {
         $this->repo = new EloquentStaffUserRepository;
-        $this->tenant = Tenant::factory()->create();
     });
 
     describe('findByEmail', function () {
-        it('returns staff user when email matches a user with null tenant_id', function () {
+        it('returns staff user when email matches a user with is_staff true', function () {
             User::factory()->staff()->create(['email' => 'staff@kibi.com']);
 
             $result = $this->repo->findByEmail('staff@kibi.com');
@@ -24,8 +22,8 @@ describe('EloquentStaffUserRepository', function () {
             expect($result->isStaff())->toBeTrue();
         });
 
-        it('returns null when email belongs to a tenant user', function () {
-            User::factory()->for($this->tenant)->create(['email' => 'tenant@test.com']);
+        it('returns null when email belongs to a non-staff user', function () {
+            User::factory()->create(['email' => 'tenant@test.com']);
 
             $result = $this->repo->findByEmail('tenant@test.com');
 
@@ -49,10 +47,10 @@ describe('EloquentStaffUserRepository', function () {
             expect($result->getId())->toBe($staff->id);
         });
 
-        it('returns null when id belongs to a tenant user', function () {
-            $tenantUser = User::factory()->for($this->tenant)->create();
+        it('returns null when id belongs to a non-staff user', function () {
+            $nonStaff = User::factory()->create();
 
-            $result = $this->repo->findById($tenantUser->id);
+            $result = $this->repo->findById($nonStaff->id);
 
             expect($result)->toBeNull();
         });
@@ -68,10 +66,10 @@ describe('EloquentStaffUserRepository', function () {
             expect($result->getUuid())->toBe($staff->uuid);
         });
 
-        it('returns null when uuid belongs to a tenant user', function () {
-            $tenantUser = User::factory()->for($this->tenant)->create();
+        it('returns null when uuid belongs to a non-staff user', function () {
+            $nonStaff = User::factory()->create();
 
-            $result = $this->repo->findByUuid($tenantUser->uuid);
+            $result = $this->repo->findByUuid($nonStaff->uuid);
 
             expect($result)->toBeNull();
         });
@@ -87,10 +85,10 @@ describe('EloquentStaffUserRepository', function () {
             expect($result->getGoogleId())->toBe('staff-google-123');
         });
 
-        it('returns null when google_id belongs to a tenant user', function () {
-            User::factory()->for($this->tenant)->create(['google_id' => 'tenant-google', 'email' => 'tg@test.com']);
+        it('returns null when google_id belongs to a non-staff user', function () {
+            User::factory()->create(['google_id' => 'nonstaf-google', 'email' => 'tg@test.com']);
 
-            $result = $this->repo->findByGoogleId('tenant-google');
+            $result = $this->repo->findByGoogleId('nonstaf-google');
 
             expect($result)->toBeNull();
         });
@@ -106,22 +104,21 @@ describe('EloquentStaffUserRepository', function () {
             expect($result->getMicrosoftId())->toBe('staff-ms-abc');
         });
 
-        it('returns null when microsoft_id belongs to a tenant user', function () {
-            User::factory()->for($this->tenant)->create(['microsoft_id' => 'tenant-ms', 'email' => 'tm@test.com']);
+        it('returns null when microsoft_id belongs to a non-staff user', function () {
+            User::factory()->create(['microsoft_id' => 'nonstaff-ms', 'email' => 'tm@test.com']);
 
-            $result = $this->repo->findByMicrosoftId('tenant-ms');
+            $result = $this->repo->findByMicrosoftId('nonstaff-ms');
 
             expect($result)->toBeNull();
         });
     });
 
     describe('save', function () {
-        it('creates a staff user record with null tenant_id using factory', function () {
-            // The factory sets a UUID explicitly, which the repository toDomain() requires.
+        it('creates a staff user record with is_staff true using factory', function () {
             $staff = User::factory()->staff()->create(['email' => 'new-staff@kibi.com']);
 
-            expect($staff->tenant_id)->toBeNull();
-            $this->assertDatabaseHas('users', ['email' => 'new-staff@kibi.com', 'tenant_id' => null]);
+            expect($staff->is_staff)->toBeTrue();
+            $this->assertDatabaseHas('users', ['email' => 'new-staff@kibi.com', 'is_staff' => true]);
         });
     });
 
@@ -135,26 +132,26 @@ describe('EloquentStaffUserRepository', function () {
             $this->assertSoftDeleted('users', ['id' => $staff->id]);
         });
 
-        it('does not delete a tenant user', function () {
-            $tenantUser = User::factory()->for($this->tenant)->create();
+        it('does not delete a non-staff user', function () {
+            $nonStaff = User::factory()->create();
 
-            $result = $this->repo->delete($tenantUser->id);
+            $result = $this->repo->delete($nonStaff->id);
 
             expect($result)->toBeFalse();
         });
     });
 
-    describe('tenant isolation', function () {
-        it('never exposes tenant-scoped users in any lookup', function () {
-            $tenantUser = User::factory()->for($this->tenant)->create([
+    describe('isolation', function () {
+        it('never exposes non-staff users in any lookup', function () {
+            $nonStaff = User::factory()->create([
                 'email' => 'hidden@test.com',
                 'google_id' => 'g-hidden',
                 'microsoft_id' => 'ms-hidden',
             ]);
 
             expect($this->repo->findByEmail('hidden@test.com'))->toBeNull();
-            expect($this->repo->findById($tenantUser->id))->toBeNull();
-            expect($this->repo->findByUuid($tenantUser->uuid))->toBeNull();
+            expect($this->repo->findById($nonStaff->id))->toBeNull();
+            expect($this->repo->findByUuid($nonStaff->uuid))->toBeNull();
             expect($this->repo->findByGoogleId('g-hidden'))->toBeNull();
             expect($this->repo->findByMicrosoftId('ms-hidden'))->toBeNull();
         });

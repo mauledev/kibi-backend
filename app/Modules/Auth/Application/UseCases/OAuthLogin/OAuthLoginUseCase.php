@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Modules\Auth\Application\UseCases\OAuthLogin;
 
 use App\Common\Audit\AuditLoggerInterface;
@@ -51,12 +49,15 @@ class OAuthLoginUseCase
             $googleId = $input->provider === 'google' ? $oauthData->providerId : null;
             $microsoftId = $input->provider === 'microsoft' ? $oauthData->providerId : null;
 
+            [$firstName, $lastNamePaternal, $lastNameMaternal] = $this->parseName($oauthData->name);
+
             $newUser = new User(
                 id: 0,
                 uuid: '',
-                tenantId: $input->tenantId,
                 email: $oauthData->email,
-                fullName: $oauthData->name,
+                firstName: $firstName,
+                lastNamePaternal: $lastNamePaternal,
+                lastNameMaternal: $lastNameMaternal,
                 passwordHash: null,
                 status: 'active',
                 googleId: $googleId,
@@ -77,6 +78,9 @@ class OAuthLoginUseCase
         return new LoginOutput(
             uuid: $user->getUuid(),
             email: $user->getEmail(),
+            firstName: $user->getFirstName(),
+            lastNamePaternal: $user->getLastNamePaternal(),
+            lastNameMaternal: $user->getLastNameMaternal(),
             fullName: $user->getFullName(),
             isStaff: $user->isStaff(),
             token: $this->tokens->generate($user->getId()),
@@ -86,8 +90,42 @@ class OAuthLoginUseCase
     }
 
     /**
+     * Parse an OAuth display name string into first name, paternal last name, and maternal last name.
+     *
+     * Rules:
+     *   - One word  → firstName = word, lastNamePaternal = '', lastNameMaternal = null
+     *   - Two words → firstName = first word, lastNamePaternal = last word, lastNameMaternal = null
+     *   - Three+ words → firstName = first word, lastNamePaternal = last word,
+     *                    lastNameMaternal = everything in between (joined)
+     *
+     * @return array{string, string, string|null}
+     */
+    private function parseName(string $name): array
+    {
+        $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY);
+
+        if ($parts === false || $parts === []) {
+            return ['', '', null];
+        }
+
+        $count = count($parts);
+
+        if ($count === 1) {
+            return [$parts[0], '', null];
+        }
+
+        $firstName = $parts[0];
+        $lastNamePaternal = $parts[$count - 1];
+        $lastNameMaternal = $count > 2
+            ? implode(' ', array_slice($parts, 1, $count - 2))
+            : null;
+
+        return [$firstName, $lastNamePaternal, $lastNameMaternal];
+    }
+
+    /**
      * @param  array<Role>  $roles
-     * @return list<string>
+     * @return array<string>
      */
     private function extractPermissionSlugs(array $roles): array
     {

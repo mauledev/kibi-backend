@@ -38,9 +38,11 @@ describe('StaffLoginUseCase', function () {
         return new User(
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'staff-uuid',
-            tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : null,
+            isStaff: array_key_exists('isStaff', $overrides) ? $overrides['isStaff'] : true,
             email: $overrides['email'] ?? 'staff@kibi.com',
-            fullName: $overrides['fullName'] ?? 'Staff Member',
+            firstName: $overrides['firstName'] ?? 'Staff',
+            lastNamePaternal: $overrides['lastNamePaternal'] ?? 'Member',
+            lastNameMaternal: $overrides['lastNameMaternal'] ?? null,
             passwordHash: array_key_exists('passwordHash', $overrides) ? $overrides['passwordHash'] : Hash::make('secret'),
             status: $overrides['status'] ?? 'active',
         );
@@ -78,8 +80,8 @@ describe('StaffLoginUseCase', function () {
     });
 
     it('throws InvalidCredentialsException when user is a tenant user not staff', function () {
-        // User has a tenantId — not a staff user
-        $user = staffMakeUser(['tenantId' => 5]);
+        // User has isStaff false — not a staff user
+        $user = staffMakeUser(['isStaff' => false]);
 
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
 

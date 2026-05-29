@@ -20,6 +20,9 @@ class LoginResource extends JsonResource
         return [
             'uuid' => $output->uuid,
             'email' => $output->email,
+            'first_name' => $output->firstName,
+            'last_name_paternal' => $output->lastNamePaternal,
+            'last_name_maternal' => $output->lastNameMaternal,
             'full_name' => $output->fullName,
             'is_staff' => $output->isStaff,
             'roles' => array_map(fn (Role $role) => [

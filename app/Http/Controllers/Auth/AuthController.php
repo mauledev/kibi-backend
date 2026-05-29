@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
+use App\Http\Requests\Auth\ActivateAccountRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\OAuthRequest;
 use App\Http\Resources\Auth\LoginResource;
@@ -11,6 +11,8 @@ use App\Http\Resources\Auth\MeResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\OAuthLoginInput;
+use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountInput;
+use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
@@ -18,6 +20,7 @@ use App\Modules\Auth\Application\UseCases\Logout\LogoutUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
+use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -72,13 +75,12 @@ class AuthController extends Controller
      * The {provider} route parameter is merged into the request by OAuthRequest::prepareForValidation()
      * before Laravel runs validation, so both access_token and provider are validated together.
      */
-    public function oauthLogin(OAuthRequest $request, OAuthLoginUseCase $useCase, TenantContext $context): JsonResponse
+    public function oauthLogin(OAuthRequest $request, OAuthLoginUseCase $useCase): JsonResponse
     {
         try {
             $output = $useCase->execute(new OAuthLoginInput(
                 provider: $request->validated('provider'),
                 accessToken: $request->validated('access_token'),
-                tenantId: $context->tenantId,
             ));
 
             return ApiResponse::success(new LoginResource($output), 'Login successful');
@@ -105,6 +107,37 @@ class AuthController extends Controller
         $output = $useCase->execute($request->user()->id);
 
         return ApiResponse::success(new MeResource($output));
+    }
+
+    /**
+     * Activate an owner account via a signed URL.
+     * POST /auth/activate?user={uuid}&expires={timestamp}&signature={hmac}
+     *
+     * The frontend SPA receives the activation link by email, extracts the query
+     * params and passes them to this endpoint. The signature is validated here
+     * before delegating to the UseCase.
+     *
+     * Responds 200 with a login token on success.
+     * Responds 422 when the signature is invalid, expired, or the account is already active.
+     * Responds 404 when the user UUID does not match any pending user.
+     */
+    public function activate(ActivateAccountRequest $request, ActivateAccountUseCase $useCase): JsonResponse
+    {
+        if (! $request->hasValidSignature()) {
+            return ApiResponse::error('Invalid or expired activation link', 422);
+        }
+
+        try {
+            $output = $useCase->execute(new ActivateAccountInput(
+                userUuid: (string) $request->query('user'),
+                password: $request->validated('password'),
+            ));
+
+            return ApiResponse::success(new LoginResource($output), 'Account activated successfully');
+
+        } catch (UserNotFoundException $e) {
+            return ApiResponse::notFound($e->getMessage());
+        }
     }
 
     /**

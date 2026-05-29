@@ -1,13 +1,12 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Roles\PermissionController;
 use App\Http\Controllers\Roles\RoleController;
 use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
+use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -33,8 +32,17 @@ Route::prefix('staff')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
+
+        Route::post('/tenants', [TenantController::class, 'store'])->name('staff.tenants.store');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Public routes — no tenant middleware, no auth
+|--------------------------------------------------------------------------
+*/
+Route::post('/auth/activate', [AuthController::class, 'activate'])->name('auth.activate');
 
 /*
 |--------------------------------------------------------------------------

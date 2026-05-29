@@ -150,39 +150,68 @@ Never assert internal IDs — assert `uuid` fields only.
 
 ## Tenant context in tests
 
-Bind `TenantContext` manually before any UseCase or Repository call:
+`TenantContext` now requires both `tenantId` and `ownerId`. Bind it manually before any UseCase or Repository call:
 
 ```php
 use App\Common\Tenant\TenantContext;
 
-app()->instance(TenantContext::class, new TenantContext(tenantId: $tenant->id));
+app()->instance(TenantContext::class, new TenantContext(
+    tenantId: $tenant->id,
+    ownerId: $tenant->owner_id ?? 0,
+));
 ```
 
-For HTTP Feature tests, use `withServerVariables` to simulate the subdomain so `TenantMiddleware` resolves correctly (as shown above). This requires the tenant to exist in the database.
+For HTTP Feature tests, use `withHeader('X-Tenant-Slug', $tenant->slug)` so `TenantMiddleware` resolves `TenantContext` automatically (including `ownerId` from `tenants.owner_id`).
 
 ---
 
 ## Authentication in tests
 
-Use Sanctum's `actingAs` for authenticated endpoints:
+Users no longer have a `tenant_id` column. To associate a user with a tenant for repository scoping, either:
+
+1. Make them the **tenant owner** (their `id` equals `TenantContext::ownerId`)
+2. Give them an **active role assignment** for a role owned by that tenant
 
 ```php
-$user = User::factory()->for($tenant)->create();
+// Tenant-scoped user via role assignment
+$user = User::factory()->create();
+$role = Role::factory()->forTenant($tenant)->atLevel(5)->create(['slug' => 'some_role']);
+UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
 
-actingAs($user)
-    ->getJson('/api/roles')
-    ->assertStatus(200);
+// Use the tenant owner directly (TenantFactory auto-creates an owner)
+$tenant = Tenant::factory()->create();
+$owner = User::find($tenant->owner_id);
 ```
 
-For staff endpoints (no tenant):
+For staff endpoints:
 
 ```php
-$staff = User::factory()->staff()->create(); // tenant_id IS NULL
+$staff = User::factory()->staff()->create(); // is_staff = true
 
 actingAs($staff)
     ->getJson('/api/staff/tenants')
     ->assertStatus(200);
 ```
+
+### Owner bypass in tests
+
+`Gate::before` grants all abilities to the user whose `id` matches `TenantContext::ownerId`. For tests that verify owner bypass:
+
+```php
+$tenant = Tenant::factory()->create();
+$owner = User::find($tenant->owner_id);
+
+// Give the owner a low-level role so UseCase hierarchy checks also pass
+$ownerRole = Role::factory()->forTenant($tenant)->atLevel(1)->create(['slug' => 'owner_fixture']);
+UserRoleAssignment::factory()->forUser($owner)->forRole($ownerRole)->active()->create();
+
+actingAs($owner)
+    ->withHeader('X-Tenant-Slug', $tenant->slug)
+    ->postJson('/api/roles', [...])
+    ->assertStatus(201);
+```
+
+Note: `Gate::before` only bypasses Laravel Gate checks (`authorize()`). UseCase domain logic (hierarchy checks) still applies, so the owner must have a low-level role for those checks to pass.
 
 ---
 
@@ -207,14 +236,20 @@ Bind the mock before the action that triggers it.
 Factories live in `database/factories/`. Each factory maps to an Eloquent model.
 
 ```php
-// Tenant-owned user
-User::factory()->for($tenant)->create();
+// Standalone user (not scoped to any tenant by default)
+User::factory()->create();
 
-// Staff user (tenant_id IS NULL)
+// Staff user (is_staff = true)
 User::factory()->staff()->create();
 
 // Inactive user
 User::factory()->inactive()->create();
+
+// Tenant with auto-created owner
+$tenant = Tenant::factory()->create(); // owner_id is auto-set via User::factory()
+$owner = User::find($tenant->owner_id);
 ```
+
+`User::factory()->for($tenant)` is no longer supported — `users` no longer has a `tenant_id` column. Associate users to a tenant via role assignments or by making them the tenant owner.
 
 Define states (`staff`, `inactive`, etc.) in the factory class — never pass raw attribute arrays in tests to override behavior.
