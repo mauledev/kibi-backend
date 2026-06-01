@@ -40,6 +40,7 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
+use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
 use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
 use Illuminate\Support\Facades\Gate;
@@ -61,6 +62,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TenantModuleRepositoryInterface::class, TenantModuleEloquentRepository::class);
         $this->app->bind(GlobalUserRepositoryInterface::class, EloquentGlobalUserRepository::class);
         $this->app->bind(ActivationRepositoryInterface::class, EloquentActivationRepository::class);
+
+        // GetTenantInfoUseCase — looks up a tenant by slug, no TenantContext required
+        $this->app->when(GetTenantInfoUseCase::class)
+            ->needs(TenantModuleRepositoryInterface::class)
+            ->give(TenantModuleEloquentRepository::class);
 
         // CreateTenantUseCase — tenant-scoped role assignment repo, no TenantContext
         $this->app->when(CreateTenantUseCase::class)
