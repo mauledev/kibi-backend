@@ -41,6 +41,7 @@ Route::prefix('staff')->group(function () {
 | Public routes — no tenant middleware, no auth
 |--------------------------------------------------------------------------
 */
+Route::get('/auth/tenant-info', [AuthController::class, 'tenantInfo'])->name('auth.tenant-info');
 Route::post('/auth/activate', [AuthController::class, 'activate'])->name('auth.activate');
 
 /*

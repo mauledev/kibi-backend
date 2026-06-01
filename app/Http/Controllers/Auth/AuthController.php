@@ -21,6 +21,7 @@ use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
+use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -138,6 +139,34 @@ class AuthController extends Controller
         } catch (UserNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
+    }
+
+    /**
+     * Return basic public information for a tenant identified by the X-Tenant-Slug header.
+     * GET /api/auth/tenant-info — public, no authentication required.
+     *
+     * Returns slug and name for any tenant regardless of its status (active or pending).
+     * Responds 400 when the header is absent or blank.
+     * Responds 404 when no tenant matches the slug.
+     */
+    public function tenantInfo(Request $request, GetTenantInfoUseCase $useCase): JsonResponse
+    {
+        $slug = $request->header('X-Tenant-Slug', '');
+
+        if (empty($slug)) {
+            return ApiResponse::error('Missing X-Tenant-Slug header', 400);
+        }
+
+        $tenant = $useCase->execute($slug);
+
+        if ($tenant === null) {
+            return ApiResponse::notFound('Tenant not found');
+        }
+
+        return ApiResponse::success([
+            'slug' => $tenant->getSlug(),
+            'name' => $tenant->getName(),
+        ]);
     }
 
     /**

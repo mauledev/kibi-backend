@@ -165,6 +165,7 @@ database.sqlite
 /external/
 research/
 experiments/
+/http-requests
 
 # Archivos compilados
 *.php.bak
