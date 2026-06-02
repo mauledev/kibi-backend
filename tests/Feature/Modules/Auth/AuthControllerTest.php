@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
@@ -125,7 +126,7 @@ describe('AuthController', function () {
             expect($response->json('data.is_staff'))->toBeFalse();
         });
 
-        it('writes audit log on successful login', function () {
+        it('writes an auth.login.success audit log with the tenant', function () {
             $tenant = Tenant::factory()->create(['slug' => 'audit-tenant']);
             $user = authCreateTenantUser($tenant, [
                 'email' => 'audit@test.com',
@@ -139,9 +140,38 @@ describe('AuthController', function () {
                 ]);
 
             $this->assertDatabaseHas('audit_logs', [
-                'action' => 'auth.login',
+                'action' => 'auth.login.success',
                 'user_id' => $user->id,
+                'tenant_id' => $tenant->id,
             ]);
+        });
+
+        it('writes an auth.login.failed audit log with the email but never the password', function () {
+            $tenant = Tenant::factory()->create(['slug' => 'audit-fail']);
+            authCreateTenantUser($tenant, [
+                'email' => 'audit-fail@test.com',
+                'password_hash' => Hash::make('correct'),
+            ]);
+
+            $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                ->postJson('/api/auth/login', [
+                    'email' => 'audit-fail@test.com',
+                    'password' => 'super-secret-wrong',
+                ])
+                ->assertStatus(401);
+
+            $this->assertDatabaseHas('audit_logs', [
+                'action' => 'auth.login.failed',
+                'tenant_id' => $tenant->id,
+            ]);
+
+            $row = DB::table('audit_logs')
+                ->where('action', 'auth.login.failed')
+                ->latest('id')
+                ->first();
+
+            expect($row->struct_after)->toContain('audit-fail@test.com');
+            expect($row->struct_after)->not->toContain('super-secret-wrong');
         });
 
         it('cannot login with credentials from a different tenant', function () {

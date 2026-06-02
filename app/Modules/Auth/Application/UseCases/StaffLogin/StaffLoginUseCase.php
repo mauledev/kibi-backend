@@ -31,20 +31,30 @@ class StaffLoginUseCase
         $hash = $user?->getPasswordHash();
 
         if (! $user || $hash === null || ! Hash::check($input->password, $hash)) {
+            $this->logFailed($input, $user?->getId());
+
             throw new InvalidCredentialsException;
         }
 
         if (! $user->isActive()) {
-            throw new InvalidCredentialsException('User is inactive');
+            $this->logFailed($input, $user->getId(), reason: 'inactive');
+
+            throw new InvalidCredentialsException;
         }
 
         if (! $user->isStaff()) {
+            $this->logFailed($input, $user->getId(), reason: 'not_staff');
+
             throw new InvalidCredentialsException;
         }
 
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
-        $this->audit->log(action: 'auth.login', userId: $user->getId());
+        $this->audit->log(
+            action: 'auth.login.success',
+            userId: $user->getId(),
+            tenantId: $input->tenantId,
+        );
 
         return new LoginOutput(
             uuid: $user->getUuid(),
@@ -57,6 +67,22 @@ class StaffLoginUseCase
             token: $this->tokens->generate($user->getId()),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
+        );
+    }
+
+    private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
+    {
+        $struct = ['email' => $input->email];
+
+        if ($reason !== null) {
+            $struct['reason'] = $reason;
+        }
+
+        $this->audit->log(
+            action: 'auth.login.failed',
+            userId: $userId,
+            tenantId: $input->tenantId,
+            structAfter: $struct,
         );
     }
 

@@ -55,10 +55,11 @@ describe('LoginUseCase', function () {
             ->once()
             ->with('unknown@test.com')
             ->andReturn(null);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
 
-        expect(fn () => $this->useCase->execute($input))
+        expect(fn() => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -68,10 +69,11 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'wrong');
 
-        expect(fn () => $this->useCase->execute($input))
+        expect(fn() => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -81,10 +83,11 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
-        expect(fn () => $this->useCase->execute($input))
+        expect(fn() => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -94,10 +97,11 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
-        expect(fn () => $this->useCase->execute($input))
+        expect(fn() => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -107,7 +111,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('plain-text-token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $output = $this->useCase->execute($input);
@@ -126,13 +130,25 @@ describe('LoginUseCase', function () {
         $permB = new Permission(id: 2, uuid: 'perm-b', categoryId: 1, name: 'B', slug: 'payment.approve');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
-            hierarchyLevel: 4, isSystemRole: false, permissions: [$permA],
+            id: 10,
+            uuid: 'r-a',
+            tenantId: 10,
+            name: 'Role A',
+            slug: 'role_a',
+            hierarchyLevel: 4,
+            isSystemRole: false,
+            permissions: [$permA],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
-            hierarchyLevel: 5, isSystemRole: false, permissions: [$permB],
+            id: 11,
+            uuid: 'r-b',
+            tenantId: 10,
+            name: 'Role B',
+            slug: 'role_b',
+            hierarchyLevel: 5,
+            isSystemRole: false,
+            permissions: [$permB],
             createdAt: new DateTimeImmutable,
         );
 
@@ -155,13 +171,25 @@ describe('LoginUseCase', function () {
         $perm = new Permission(id: 1, uuid: 'perm-shared', categoryId: 1, name: 'Shared', slug: 'role.view');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
-            hierarchyLevel: 4, isSystemRole: false, permissions: [$perm],
+            id: 10,
+            uuid: 'r-a',
+            tenantId: 10,
+            name: 'Role A',
+            slug: 'role_a',
+            hierarchyLevel: 4,
+            isSystemRole: false,
+            permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
-            hierarchyLevel: 5, isSystemRole: false, permissions: [$perm],
+            id: 11,
+            uuid: 'r-b',
+            tenantId: 10,
+            name: 'Role B',
+            slug: 'role_b',
+            hierarchyLevel: 5,
+            isSystemRole: false,
+            permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );
 
@@ -176,15 +204,35 @@ describe('LoginUseCase', function () {
         expect(array_count_values($output->permissions)['role.view'])->toBe(1);
     });
 
-    it('always writes an audit log on successful login', function () {
+    it('writes an auth.login.success audit entry on successful login', function () {
         $user = loginMakeUser();
 
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $this->useCase->execute($input);
+    });
+
+    it('logs auth.login.failed with the attempted email and never the password', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+
+        $captured = null;
+        $this->audit->shouldReceive('log')->once()->withArgs(function (...$args) use (&$captured) {
+            $captured = $args;
+
+            return $args[0] === 'auth.login.failed';
+        });
+
+        $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw');
+
+        expect(fn() => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+
+        // El email intentado se guarda en struct_after para correlación de brute force...
+        expect($captured[5])->toBe(['email' => 'attacker@test.com']);
+        expect(json_encode($captured))->not->toContain('super-secret-pw');
     });
 });

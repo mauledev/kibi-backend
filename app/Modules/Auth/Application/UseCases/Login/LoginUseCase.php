@@ -31,16 +31,26 @@ class LoginUseCase
         $hash = $user?->getPasswordHash();
 
         if (! $user || $hash === null || ! Hash::check($input->password, $hash)) {
+            $this->logFailed($input, $user?->getId());
+
             throw new InvalidCredentialsException;
         }
 
+        // Cuenta inactiva: se audita el intento, pero la respuesta HTTP es idéntica
+        // a la de credenciales inválidas para no revelar que el email existe (anti-enumeration).
         if (! $user->isActive()) {
-            throw new InvalidCredentialsException('User is inactive');
+            $this->logFailed($input, $user->getId(), reason: 'inactive');
+
+            throw new InvalidCredentialsException;
         }
 
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
-        $this->audit->log(action: 'auth.login', userId: $user->getId());
+        $this->audit->log(
+            action: 'auth.login.success',
+            userId: $user->getId(),
+            tenantId: $input->tenantId,
+        );
 
         return new LoginOutput(
             uuid: $user->getUuid(),
@@ -53,6 +63,25 @@ class LoginUseCase
             token: $this->tokens->generate($user->getId()),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
+        );
+    }
+
+    /**
+     * el email se guarda en struct_after para correlación (brute force).
+     */
+    private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
+    {
+        $struct = ['email' => $input->email];
+
+        if ($reason !== null) {
+            $struct['reason'] = $reason;
+        }
+
+        $this->audit->log(
+            action: 'auth.login.failed',
+            userId: $userId,
+            tenantId: $input->tenantId,
+            structAfter: $struct,
         );
     }
 

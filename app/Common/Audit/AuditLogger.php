@@ -23,8 +23,10 @@ class AuditLogger implements AuditLoggerInterface
         ?int $schoolId = null,
         ?array $structBefore = null,
         ?array $structAfter = null,
+        ?int $tenantId = null,
     ): void {
         DB::table('audit_logs')->insert([
+            'tenant_id' => $tenantId,
             'school_id' => $schoolId,
             'user_id' => $userId,
             'action' => $action,
