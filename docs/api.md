@@ -9,14 +9,17 @@ Endpoint conventions, responses, authentication and error handling.
 All JSON responses go through `app/Http/Response/ApiResponse`. Never use `response()->json()` directly.
 
 ```php
-ApiResponse::success($data, $message)      // 200
-ApiResponse::created($data)                // 201
-ApiResponse::error($message, $status)      // generic error
-ApiResponse::notFound()                    // 404
-ApiResponse::unauthorized()               // 401
-ApiResponse::forbidden()                  // 403
-ApiResponse::conflict($message, $errors)  // 409
+ApiResponse::success($data, $message)         // 200
+ApiResponse::created($data)                   // 201
+ApiResponse::paginated($data, $pagination)    // 200 — adds pagination object to meta
+ApiResponse::error($message, $status)         // generic error
+ApiResponse::notFound()                       // 404
+ApiResponse::unauthorized()                  // 401
+ApiResponse::forbidden()                     // 403
+ApiResponse::conflict($message, $errors)     // 409
 ```
+
+`paginated()` places a `pagination` key inside `meta` alongside the standard `timestamp`, `path`, and `request_id` fields. The `$pagination` array must contain `total`, `per_page`, `current_page`, and `last_page`.
 
 Every response envelope:
 
@@ -205,10 +208,22 @@ POST   /auth/activate            Activate owner account via signed URL (public, 
 POST   /staff/auth/login         Authenticate Softlinkia staff
 GET    /staff/auth/me            Return authenticated staff user data
 POST   /staff/auth/logout        Revoke staff token
+GET    /staff/tenants            List all tenants (paginated) with embedded owners
 POST   /staff/tenants            Create a new tenant + owner (requires auth:sanctum)
+GET    /staff/tenants/{uuid}     Get a single tenant with embedded owner
+PUT    /staff/tenants/{uuid}     Update a tenant's name, slug, and status
+DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 ```
 
+`GET /staff/tenants` returns 200 with a paginated list of tenants. Accepts a `page` query parameter (default: 1, page size: 20). Each item includes a compact owner shape (`uuid`, `email`, `full_name`) and a `created_at` ISO 8601 timestamp. The response envelope includes a `meta.pagination` object with `total`, `per_page`, `current_page`, and `last_page`.
+
 `POST /staff/tenants` creates the tenant with `status = 'pending'`, creates the owner user with no password, assigns the `owner` role, and sends an activation email with a 48h signed URL. Returns 201 with the tenant and embedded owner. Returns 409 when the slug or email is already taken.
+
+`GET /staff/tenants/{uuid}` returns 200 with the full tenant and embedded owner. Returns 404 when not found. The owner shape includes `uuid`, `email`, `first_name`, `last_name_paternal`, `last_name_maternal`, and `full_name`.
+
+`PUT /staff/tenants/{uuid}` accepts `{ "name": "...", "slug": "...", "status": "..." }`. Valid status values: `pending`, `active`, `suspended`. Returns 200 with the updated tenant. Returns 404 when not found. Returns 409 when the new slug is already taken by another tenant.
+
+`DELETE /staff/tenants/{uuid}` soft-deletes the tenant. Returns 200 with a success message. Returns 404 when not found.
 
 ### Roles and permissions
 
@@ -231,7 +246,8 @@ DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
 
 ```
 pending  → active     POST /auth/activate (owner sets password)
-active   → suspended  Staff action (future)
+active   → suspended  PUT /staff/tenants/{uuid} with status=suspended (staff superadmin)
+suspended → active    PUT /staff/tenants/{uuid} with status=active (staff superadmin)
 ```
 
 `TenantMiddleware` rejects requests to a tenant with `status = 'pending'` with `403 Forbidden`. Only active tenants can receive authenticated requests via subdomain routing.
