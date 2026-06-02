@@ -191,6 +191,66 @@ describe('AuthController', function () {
                 ])
                 ->assertStatus(401);
         });
+
+        it('blocks with 429 after 5 failed attempts (same email + IP)', function () {
+            $tenant = Tenant::factory()->create(['slug' => 'bruteforce']);
+            authCreateTenantUser($tenant, [
+                'email' => 'victim@test.com',
+                'password_hash' => Hash::make('correct'),
+            ]);
+
+            foreach (range(1, 5) as $i) {
+                $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                    ->postJson('/api/auth/login', ['email' => 'victim@test.com', 'password' => 'wrong'])
+                    ->assertStatus(401);
+            }
+
+            // 6th attempt is blocked even with the CORRECT password.
+            $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                ->postJson('/api/auth/login', ['email' => 'victim@test.com', 'password' => 'correct'])
+                ->assertStatus(429);
+        });
+
+        it('never blocks repeated successful logins (only failures count)', function () {
+            $tenant = Tenant::factory()->create(['slug' => 'happy-path']);
+            authCreateTenantUser($tenant, [
+                'email' => 'good@test.com',
+                'password_hash' => Hash::make('secret'),
+            ]);
+
+            foreach (range(1, 7) as $i) {
+                $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                    ->postJson('/api/auth/login', ['email' => 'good@test.com', 'password' => 'secret'])
+                    ->assertStatus(200);
+            }
+        });
+
+        it('resets the failed-attempt counter on a successful login', function () {
+            $tenant = Tenant::factory()->create(['slug' => 'reset-test']);
+            authCreateTenantUser($tenant, [
+                'email' => 'reset@test.com',
+                'password_hash' => Hash::make('correct'),
+            ]);
+
+            // 4 failures (under the limit of 5)
+            foreach (range(1, 4) as $i) {
+                $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                    ->postJson('/api/auth/login', ['email' => 'reset@test.com', 'password' => 'wrong'])
+                    ->assertStatus(401);
+            }
+
+            // A success clears the counter...
+            $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                ->postJson('/api/auth/login', ['email' => 'reset@test.com', 'password' => 'correct'])
+                ->assertStatus(200);
+
+            // ...so another 4 failures still do NOT block (no 4+4 accumulation).
+            foreach (range(1, 4) as $i) {
+                $this->withHeader('X-Tenant-Slug', $tenant->slug)
+                    ->postJson('/api/auth/login', ['email' => 'reset@test.com', 'password' => 'wrong'])
+                    ->assertStatus(401);
+            }
+        });
     });
 
     describe('POST /api/staff/auth/login', function () {
