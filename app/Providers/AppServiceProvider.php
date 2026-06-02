@@ -129,6 +129,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
         $this->app->bind(UserRoleAssignmentRepositoryInterface::class, EloquentUserRoleAssignmentRepository::class);
         $this->app->bind(SchoolRepositoryInterface::class, EloquentSchoolRepository::class);
+
+        // --- Schools module ---
+        $this->app->bind(
+            \App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface::class,
+            \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
+        );
     }
 
     /**

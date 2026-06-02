@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\School;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRoleAssignment;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -77,5 +79,28 @@ class DevSeeder extends Seeder
                 'status' => 'active',
             ]
         );
+
+        $ownerUser = User::firstOrCreate(
+            ['email' => 'owner@colegiodemo.mx'],
+            [
+                'tenant_id' => $tenant->id,
+                'full_name' => 'Owner Demo',
+                'password_hash' => Hash::make('password'),
+                'status' => 'active',
+            ]
+        );
+
+        $ownerRole = Role::where('slug', 'owner')->whereNull('tenant_id')->first();
+
+        if ($ownerRole !== null) {
+            UserRoleAssignment::firstOrCreate(
+                [
+                    'user_id' => $ownerUser->id,
+                    'role_id' => $ownerRole->id,
+                    'school_id' => null,
+                    'revoked_at' => null,
+                ],
+            );
+        }
     }
 }
