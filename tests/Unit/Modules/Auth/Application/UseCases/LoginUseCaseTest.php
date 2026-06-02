@@ -59,7 +59,7 @@ describe('LoginUseCase', function () {
 
         $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
 
-        expect(fn() => $this->useCase->execute($input))
+        expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -73,7 +73,7 @@ describe('LoginUseCase', function () {
 
         $input = new LoginInput(email: 'user@test.com', password: 'wrong');
 
-        expect(fn() => $this->useCase->execute($input))
+        expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -87,7 +87,7 @@ describe('LoginUseCase', function () {
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
-        expect(fn() => $this->useCase->execute($input))
+        expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -101,7 +101,7 @@ describe('LoginUseCase', function () {
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
-        expect(fn() => $this->useCase->execute($input))
+        expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
     });
 
@@ -228,7 +228,7 @@ describe('LoginUseCase', function () {
 
         $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw');
 
-        expect(fn() => $this->useCase->execute($input))
+        expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
 
         // El email intentado se guarda en struct_after para correlación de brute force...
