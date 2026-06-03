@@ -1,0 +1,12 @@
+<?php
+
+namespace App\Common\Audit\Events;
+
+/**
+ * Auditable events for report generation and data export.
+ */
+enum ReportAuditEvent: string implements AuditEvent
+{
+    case EXPORT = 'report.export';
+    case GENERATE = 'report.generate';
+}
