@@ -6,7 +6,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * ApiResponse Helper
- * Estandariza todas las respuestas API
+ * Standardizes all API responses.
  */
 class ApiResponse
 {

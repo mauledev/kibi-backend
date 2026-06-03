@@ -64,7 +64,7 @@ class AuthController extends Controller
             $output = $useCase->execute(new LoginInput(
                 email: $request->validated('email'),
                 password: $request->validated('password'),
-                // Staff no pertenece a un tenant: tenantId queda null.
+                // Staff does not belong to a tenant: tenantId stays null.
             ));
 
             return ApiResponse::success(new LoginResource($output), 'Login successful');

@@ -231,7 +231,7 @@ describe('LoginUseCase', function () {
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
 
-        // El email intentado se guarda en struct_after para correlación de brute force...
+        // The attempted email is stored in struct_after for brute-force correlation...
         expect($captured[5])->toBe(['email' => 'attacker@test.com']);
         expect(json_encode($captured))->not->toContain('super-secret-pw');
     });

@@ -36,8 +36,8 @@ class LoginUseCase
             throw new InvalidCredentialsException;
         }
 
-        // Cuenta inactiva: se audita el intento, pero la respuesta HTTP es idéntica
-        // a la de credenciales inválidas para no revelar que el email existe (anti-enumeration).
+        // Inactive account: the attempt is audited, but the HTTP response is identical
+        // to the invalid-credentials one so we don't reveal that the email exists (anti-enumeration).
         if (! $user->isActive()) {
             $this->logFailed($input, $user->getId(), reason: 'inactive');
 
@@ -67,7 +67,7 @@ class LoginUseCase
     }
 
     /**
-     * el email se guarda en struct_after para correlación (brute force).
+     * The attempted email is stored in struct_after for correlation (brute force).
      */
     private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
     {
