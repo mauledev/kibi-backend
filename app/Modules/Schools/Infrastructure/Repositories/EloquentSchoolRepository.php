@@ -4,6 +4,7 @@ namespace App\Modules\Schools\Infrastructure\Repositories;
 
 use App\Common\Tenant\TenantContext;
 use App\Models\School as SchoolModel;
+use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Schools\Domain\Entities\School;
 use DateTimeImmutable;
@@ -15,12 +16,21 @@ class EloquentSchoolRepository implements SchoolRepositoryInterface
     ) {}
 
     /** {@inheritDoc} */
-    public function findAll(): array
+    public function findAll(?string $statusFilter = null): array
     {
-        $models = SchoolModel::where('tenant_id', $this->context->tenantId)
-            ->get();
+        $query = SchoolModel::where('tenant_id', $this->context->tenantId);
 
-        return $models->map(fn (SchoolModel $m) => $this->toDomain($m))->all();
+        match ($statusFilter) {
+            ListSchoolsInput::STATUS_DEACTIVATED => $query->onlyTrashed(),
+            ListSchoolsInput::STATUS_ALL => $query->withTrashed(),
+            ListSchoolsInput::STATUS_ACTIVE,
+            ListSchoolsInput::STATUS_SUSPENDED => $query->where('status', $statusFilter),
+            default => null,
+        };
+
+        return $query->get()
+            ->map(fn (SchoolModel $m) => $this->toDomain($m))
+            ->all();
     }
 
     /** {@inheritDoc} */

@@ -76,4 +76,31 @@ describe('ListSchoolsUseCase', function () {
 
         expect($result[0])->toBe($school);
     });
+
+    it('passes null to the repository when no status filter is provided', function () {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with(null)
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput);
+    });
+
+    it('passes the statusFilter value to the repository when provided', function () {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with(ListSchoolsInput::STATUS_ACTIVE)
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput(statusFilter: ListSchoolsInput::STATUS_ACTIVE));
+    });
+
+    it('forwards each allowed status value unchanged to the repository', function (string $status) {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with($status)
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput(statusFilter: $status));
+    })->with(ListSchoolsInput::ALLOWED_STATUSES);
 });

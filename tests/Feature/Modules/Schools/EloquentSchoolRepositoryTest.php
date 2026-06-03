@@ -3,6 +3,7 @@
 use App\Common\Tenant\TenantContext;
 use App\Models\School as SchoolModel;
 use App\Models\Tenant;
+use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Schools\Domain\Entities\School;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -73,6 +74,92 @@ describe('EloquentSchoolRepository', function () {
             $schools = makeSchoolRepo()->findAll();
 
             expect($schools)->toBeArray()->toBeEmpty();
+        });
+    });
+
+    describe('findAll with statusFilter', function () {
+        it('default (null) returns only non-deleted schools without status column filtering', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+
+            $schools = makeSchoolRepo()->findAll(null);
+
+            expect($schools)->toHaveCount(2);
+
+            $statuses = array_map(fn (School $s) => $s->getStatus(), $schools);
+            expect($statuses)->toContain('active');
+            expect($statuses)->toContain('suspended');
+        });
+
+        it('status=active returns only non-deleted schools with status active', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+
+            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ACTIVE);
+
+            expect($schools)->toHaveCount(1);
+            expect($schools[0]->getStatus())->toBe('active');
+            expect($schools[0]->getDeletedAt())->toBeNull();
+        });
+
+        it('status=suspended returns only non-deleted schools with status suspended', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+
+            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_SUSPENDED);
+
+            expect($schools)->toHaveCount(1);
+            expect($schools[0]->getStatus())->toBe('suspended');
+            expect($schools[0]->getDeletedAt())->toBeNull();
+        });
+
+        it('status=deactivated returns only soft-deleted schools', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+
+            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_DEACTIVATED);
+
+            expect($schools)->toHaveCount(1);
+            expect($schools[0]->getDeletedAt())->not->toBeNull();
+        });
+
+        it('status=all returns every school including soft-deleted', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+
+            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ALL);
+
+            expect($schools)->toHaveCount(3);
+        });
+
+        it('tenant isolation is preserved regardless of statusFilter', function () {
+            bindSchoolTenantContext($this->tenantA);
+
+            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
+            // Schools from tenantB must never appear
+            SchoolModel::factory()->for($this->tenantB)->create(['status' => 'active']);
+            SchoolModel::factory()->for($this->tenantB)->deactivated()->create();
+
+            expect(makeSchoolRepo()->findAll(null))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ACTIVE))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_DEACTIVATED))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ALL))->toHaveCount(2);
         });
     });
 

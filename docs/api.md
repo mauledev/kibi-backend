@@ -210,6 +210,28 @@ POST   /staff/tenants            Create a new tenant + owner (requires auth:sanc
 
 `POST /staff/tenants` creates the tenant with `status = 'pending'`, creates the owner user with no password, assigns the `owner` role, and sends an activation email with a 48h signed URL. Returns 201 with the tenant and embedded owner. Returns 409 when the slug or email is already taken.
 
+### Schools
+
+```
+GET    /schools                          List schools of the current tenant
+POST   /schools                          Create a school
+GET    /schools/{uuid}                   Get a single school
+PUT    /schools/{uuid}                   Update mutable fields (partial)
+POST   /schools/{uuid}/deactivate        Soft-delete a school
+```
+
+`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+
+| Value          | Meaning                                                   |
+|----------------|-----------------------------------------------------------|
+| *(omitted)*    | Non-deleted rows, no `status` column filter (default).    |
+| `active`       | `status='active'` AND not soft-deleted.                   |
+| `suspended`    | `status='suspended'` AND not soft-deleted.                |
+| `deactivated`  | Only soft-deleted rows.                                   |
+| `all`          | Every row, including soft-deleted.                        |
+
+This is the canonical pattern for list endpoints that need to expose soft-deleted rows alongside lifecycle states. The allowed values are owned by the UseCase input (`ListSchoolsInput::ALLOWED_STATUSES`); controllers validate against that list and never inline the strings. Repositories map `deactivated` to `onlyTrashed()` and `all` to `withTrashed()`; the soft-delete column stays an Infrastructure concern. Resources expose `deleted_at` so the frontend can render deactivated rows distinctly.
+
 ### Roles and permissions
 
 ```
