@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -41,7 +42,7 @@ describe('AuthController', function () {
                     'email' => 'nobody@test.com',
                     'password' => 'secret',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 401 when password is wrong', function () {
@@ -56,7 +57,7 @@ describe('AuthController', function () {
                     'email' => 'user@test.com',
                     'password' => 'wrong',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 401 when user is inactive', function () {
@@ -72,7 +73,7 @@ describe('AuthController', function () {
                     'email' => 'inactive@test.com',
                     'password' => 'secret',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 422 when email is missing', function () {
@@ -80,7 +81,7 @@ describe('AuthController', function () {
 
             $this->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->postJson('/api/auth/login', ['password' => 'secret'])
-                ->assertStatus(422);
+                ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         });
 
         it('returns 422 when password is missing', function () {
@@ -88,7 +89,7 @@ describe('AuthController', function () {
 
             $this->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->postJson('/api/auth/login', ['email' => 'user@test.com'])
-                ->assertStatus(422);
+                ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         });
 
         it('returns 404 when tenant slug does not exist', function () {
@@ -97,7 +98,7 @@ describe('AuthController', function () {
                     'email' => 'user@test.com',
                     'password' => 'secret',
                 ])
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 200 with token and uuid on valid credentials', function () {
@@ -113,7 +114,7 @@ describe('AuthController', function () {
                     'password' => 'secret',
                 ]);
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
                     'success',
                     'data' => ['uuid', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'token', 'roles', 'permissions'],
@@ -158,7 +159,7 @@ describe('AuthController', function () {
                     'email' => 'audit-fail@test.com',
                     'password' => 'super-secret-wrong',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
 
             $this->assertDatabaseHas('audit_logs', [
                 'action' => 'auth.login.failed',
@@ -189,7 +190,7 @@ describe('AuthController', function () {
                     'email' => 'user@test.com',
                     'password' => 'secret',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
     });
 
@@ -199,7 +200,7 @@ describe('AuthController', function () {
                 'email' => 'nobody@kibi.com',
                 'password' => 'secret',
             ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 401 when password is wrong for staff user', function () {
@@ -212,7 +213,7 @@ describe('AuthController', function () {
                 'email' => 'staff@kibi.com',
                 'password' => 'wrong',
             ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 401 when a non-staff user tries to use the staff endpoint', function () {
@@ -225,7 +226,7 @@ describe('AuthController', function () {
                 'email' => 'tenant@test.com',
                 'password' => 'secret',
             ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 200 with isStaff true on valid staff credentials', function () {
@@ -239,14 +240,14 @@ describe('AuthController', function () {
                 'password' => 'secret',
             ]);
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.is_staff', true)
                 ->assertJsonStructure(['data' => ['uuid', 'email', 'token']]);
         });
 
         it('returns 422 when email is missing in staff login', function () {
             $this->postJson('/api/staff/auth/login', ['password' => 'secret'])
-                ->assertStatus(422);
+                ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         });
     });
 
@@ -256,7 +257,7 @@ describe('AuthController', function () {
 
             $this->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->getJson('/api/auth/me')
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 200 with user data when authenticated', function () {
@@ -267,7 +268,7 @@ describe('AuthController', function () {
                 ->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->getJson('/api/auth/me');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
                     'data' => ['id', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'roles', 'permissions'],
                 ]);
@@ -288,7 +289,7 @@ describe('AuthController', function () {
                 ->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->getJson('/api/auth/me');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
             $roles = $response->json('data.roles');
             $slugs = array_column($roles, 'slug');
             expect($slugs)->toContain('director');
@@ -298,7 +299,7 @@ describe('AuthController', function () {
     describe('GET /api/staff/auth/me', function () {
         it('returns 401 when unauthenticated', function () {
             $this->getJson('/api/staff/auth/me')
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 200 with isStaff true for authenticated staff user', function () {
@@ -307,7 +308,7 @@ describe('AuthController', function () {
             $response = $this->actingAs($staff)
                 ->getJson('/api/staff/auth/me');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.is_staff', true);
         });
     });
@@ -318,7 +319,7 @@ describe('AuthController', function () {
 
             $this->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->postJson('/api/auth/logout')
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('revokes the token and returns 200 on logout', function () {
@@ -332,7 +333,7 @@ describe('AuthController', function () {
                 ->withHeader('X-Tenant-Slug', $tenant->slug)
                 ->postJson('/api/auth/logout');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
         });
     });
 
@@ -346,7 +347,7 @@ describe('AuthController', function () {
             $response = $this->withHeader('Authorization', "Bearer {$token}")
                 ->postJson('/api/staff/auth/logout');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
         });
     });
 });
