@@ -27,14 +27,9 @@ use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
-    private const MAX_LOGIN_ATTEMPTS = 5;
-
-    private const LOGIN_DECAY_SECONDS = 900;
-
     public function __construct(
         private readonly LogoutUseCase $logoutUseCase,
     ) {}
@@ -45,15 +40,6 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request, LoginUseCase $useCase, TenantContext $tenantContext): JsonResponse
     {
-        $throttleKey = $this->loginThrottleKey($request);
-
-        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_LOGIN_ATTEMPTS)) {
-            return ApiResponse::error(
-                'Demasiados intentos fallidos. Reintenta en '.RateLimiter::availableIn($throttleKey).' segundos.',
-                429,
-            );
-        }
-
         try {
             $output = $useCase->execute(new LoginInput(
                 email: $request->validated('email'),
@@ -61,13 +47,9 @@ class AuthController extends Controller
                 tenantId: $tenantContext->tenantId,
             ));
 
-            RateLimiter::clear($throttleKey);
-
             return ApiResponse::success(new LoginResource($output), 'Login successful');
 
         } catch (InvalidCredentialsException $e) {
-            RateLimiter::hit($throttleKey, self::LOGIN_DECAY_SECONDS);
-
             return ApiResponse::unauthorized($e->getMessage());
         }
     }
@@ -78,15 +60,6 @@ class AuthController extends Controller
      */
     public function staffLogin(LoginRequest $request, StaffLoginUseCase $useCase): JsonResponse
     {
-        $throttleKey = $this->loginThrottleKey($request);
-
-        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_LOGIN_ATTEMPTS)) {
-            return ApiResponse::error(
-                'Demasiados intentos fallidos. Reintenta en '.RateLimiter::availableIn($throttleKey).' segundos.',
-                429,
-            );
-        }
-
         try {
             $output = $useCase->execute(new LoginInput(
                 email: $request->validated('email'),
@@ -94,13 +67,9 @@ class AuthController extends Controller
                 // Staff no pertenece a un tenant: tenantId queda null.
             ));
 
-            RateLimiter::clear($throttleKey);
-
             return ApiResponse::success(new LoginResource($output), 'Login successful');
 
         } catch (InvalidCredentialsException $e) {
-            RateLimiter::hit($throttleKey, self::LOGIN_DECAY_SECONDS);
-
             return ApiResponse::unauthorized($e->getMessage());
         }
     }
@@ -221,14 +190,5 @@ class AuthController extends Controller
         ));
 
         return ApiResponse::success(null, 'Logged out successfully');
-    }
-
-    /**
-     * Rate-limit key for login attempts, scoped per email + client IP.
-     * Only failed attempts increment it (login/staffLogin); a success clears it.
-     */
-    private function loginThrottleKey(Request $request): string
-    {
-        return 'auth-login:'.mb_strtolower((string) $request->input('email')).'|'.$request->ip();
     }
 }
