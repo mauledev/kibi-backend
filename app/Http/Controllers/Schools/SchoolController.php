@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Schools;
 
 use App\Http\Controller;
 use App\Http\Requests\Schools\CreateSchoolRequest;
+use App\Http\Requests\Schools\ListSchoolsRequest;
 use App\Http\Requests\Schools\UpdateSchoolRequest;
 use App\Http\Resources\Schools\SchoolResource;
 use App\Http\Response\ApiResponse;
@@ -21,7 +22,6 @@ use App\Modules\Schools\Domain\Exceptions\SchoolAlreadyExistsException;
 use App\Modules\Schools\Domain\Exceptions\SchoolNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class SchoolController extends Controller
 {
@@ -29,20 +29,16 @@ class SchoolController extends Controller
      * GET /schools — List schools of the authenticated tenant.
      *
      * Optional `?status` query param narrows the result set:
-     *   active | suspended | deactivated | all
+     *   active | deactivated | all
      * When omitted, the legacy behaviour is preserved (non-deleted only,
      * no filtering by the `status` column).
      */
-    public function index(Request $request, ListSchoolsUseCase $useCase): JsonResponse
+    public function index(ListSchoolsRequest $request, ListSchoolsUseCase $useCase): JsonResponse
     {
         $this->authorize('school.view');
 
-        $validated = $request->validate([
-            'status' => ['sometimes', 'string', Rule::in(ListSchoolsInput::ALLOWED_STATUSES)],
-        ]);
-
         $schools = $useCase->execute(new ListSchoolsInput(
-            statusFilter: $validated['status'] ?? null,
+            statusFilter: $request->statusFilter(),
         ));
 
         return ApiResponse::success(SchoolResource::collection($schools)->resolve());

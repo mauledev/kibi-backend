@@ -2,25 +2,25 @@
 
 namespace App\Modules\Schools\Domain\Contracts;
 
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
 
 interface SchoolRepositoryInterface
 {
     /**
-     * Return schools belonging to the current tenant, optionally narrowed by
-     * lifecycle state.
+     * Return schools belonging to the current tenant, narrowed by the given
+     * {@see SchoolListCriteria}.
      *
      * Tenant scoping is applied internally by the repository implementation
      * via the injected TenantContext — callers must not pass a tenant ID.
      *
-     * The `$statusFilter` argument accepts the constants exposed on
-     * `ListSchoolsInput::ALLOWED_STATUSES`. When null (default), only
-     * non-deleted rows are returned without filtering by the `status` column —
-     * preserving the legacy contract.
+     * A criteria with `status = null` (the default) returns every non-deleted
+     * row without filtering by the `status` column — preserving the legacy
+     * contract.
      *
      * @return array<School>
      */
-    public function findAll(?string $statusFilter = null): array;
+    public function findAll(SchoolListCriteria $criteria): array;
 
     /**
      * Find a single school by its public UUID within the current tenant scope.

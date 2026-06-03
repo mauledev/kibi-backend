@@ -4,9 +4,10 @@ namespace App\Modules\Schools\Infrastructure\Repositories;
 
 use App\Common\Tenant\TenantContext;
 use App\Models\School as SchoolModel;
-use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use DateTimeImmutable;
 
 class EloquentSchoolRepository implements SchoolRepositoryInterface
@@ -16,16 +17,14 @@ class EloquentSchoolRepository implements SchoolRepositoryInterface
     ) {}
 
     /** {@inheritDoc} */
-    public function findAll(?string $statusFilter = null): array
+    public function findAll(SchoolListCriteria $criteria): array
     {
         $query = SchoolModel::where('tenant_id', $this->context->tenantId);
 
-        match ($statusFilter) {
-            ListSchoolsInput::STATUS_DEACTIVATED => $query->onlyTrashed(),
-            ListSchoolsInput::STATUS_ALL => $query->withTrashed(),
-            ListSchoolsInput::STATUS_ACTIVE,
-            ListSchoolsInput::STATUS_SUSPENDED => $query->where('status', $statusFilter),
-            default => null,
+        match ($criteria->status) {
+            SchoolListFilter::Active => $query->where('status', SchoolListFilter::Active->value),
+            SchoolListFilter::Deactivated => $query->onlyTrashed(),
+            SchoolListFilter::All => $query->withTrashed(),
         };
 
         return $query->get()

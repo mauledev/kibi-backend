@@ -3,9 +3,10 @@
 use App\Common\Tenant\TenantContext;
 use App\Models\School as SchoolModel;
 use App\Models\Tenant;
-use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -34,7 +35,7 @@ describe('EloquentSchoolRepository', function () {
             SchoolModel::factory()->for($this->tenantA)->count(2)->create();
             SchoolModel::factory()->for($this->tenantB)->count(1)->create();
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schools)->toHaveCount(2);
         });
@@ -45,7 +46,7 @@ describe('EloquentSchoolRepository', function () {
             SchoolModel::factory()->for($this->tenantA)->create(['name' => 'School A1']);
             SchoolModel::factory()->for($this->tenantB)->create(['name' => 'School B1']);
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
             $names = array_map(fn (School $s) => $s->getName(), $schools);
 
             expect($names)->toContain('School A1');
@@ -57,10 +58,10 @@ describe('EloquentSchoolRepository', function () {
             SchoolModel::factory()->for($this->tenantB)->count(1)->create();
 
             bindSchoolTenantContext($this->tenantA);
-            $schoolsA = makeSchoolRepo()->findAll();
+            $schoolsA = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             bindSchoolTenantContext($this->tenantB);
-            $schoolsB = makeSchoolRepo()->findAll();
+            $schoolsB = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schoolsA)->toHaveCount(2);
             expect($schoolsB)->toHaveCount(1);
@@ -71,78 +72,62 @@ describe('EloquentSchoolRepository', function () {
 
             SchoolModel::factory()->for($this->tenantB)->count(3)->create();
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schools)->toBeArray()->toBeEmpty();
         });
     });
 
     describe('findAll with statusFilter', function () {
-        it('default (null) returns only non-deleted schools without status column filtering', function () {
+        it('the default Criteria filters by Active (excludes suspended and soft-deleted)', function () {
             bindSchoolTenantContext($this->tenantA);
 
             SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
             SchoolModel::factory()->for($this->tenantA)->suspended()->create();
             SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
 
-            $schools = makeSchoolRepo()->findAll(null);
-
-            expect($schools)->toHaveCount(2);
-
-            $statuses = array_map(fn (School $s) => $s->getStatus(), $schools);
-            expect($statuses)->toContain('active');
-            expect($statuses)->toContain('suspended');
-        });
-
-        it('status=active returns only non-deleted schools with status active', function () {
-            bindSchoolTenantContext($this->tenantA);
-
-            SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
-            SchoolModel::factory()->for($this->tenantA)->suspended()->create();
-            SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
-
-            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ACTIVE);
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schools)->toHaveCount(1);
             expect($schools[0]->getStatus())->toBe('active');
             expect($schools[0]->getDeletedAt())->toBeNull();
         });
 
-        it('status=suspended returns only non-deleted schools with status suspended', function () {
+        it('Active returns only non-deleted schools with status active', function () {
             bindSchoolTenantContext($this->tenantA);
 
             SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
             SchoolModel::factory()->for($this->tenantA)->suspended()->create();
             SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
 
-            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_SUSPENDED);
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::Active));
 
             expect($schools)->toHaveCount(1);
-            expect($schools[0]->getStatus())->toBe('suspended');
+            expect($schools[0]->getStatus())->toBe('active');
             expect($schools[0]->getDeletedAt())->toBeNull();
         });
 
-        it('status=deactivated returns only soft-deleted schools', function () {
+        it('Deactivated returns only soft-deleted schools', function () {
             bindSchoolTenantContext($this->tenantA);
 
             SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
             SchoolModel::factory()->for($this->tenantA)->suspended()->create();
             SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
 
-            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_DEACTIVATED);
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::Deactivated));
 
             expect($schools)->toHaveCount(1);
             expect($schools[0]->getDeletedAt())->not->toBeNull();
         });
 
-        it('status=all returns every school including soft-deleted', function () {
+        it('All returns every school including soft-deleted', function () {
             bindSchoolTenantContext($this->tenantA);
 
             SchoolModel::factory()->for($this->tenantA)->create(['status' => 'active']);
             SchoolModel::factory()->for($this->tenantA)->suspended()->create();
             SchoolModel::factory()->for($this->tenantA)->deactivated()->create();
 
-            $schools = makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ALL);
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::All));
 
             expect($schools)->toHaveCount(3);
         });
@@ -156,10 +141,10 @@ describe('EloquentSchoolRepository', function () {
             SchoolModel::factory()->for($this->tenantB)->create(['status' => 'active']);
             SchoolModel::factory()->for($this->tenantB)->deactivated()->create();
 
-            expect(makeSchoolRepo()->findAll(null))->toHaveCount(1);
-            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ACTIVE))->toHaveCount(1);
-            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_DEACTIVATED))->toHaveCount(1);
-            expect(makeSchoolRepo()->findAll(ListSchoolsInput::STATUS_ALL))->toHaveCount(2);
+            expect(makeSchoolRepo()->findAll(new SchoolListCriteria))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::Active)))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::Deactivated)))->toHaveCount(1);
+            expect(makeSchoolRepo()->findAll(new SchoolListCriteria(status: SchoolListFilter::All)))->toHaveCount(2);
         });
     });
 
@@ -312,7 +297,7 @@ describe('EloquentSchoolRepository', function () {
 
             SchoolModel::factory()->for($this->tenantA)->create();
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schools[0])->toBeInstanceOf(School::class);
         });
@@ -327,7 +312,7 @@ describe('EloquentSchoolRepository', function () {
                 'status' => 'active',
             ]);
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
             $school = $schools[0];
 
             expect($school->getName())->toBe('Mapped School');
@@ -342,7 +327,7 @@ describe('EloquentSchoolRepository', function () {
 
             SchoolModel::factory()->for($this->tenantA)->create();
 
-            $schools = makeSchoolRepo()->findAll();
+            $schools = makeSchoolRepo()->findAll(new SchoolListCriteria);
 
             expect($schools[0]->getUuid())->toBeString()->not->toBeEmpty();
         });
