@@ -43,7 +43,10 @@ use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
 use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -143,6 +146,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerGates();
+        $this->registerRateLimiters();
     }
 
     /**
@@ -176,6 +180,23 @@ class AppServiceProvider extends ServiceProvider
         // giving all authenticated users a permission-based fallback check.
         Gate::after(function (User $user, string $ability): ?bool {
             return $user->hasPermissionTo($ability) ? true : null;
+        });
+    }
+
+    /**
+     * Register named rate limiters.
+     *
+     * "login" throttles authentication attempts per client IP. Its limits come
+     * from config/auth.php (env-driven via AUTH_LOGIN_MAX_ATTEMPTS / _DECAY_MINUTES),
+     * replacing the hardcoded throttle:5,15 previously inlined in routes/api.php.
+     */
+    private function registerRateLimiters(): void
+    {
+        RateLimiter::for('login', function (Request $request): Limit {
+            $maxAttempts = (int) config('auth.login_throttle.max_attempts');
+            $decayMinutes = (int) config('auth.login_throttle.decay_minutes');
+
+            return Limit::perMinutes($decayMinutes, $maxAttempts)->by((string) $request->ip());
         });
     }
 }

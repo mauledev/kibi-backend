@@ -26,4 +26,11 @@ return [
             'model' => User::class,
         ],
     ],
+
+    // Login rate limiting — limits for the "login" named limiter (see AppServiceProvider).
+    // Previously hardcoded in routes/api.php as throttle:5,15.
+    'login_throttle' => [
+        'max_attempts' => (int) env('AUTH_LOGIN_MAX_ATTEMPTS', 5),
+        'decay_minutes' => (int) env('AUTH_LOGIN_DECAY_MINUTES', 15),
+    ],
 ];
