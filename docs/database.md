@@ -30,8 +30,16 @@ filter. No exceptions.
 - `tenants` is the root table. Every other table that belongs to a tenant has `tenant_id BIGINT NOT NULL FK tenants.id`
 - `users.tenant_id` is nullable — `NULL` means Softlinkia staff. During tenant creation the owner user is created first (no `tenant_id` yet), the tenant is created with `owner_id`, then `users.tenant_id` is set in the same transaction.
 - `users.is_staff BOOLEAN NOT NULL DEFAULT false` — explicit flag for Softlinkia staff. More readable than relying solely on `tenant_id IS NULL`.
-- `tenants.owner_id BIGINT FK users.id` — the single owner of the tenant. Immutable after creation.
+- `tenants.owner_id BIGINT FK users.id` — the single owner of the tenant. Immutable after creation. Answers "who has absolute authority over this tenant?" and powers the Gate bypass (`context.ownerId === user.id → allow everything`). This is intentionally separate from `users.tenant_id` — they answer different questions (see note below).
 - `users.tenant_id FK tenants.id` is added after `tenants` is created (end of `create_tenants_table` migration) to break the circular FK insertion order.
+
+> **Why does the owner user have both `users.tenant_id` and `tenants.owner_id`?**
+>
+> These two fields are not redundant — they serve different purposes:
+> - `tenants.owner_id` answers "who has special immutable authority over this tenant?" It is used exclusively for the Gate bypass and is never used to scope queries.
+> - `users.tenant_id` answers "in which tenant can this user authenticate?" It is used to scope every query in `EloquentUserRepository` (`WHERE tenant_id = ?`). Without it set on the owner, the login query would return null and the owner could not log in.
+>
+> The cost of this design is a circular FK between `users` and `tenants`, which forces a three-step creation in a transaction: insert user (no `tenant_id` yet) → insert tenant (with `owner_id`) → update user's `tenant_id`. The alternative — removing `users.tenant_id` from the owner and making every repository query check both `tenant_id = ?` AND `id = owner_id` — complicates every query in the system without meaningful benefit at this scale.
 - `tenants.status = 'pending'` is set when a tenant is created by staff. It transitions to `'active'` when the owner activates their account via the signed URL flow. `TenantMiddleware` blocks all subdomain requests while the tenant is `pending`.
 - `users.email_verified_at` is `NULL` for newly created owner users. It is set by `EloquentActivationRepository::activate()` inside the same transaction that sets the password and activates the tenant.
 - Tables that operate at school level carry `school_id` only. Reaching `tenant_id` from `school_id` is done via join when needed — no denormalization unless a specific query justifies it

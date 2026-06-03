@@ -49,6 +49,60 @@ class EloquentTenantRepository implements TenantRepositoryInterface
         TenantModel::where('id', $id)->update(['status' => 'active']);
     }
 
+    /** {@inheritDoc} */
+    public function listPaginated(int $perPage, int $page): array
+    {
+        $paginator = TenantModel::with('owner')
+            ->latest()
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return [
+            'items' => array_map(fn (TenantModel $m) => $this->toDomainWithOwner($m), $paginator->items()),
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
+    }
+
+    /** {@inheritDoc} */
+    public function findByUuid(string $uuid): ?Tenant
+    {
+        $model = TenantModel::where('uuid', $uuid)->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByUuidWithOwner(string $uuid): ?Tenant
+    {
+        $model = TenantModel::where('uuid', $uuid)->with('owner')->first();
+
+        return $model ? $this->toDomainWithOwner($model) : null;
+    }
+
+    /** {@inheritDoc} */
+    public function update(int $id, string $name, string $slug, string $status): Tenant
+    {
+        /** @var TenantModel $model */
+        $model = TenantModel::findOrFail($id);
+        $model->update([
+            'name' => $name,
+            'slug' => $slug,
+            'status' => $status,
+        ]);
+
+        $model->refresh();
+
+        return $this->toDomain($model);
+    }
+
+    /** {@inheritDoc} */
+    public function delete(int $id): void
+    {
+        TenantModel::where('id', $id)->delete();
+    }
+
     private function toDomain(TenantModel $model): Tenant
     {
         return new Tenant(
@@ -58,6 +112,7 @@ class EloquentTenantRepository implements TenantRepositoryInterface
             slug: $model->slug,
             status: $model->status,
             ownerId: (int) $model->owner_id,
+            createdAt: $model->created_at?->toIso8601String(),
         );
     }
 
@@ -90,6 +145,7 @@ class EloquentTenantRepository implements TenantRepositoryInterface
             status: $model->status,
             ownerId: (int) $model->owner_id,
             owner: $ownerEntity,
+            createdAt: $model->created_at?->toIso8601String(),
         );
     }
 }

@@ -70,6 +70,19 @@ class ApiResponse
         return self::error($message, 409, $errors);
     }
 
+    /** @param array<string, mixed> $pagination */
+    public static function paginated(mixed $data, array $pagination): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Operación exitosa',
+            'data' => $data,
+            'errors' => null,
+            'meta' => array_merge(self::getMeta(), ['pagination' => $pagination]),
+        ], 200);
+    }
+
     /** @return array<string, mixed> */
     private static function getMeta(): array
     {
