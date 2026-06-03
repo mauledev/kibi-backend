@@ -27,4 +27,29 @@ interface TenantRepositoryInterface
 
     /** Transition a tenant's status to 'active'. */
     public function activate(int $id): void;
+
+    /**
+     * Return a paginated list of all tenants with their owners.
+     *
+     * @return array{items: Tenant[], total: int, per_page: int, current_page: int, last_page: int}
+     */
+    public function listPaginated(int $perPage, int $page): array;
+
+    /** Find a tenant by its UUID. Returns null when not found. */
+    public function findByUuid(string $uuid): ?Tenant;
+
+    /** Find a tenant by its UUID and eager-load the owner. Returns null when not found. */
+    public function findByUuidWithOwner(string $uuid): ?Tenant;
+
+    /**
+     * Update a tenant's mutable fields by internal ID.
+     *
+     * @param  string  $name  New display name.
+     * @param  string  $slug  New URL slug.
+     * @param  string  $status  New lifecycle status.
+     */
+    public function update(int $id, string $name, string $slug, string $status): Tenant;
+
+    /** Soft-delete a tenant by internal ID. */
+    public function delete(int $id): void;
 }

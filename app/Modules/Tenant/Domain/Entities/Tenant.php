@@ -14,6 +14,7 @@ class Tenant
         private readonly string $status,
         private readonly int $ownerId,
         private readonly ?User $owner = null,
+        private readonly ?string $createdAt = null,
     ) {}
 
     /** Return the internal BIGSERIAL primary key (never exposed in responses). */
@@ -56,5 +57,11 @@ class Tenant
     public function getOwner(): ?User
     {
         return $this->owner;
+    }
+
+    /** Return the creation timestamp as an ISO 8601 string, or null when not loaded. */
+    public function getCreatedAt(): ?string
+    {
+        return $this->createdAt;
     }
 }

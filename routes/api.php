@@ -33,7 +33,7 @@ Route::prefix('staff')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
 
-        Route::post('/tenants', [TenantController::class, 'store'])->name('staff.tenants.store');
+        Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
     });
 });
 
