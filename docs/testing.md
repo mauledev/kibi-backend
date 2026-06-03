@@ -26,7 +26,7 @@ tests/
         └── {Module}/
 ```
 
-Unit tests mirror the `app/Modules/` structure. Feature tests map to HTTP flows.
+Unit tests mirror the `app/` structure: module code under `app/Modules/{Module}/` maps to `tests/Unit/Modules/{Module}/`, and cross-cutting code under `app/Common/` maps to `tests/Unit/Common/`. Feature tests map to HTTP flows and DB integration; cross-cutting infrastructure (e.g. `app/Common/Audit/AuditLogger`) is integration-tested under `tests/Feature/Common/` (e.g. `tests/Feature/Common/Audit/`).
 
 ---
 
