@@ -2,6 +2,7 @@
 
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -16,7 +17,7 @@ describe('GET /api/auth/tenant-info', function () {
         $response = $this->withHeader('X-Tenant-Slug', $tenant->slug)
             ->getJson('/api/auth/tenant-info');
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.slug', 'acme')
             ->assertJsonPath('data.name', 'Acme School');
     });
@@ -31,7 +32,7 @@ describe('GET /api/auth/tenant-info', function () {
         $response = $this->withHeader('X-Tenant-Slug', $tenant->slug)
             ->getJson('/api/auth/tenant-info');
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.slug', 'pending-school')
             ->assertJsonPath('data.name', 'Pending School');
     });
@@ -40,13 +41,13 @@ describe('GET /api/auth/tenant-info', function () {
         $response = $this->withHeader('X-Tenant-Slug', 'nonexistent-slug')
             ->getJson('/api/auth/tenant-info');
 
-        $response->assertStatus(404)
+        $response->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJsonPath('message', 'Tenant not found');
     });
 
     it('returns 400 when X-Tenant-Slug header is missing', function () {
         $this->getJson('/api/auth/tenant-info')
-            ->assertStatus(400);
+            ->assertStatus(Response::HTTP_BAD_REQUEST);
     });
 
     it('response never exposes id — only slug and name in data', function () {
@@ -59,7 +60,7 @@ describe('GET /api/auth/tenant-info', function () {
         $response = $this->withHeader('X-Tenant-Slug', $tenant->slug)
             ->getJson('/api/auth/tenant-info');
 
-        $response->assertStatus(200);
+        $response->assertStatus(Response::HTTP_OK);
 
         expect($response->json('data.id'))->toBeNull();
         expect($response->json('data.slug'))->toBe('no-id-exposed');

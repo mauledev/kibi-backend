@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -52,7 +53,7 @@ describe('UserRoleController', function () {
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => 'some-uuid',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 403 when actor lacks role.assign permission', function () {
@@ -70,7 +71,7 @@ describe('UserRoleController', function () {
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('assigns role to user and writes audit log when valid', function () {
@@ -91,7 +92,7 @@ describe('UserRoleController', function () {
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
-            $response->assertStatus(201);
+            $response->assertStatus(Response::HTTP_CREATED);
 
             $this->assertDatabaseHas('user_role_assignments', [
                 'user_id' => $target->id,
@@ -120,7 +121,7 @@ describe('UserRoleController', function () {
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => $sameLevel->uuid,
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 404 when target user does not exist', function () {
@@ -129,7 +130,7 @@ describe('UserRoleController', function () {
                 ->postJson('/api/users/00000000-0000-0000-0000-000000000000/roles', [
                     'role_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when role does not exist', function () {
@@ -147,7 +148,7 @@ describe('UserRoleController', function () {
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns existing assignment when same role already assigned (idempotent)', function () {
@@ -169,7 +170,7 @@ describe('UserRoleController', function () {
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
-            $response->assertStatus(201);
+            $response->assertStatus(Response::HTTP_CREATED);
 
             // Still only one assignment in the DB
             expect(
@@ -194,7 +195,7 @@ describe('UserRoleController', function () {
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
-            $response->assertStatus(201);
+            $response->assertStatus(Response::HTTP_CREATED);
         });
 
         it('validation fails when role_uuid is not a uuid', function () {
@@ -207,7 +208,7 @@ describe('UserRoleController', function () {
                 ->postJson("/api/users/{$target->uuid}/roles", [
                     'role_uuid' => 'not-a-uuid',
                 ])
-                ->assertStatus(422);
+                ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         });
 
         it('returns 422 when trying to assign the owner role', function () {
@@ -227,7 +228,7 @@ describe('UserRoleController', function () {
                     'role_uuid' => $ownerRole->uuid,
                 ]);
 
-            $response->assertStatus(422);
+            $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         });
     });
 
@@ -246,7 +247,7 @@ describe('UserRoleController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}");
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             // Verify revoked_at is set, not hard-deleted
             $assignment = UserRoleAssignment::where('user_id', $target->id)
@@ -270,7 +271,7 @@ describe('UserRoleController', function () {
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
 
             $this->assertDatabaseHas('audit_logs', [
                 'action' => 'role.revoke',
@@ -297,7 +298,7 @@ describe('UserRoleController', function () {
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 403 when actor tries to revoke role at same hierarchy level', function () {
@@ -313,7 +314,7 @@ describe('UserRoleController', function () {
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$sameLevel->uuid}")
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 403 when actor lacks role.revoke permission', function () {
@@ -329,7 +330,7 @@ describe('UserRoleController', function () {
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('owner can revoke any role assignment', function () {
@@ -340,7 +341,7 @@ describe('UserRoleController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
         });
     });
 
@@ -438,7 +439,7 @@ describe('UserRoleController', function () {
                 ->withHeader('X-Tenant-Slug', $tenantA->slug)
                 ->getJson('/api/roles');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $slugs = array_column($response->json('data'), 'slug');
             expect($slugs)->not->toContain('tenant_b_role');
