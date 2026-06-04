@@ -69,11 +69,22 @@ class CreateTenantUseCase
             return $this->tenants->findBySlugWithOwner($input->tenantSlug);
         });
 
-        $activationUrl = URL::temporarySignedRoute(
+        $backendSignedUrl = URL::temporarySignedRoute(
             'auth.activate',
-            now()->addHours(48),
+            now()->addHours(168),
             ['user' => $tenant->getOwner()?->getUuid()],
+            absolute: false
         );
+
+        $query = parse_url($backendSignedUrl, PHP_URL_QUERY);
+
+        $baseUrl = config('app.frontend_url') ?? config('app.url');
+
+        $baseUrlWithTenant = str_replace('{APP_TENANT}', $input->tenantSlug, $baseUrl);
+        $baseUrlWithTenant = rtrim($baseUrlWithTenant, '/');
+
+        $frontendUrl = $baseUrlWithTenant.'/auth/magic';
+        $activationUrl = $query ? "{$frontendUrl}?{$query}" : $frontendUrl;
 
         $this->mailer->sendActivation(
             to: $input->ownerEmail,
