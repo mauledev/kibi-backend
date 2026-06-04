@@ -225,6 +225,27 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 
 `DELETE /staff/tenants/{uuid}` soft-deletes the tenant. Returns 200 with a success message. Returns 404 when not found.
 
+### Schools
+
+```
+GET    /schools                          List schools of the current tenant
+POST   /schools                          Create a school
+GET    /schools/{uuid}                   Get a single school
+PUT    /schools/{uuid}                   Update mutable fields (partial)
+POST   /schools/{uuid}/deactivate        Soft-delete a school
+```
+
+`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+
+| Value          | Meaning                                                                                |
+|----------------|----------------------------------------------------------------------------------------|
+| *(omitted)*    | Equivalent to `active` — the default. There is no separate "no-filter" mode.           |
+| `active`       | `status='active'` AND not soft-deleted.                                                |
+| `deactivated`  | Only soft-deleted rows.                                                                |
+| `all`          | Every row, including soft-deleted and any rows with a non-`active` status (suspended). |
+
+This is the canonical pattern for list endpoints that need to expose soft-deleted rows alongside lifecycle states. The filter values are a Domain enum (`SchoolListFilter`); the FormRequest validates via `Rule::enum(...)` and the controller never inlines strings. The repository contract accepts a **Criteria** object (`SchoolListCriteria`) rather than loose primitives, so adding pagination, search or sorting later does not break callers. The Criteria's `status` field is non-nullable with `Active` as its default — "include everything" is expressed exclusively as `All`, eliminating the previous `null`/`All` ambiguity. The repository maps `Deactivated` to `onlyTrashed()` and `All` to `withTrashed()`; the soft-delete column stays an Infrastructure concern. Resources expose `deleted_at` so the frontend can render deactivated rows distinctly.
+
 ### Roles and permissions
 
 ```
