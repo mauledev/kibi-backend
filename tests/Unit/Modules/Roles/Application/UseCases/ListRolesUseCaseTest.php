@@ -21,6 +21,7 @@ describe('ListRolesUseCase', function () {
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'some-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
+            categoryId: null,
             name: $overrides['name'] ?? 'Some Role',
             slug: $overrides['slug'] ?? 'some_role',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 5,

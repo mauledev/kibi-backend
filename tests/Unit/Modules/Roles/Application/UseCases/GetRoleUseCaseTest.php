@@ -23,6 +23,7 @@ describe('GetRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 1,
+            categoryId: $overrides['categoryId'] ?? null,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 4,

@@ -7,6 +7,7 @@ describe('UserRoleAssignment entity', function () {
     {
         return new UserRoleAssignment(
             id: $overrides['id'] ?? 1,
+            uuid: $overrides['uuid'] ?? 'test-uuid-1',
             userId: $overrides['userId'] ?? 10,
             roleId: $overrides['roleId'] ?? 5,
             schoolId: array_key_exists('schoolId', $overrides) ? $overrides['schoolId'] : null,

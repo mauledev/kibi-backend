@@ -8,6 +8,7 @@ class UserRoleAssignment
 {
     public function __construct(
         private readonly int $id,
+        private readonly string $uuid,
         private readonly int $userId,
         private readonly int $roleId,
         private readonly ?int $schoolId,
@@ -19,6 +20,11 @@ class UserRoleAssignment
     public function getId(): int
     {
         return $this->id;
+    }
+
+    public function getUuid(): string
+    {
+        return $this->uuid;
     }
 
     public function getUserId(): int

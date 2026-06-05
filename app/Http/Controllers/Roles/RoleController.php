@@ -19,6 +19,7 @@ use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesInput;
 use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleInput;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleUseCase;
+use App\Modules\Roles\Domain\Exceptions\CustomRoleLimitExceededException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
@@ -40,28 +41,32 @@ class RoleController extends Controller
     }
 
     /**
-     * POST /roles — Create a new role.
+     * POST /roles — Create a new custom role.
      */
     public function store(CreateRoleRequest $request, CreateRoleUseCase $useCase, TenantContext $context): JsonResponse
     {
-        $this->authorize('manage.permissions');
+        $this->authorize('roles.custom.create');
 
         /** @var User $actor */
         $actor = $request->user();
 
+        $actorSlug = $this->resolveActorSlug($actor);
+
         try {
             $role = $useCase->execute(new CreateRoleInput(
                 actorUserId: $actor->id,
-                actorHierarchyLevel: $actor->lowestHierarchyLevel(),
+                actorSlug: $actorSlug,
                 tenantId: $context->tenantId,
                 name: $request->validated('name'),
+                schoolUuids: $request->validated('school_uuids', []),
                 slug: $request->validated('slug'),
-                hierarchyLevel: (int) $request->validated('hierarchy_level'),
             ));
 
             return ApiResponse::created((new RoleResource($role))->resolve());
         } catch (HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
+        } catch (CustomRoleLimitExceededException $e) {
+            return ApiResponse::conflict($e->getMessage());
         }
     }
 
@@ -94,7 +99,7 @@ class RoleController extends Controller
         try {
             $role = $useCase->execute(new UpdateRoleInput(
                 actorUserId: $actor->id,
-                actorHierarchyLevel: $actor->lowestHierarchyLevel(),
+                actorSlug: $this->resolveActorSlug($actor),
                 uuid: $uuid,
                 name: $request->validated('name'),
             ));
@@ -120,7 +125,7 @@ class RoleController extends Controller
         try {
             $useCase->execute(new DeleteRoleInput(
                 actorUserId: $actor->id,
-                actorHierarchyLevel: $actor->lowestHierarchyLevel(),
+                actorSlug: $this->resolveActorSlug($actor),
                 uuid: $uuid,
             ));
 
@@ -130,5 +135,19 @@ class RoleController extends Controller
         } catch (SystemRoleViolationException|HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         }
+    }
+
+    /**
+     * Resolve the actor's primary slug for hierarchy validation.
+     */
+    private function resolveActorSlug(User $actor): string
+    {
+        foreach (['owner', 'gestor_escuelas', 'director'] as $slug) {
+            if ($actor->hasRole($slug)) {
+                return $slug;
+            }
+        }
+
+        return 'unknown';
     }
 }

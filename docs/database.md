@@ -31,7 +31,13 @@ filter. No exceptions.
 - `users.tenant_id` is nullable — `NULL` means Softlinkia staff. During tenant creation the owner user is created first (no `tenant_id` yet), the tenant is created with `owner_id`, then `users.tenant_id` is set in the same transaction.
 - `users.is_staff BOOLEAN NOT NULL DEFAULT false` — explicit flag for Softlinkia staff. More readable than relying solely on `tenant_id IS NULL`.
 - `tenants.owner_id BIGINT FK users.id` — the single owner of the tenant. Immutable after creation. Answers "who has absolute authority over this tenant?" and powers the Gate bypass (`context.ownerId === user.id → allow everything`). This is intentionally separate from `users.tenant_id` — they answer different questions (see note below).
+- `tenants.custom_roles_limit SMALLINT` — maximum number of custom roles the tenant can create in total. Range: 1–50. Set by the owner via `ConfigureCustomRoleLimitUseCase`. NULL means no custom roles have been allowed yet.
 - `users.tenant_id FK tenants.id` is added after `tenants` is created (end of `create_tenants_table` migration) to break the circular FK insertion order.
+- `roles.category_id FK permission_categories.id` — nullable. Determines which permission category a role is bound to. When set, the role can only hold permissions belonging to that category. NULL means the role is either a custom role (can hold any permission) or a special tenant-admin role (owner, gestor) whose authority is not permission-based.
+- Custom roles belong to the tenant (`roles.tenant_id`), not to a specific school. School availability is controlled by `custom_role_schools`. A custom role can be available in one or many schools, but the role entity and its `role_permissions` are tenant-level and consistent across all schools.
+- `roles.is_system_role` — `true` exclusively for Softlinkia staff roles (`tenant_id IS NULL`). Never true for tenant roles. Protects staff roles from deletion. Superadmin has `is_system_role = true` with no `category_id` — its authority is handled by the Gate bypass on staff routes. All other staff roles (support, finance) have `is_system_role = true` with a `staff`-scoped `category_id` and manage their permissions via `role_permissions` rows like any other role. Tenant roles — including owner and gestor — always have `is_system_role = false`.
+- `roles.hierarchy_level` — present in the schema for future use but **not enforced in business logic**. Role authority is determined by slug-based rules hardcoded in the domain (`owner > gestor > director`). See `post-mvp.md` for the plan to re-activate this column when role creation is extended beyond the current three-actor model.
+- `user_role_assignment_denials` — permission subtractions applied to a specific `user_role_assignments` row. Effective permissions for any assignment = role permissions − denials. Does not apply to owner or gestor assignments.
 
 > **Why does the owner user have both `users.tenant_id` and `tenants.owner_id`?**
 >
@@ -64,6 +70,7 @@ Table tenants {
   contact_phone varchar(30)
   status varchar(20) [not null, default: 'active',
     note: 'pending, active, suspended, grace_period, offboarding']
+  custom_roles_limit smallint [note: '1–50. Set by the owner. Controls the maximum number of custom roles the tenant can create in total. NULL = not configured, custom role creation is blocked.']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 }
@@ -206,18 +213,32 @@ Table users {
 Table permission_categories {
   id bigserial [pk, increment]
   uuid uuid [unique, not null, default: `gen_random_uuid()`]
-  school_id bigint [ref: > schools.id,
-    note: 'NULL = system category (Softlinkia), NOT NULL = school category']
-  name varchar(100) [not null,
-    note: 'academic, financial, hr, communication, configuration']
+  scope varchar(20) [not null,
+    note: '"staff" | "tenant" | "school". Prevents name collisions across contexts.']
+  name varchar(100) [not null]
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 
   indexes {
-    school_id
+    (scope, name) [unique]
   }
 }
 ```
+
+Categories are global, pre-seeded by Softlinkia and non-negotiable. The `scope` column separates categories that share the same name across different contexts:
+
+| scope | name | Used by |
+|---|---|---|
+| `staff` | support | Softlinkia support roles (L1, L2, L3) |
+| `staff` | finance | Softlinkia finance roles |
+| `tenant` | finance | Tenant-level finance manager (billing across all schools) |
+| `tenant` | hr | Tenant-level HR manager |
+| `school` | director | School director |
+| `school` | teacher | School teacher |
+| `school` | finance | School finance user |
+| `school` | hr | School HR user |
+
+The same name (e.g. `finance`) can exist in multiple scopes — they are completely independent categories with different permission sets.
 
 ### permissions
 ```sql
@@ -243,24 +264,39 @@ Table roles {
   id bigserial [pk, increment]
   uuid uuid [unique, not null, default: `gen_random_uuid()`]
   tenant_id bigint [ref: > tenants.id,
-    note: 'NULL = Softlinkia system role']
+    note: 'NULL = Softlinkia staff role only']
+  category_id bigint [ref: > permission_categories.id,
+    note: 'NULL = custom role or special tenant-admin role (owner, gestor). NOT NULL = operational role bound to a category.']
   name varchar(100) [not null]
   slug varchar(100) [not null,
-    note: 'owner, director, teacher, soporte_l1']
+    note: 'owner, gestor, director, teacher, finance, soporte_l1']
   hierarchy_level smallint [not null,
-    note: '1=Superadmin, 3=Gestor, 4=Director, 7=Teacher']
+    note: 'Stored but not enforced in business logic. Reserved for future use. See post-mvp.md.']
   is_system_role boolean [default: false,
-    note: 'true = Softlinkia fixed role, permissions managed in code']
+    note: 'true ONLY for Softlinkia staff roles (tenant_id IS NULL). Never true for tenant roles.']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 
   indexes {
     (tenant_id, slug)
-    hierarchy_level
+    category_id
     is_system_role
   }
 }
 ```
+
+**Role types:**
+
+| Type | `tenant_id` | `category_id` | `category.scope` | `is_system_role` | Who creates |
+|---|---|---|---|---|---|
+| Staff — Superadmin | NULL | NULL | — | true | Softlinkia seeder |
+| Staff — operational (support, finance) | NULL | category id | `staff` | true | Softlinkia seeder |
+| Tenant-admin (owner, gestor) | tenant id | NULL | — | false | Softlinkia seeder |
+| Tenant operational (tenant finance, tenant HR…) | tenant id | category id | `tenant` | false | Softlinkia seeder |
+| School operational (director, teacher, finance…) | tenant id | category id | `school` | false | Softlinkia seeder |
+| Custom role | tenant id | NULL | — | false | Owner or gestor |
+
+Custom roles are identified at runtime by: `tenant_id IS NOT NULL AND category_id IS NULL AND slug NOT IN ('owner', 'gestor')`. The special slugs `owner` and `gestor` are reserved and hardcoded in the domain.
 
 ### role_permissions
 ```sql
@@ -281,7 +317,7 @@ Table user_role_assignments {
   user_id bigint [not null, ref: > users.id]
   role_id bigint [not null, ref: > roles.id]
   school_id bigint [ref: > schools.id,
-    note: 'NULL = tenant-level role (owner, gestor)']
+    note: 'NULL = tenant-level role (owner, gestor). NOT NULL = school-scoped role.']
   assigned_by bigint [ref: > users.id]
   assigned_at timestamptz [default: `now()`]
   revoked_at timestamptz
@@ -292,6 +328,44 @@ Table user_role_assignments {
   }
 }
 ```
+
+A user can hold the same role in multiple schools — each school produces a separate row. Effective permissions per school = role permissions − denials recorded in `user_role_assignment_denials` for that specific row.
+
+### custom_role_schools
+```sql
+Table custom_role_schools {
+  role_id    bigint [not null, ref: > roles.id]
+  school_id  bigint [not null, ref: > schools.id]
+
+  indexes {
+    (role_id, school_id) [pk]
+  }
+}
+```
+
+Defines in which schools a custom role is available for assignment. Only applies to custom roles (`category_id IS NULL`, slug not in reserved list). Created at the same time the custom role is created — owner and gestor select the schools during creation. A custom role with no rows here cannot be assigned to any user.
+
+System roles and operational roles do not use this table — their availability is tenant-wide by default.
+
+### user_role_assignment_denials
+```sql
+Table user_role_assignment_denials {
+  id bigserial [pk, increment]
+  role_user_assignment_id bigint [not null, ref: > user_role_assignments.id]
+  permission_id bigint [not null, ref: > permissions.id]
+
+  indexes {
+    (role_user_assignment_id, permission_id) [unique]
+  }
+}
+```
+
+Subtracts specific permissions from a single assignment without modifying the role itself. This allows the same role to behave differently per user per school.
+
+Rules:
+- Cannot be applied to owner or gestor assignments.
+- The denied permission must belong to the role's `category_id` (or any category if the role is custom).
+- Managed by `DenyPermissionFromAssignmentUseCase` and `RestorePermissionToAssignmentUseCase`.
 
 ### teacher_subject_groups
 ```sql
@@ -338,10 +412,21 @@ Table audit_logs {
 
 `RolesAndPermissionsSeeder` (runs always, before `DevSeeder`) inserts:
 
-- **Permission categories** (school_id = null): `academic`, `financial`, `hr`, `communication`, `configuration`
-- **System permissions**: 30 slugs including `grade.publish`, `payment.approve`, `manage.permissions`, `role.assign`, `role.view`, `user.suspend`, etc.
-- **System roles** (tenant_id = null): Superadmin (L1, is_system_role=true), Owner (L2), Gestor de Escuelas (L3), Director (L4), Coordinador Académico (L5), Control Escolar (L5), Prefectura (L6), Finanzas (L6), RRHH (L6), Docente (L7), Alumno (L8), Tutor (L8)
-- **Default role_permissions**: Gestor and Director receive `manage.permissions`. Sensible defaults assigned per role based on their functional scope.
+- **Permission categories** — seeded with three scopes:
+  - `staff` scope: `support`, `finance` (for Softlinkia staff operational roles)
+  - `tenant` scope: `finance`, `hr` (for tenant-level operational roles, e.g. tenant billing manager)
+  - `school` scope: `director`, `teacher`, `finance`, `hr`, `academic_coordinator`, `control_escolar`, `library`, `prefectura`, `student`, `tutor`, `provider`
+- **System permissions**: seeded per category. Each permission belongs to exactly one category. Administrative permissions (e.g. `user.create`, `user.suspend`, `permissions.manage`, `roles.custom.create`) are seeded alongside the first modules that need them.
+- **Staff roles** (`tenant_id = NULL`, `is_system_role = true`):
+  - Superadmin — no `category_id`, authority via Gate bypass on staff routes.
+  - Support L1, L2, L3 — `category_id` pointing to `staff/support`.
+  - Finance L1, L2, L3 — `category_id` pointing to `staff/finance`.
+- **Tenant-admin roles** (seeded per tenant, `is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), Gestor (all permissions in assigned schools, authority by slug).
+- **Tenant operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `tenant`): Tenant Finance Manager, Tenant HR Manager (examples — expand as product grows).
+- **School operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `school`): Director, Teacher, Finance, HR, Academic Coordinator, Control Escolar, Prefectura, Library, Student (Alumno), Tutor, Provider.
+- **Default role_permissions**: each operational role (staff, tenant, or school) receives the permissions that belong to its category. These are the defaults — authorized actors can adjust them within category bounds.
+
+Re-running the seeder is safe — all inserts use `insertOrIgnore`.
 
 Re-running the seeder is safe — all inserts use `insertOrIgnore`.
 

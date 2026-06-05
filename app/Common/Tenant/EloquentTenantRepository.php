@@ -15,6 +15,6 @@ class EloquentTenantRepository implements TenantRepositoryInterface
             return null;
         }
 
-        return new TenantData(id: $tenant->id, status: $tenant->status);
+        return new TenantData(id: $tenant->id, status: $tenant->status, ownerId: $tenant->owner_id);
     }
 }

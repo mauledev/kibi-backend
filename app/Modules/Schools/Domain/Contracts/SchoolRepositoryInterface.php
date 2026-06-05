@@ -17,6 +17,11 @@ interface SchoolRepositoryInterface
     public function findAll(): array;
 
     /**
+     * Find a single school by its internal primary key within the current tenant scope.
+     */
+    public function findById(int $id): ?School;
+
+    /**
      * Find a single school by its public UUID within the current tenant scope.
      */
     public function findByUuid(string $uuid): ?School;

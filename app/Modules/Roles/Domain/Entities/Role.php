@@ -13,6 +13,7 @@ class Role
         private readonly int $id,
         private readonly string $uuid,
         private readonly ?int $tenantId,
+        private readonly ?int $categoryId,
         private string $name,
         private readonly string $slug,
         private readonly int $hierarchyLevel,
@@ -35,6 +36,22 @@ class Role
     public function getTenantId(): ?int
     {
         return $this->tenantId;
+    }
+
+    public function getCategoryId(): ?int
+    {
+        return $this->categoryId;
+    }
+
+    /**
+     * Returns true when this is a custom role:
+     * belongs to a tenant, has no category, and is not a reserved admin role.
+     */
+    public function isCustomRole(): bool
+    {
+        return $this->tenantId !== null
+            && $this->categoryId === null
+            && ! in_array($this->slug, ['owner', 'gestor_escuelas'], true);
     }
 
     public function getName(): string

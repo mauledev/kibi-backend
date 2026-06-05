@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('contact_email')->nullable();
             $table->string('contact_phone', 30)->nullable();
             $table->string('status', 20)->default('active');
+            $table->smallInteger('custom_roles_limit')->nullable();
             $table->timestampsTz();
             $table->softDeletesTz();
         });

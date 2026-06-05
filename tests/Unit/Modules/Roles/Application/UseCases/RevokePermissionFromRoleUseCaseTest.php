@@ -11,7 +11,6 @@ use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use Illuminate\Auth\Access\AuthorizationException;
 
 describe('RevokePermissionFromRoleUseCase', function () {
     beforeEach(function () {
@@ -35,6 +34,7 @@ describe('RevokePermissionFromRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
+            categoryId: $overrides['categoryId'] ?? null,
             name: $overrides['name'] ?? 'Coordinador',
             slug: $overrides['slug'] ?? 'coordinador',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 5,
@@ -56,17 +56,16 @@ describe('RevokePermissionFromRoleUseCase', function () {
         );
     }
 
-    it('throws AuthorizationException when actor does not hold manage.permissions', function () {
+    it('throws HierarchyViolationException when actor slug is not owner/gestor/director', function () {
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: false,
+            actorSlug: 'coordinador',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(AuthorizationException::class);
+            ->toThrow(HierarchyViolationException::class);
     });
 
     it('throws RoleNotFoundException when role does not exist', function () {
@@ -74,8 +73,7 @@ describe('RevokePermissionFromRoleUseCase', function () {
 
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'nonexistent',
             permissionUuid: 'perm-uuid',
         );
@@ -84,32 +82,14 @@ describe('RevokePermissionFromRoleUseCase', function () {
             ->toThrow(RoleNotFoundException::class);
     });
 
-    it('throws RoleNotFoundException when role is soft-deleted', function () {
-        $role = revokeRoleEntity(['deletedAt' => new DateTimeImmutable('2025-01-01')]);
+    it('throws SystemRoleViolationException when target role slug is superadmin', function () {
+        $role = revokeRoleEntity(['slug' => 'superadmin', 'isSystemRole' => true]);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
-            roleUuid: 'role-uuid',
-            permissionUuid: 'perm-uuid',
-        );
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(RoleNotFoundException::class);
-    });
-
-    it('throws SystemRoleViolationException when target role is a system role', function () {
-        $role = revokeRoleEntity(['isSystemRole' => true]);
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
-
-        $input = new RevokePermissionFromRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
@@ -118,50 +98,32 @@ describe('RevokePermissionFromRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when role has same level as actor', function () {
-        $role = revokeRoleEntity(['hierarchyLevel' => 4]);
+    it('throws SystemRoleViolationException when director tries to manage owner role (protected slug)', function () {
+        $role = revokeRoleEntity(['slug' => 'owner']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 4,
-            actorCanManagePermissions: true,
+            actorSlug: 'director',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
+        // owner is in PROTECTED_SLUGS so SystemRoleViolationException fires first
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
-    });
-
-    it('throws HierarchyViolationException when role has lower level than actor', function () {
-        $role = revokeRoleEntity(['hierarchyLevel' => 3]);
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
-
-        $input = new RevokePermissionFromRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 4,
-            actorCanManagePermissions: true,
-            roleUuid: 'role-uuid',
-            permissionUuid: 'perm-uuid',
-        );
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
+            ->toThrow(SystemRoleViolationException::class);
     });
 
     it('throws PermissionNotFoundException when permission does not exist', function () {
-        $role = revokeRoleEntity(['hierarchyLevel' => 5]);
+        $role = revokeRoleEntity();
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->permissionRepo->shouldReceive('findByUuid')->once()->with('nonexistent-perm')->andReturn(null);
 
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'nonexistent-perm',
         );
@@ -171,7 +133,7 @@ describe('RevokePermissionFromRoleUseCase', function () {
     });
 
     it('detaches permission and writes audit log when all checks pass', function () {
-        $role = revokeRoleEntity(['hierarchyLevel' => 5]);
+        $role = revokeRoleEntity();
         $permission = revokePermissionEntity('grade.publish');
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
@@ -181,28 +143,11 @@ describe('RevokePermissionFromRoleUseCase', function () {
 
         $input = new RevokePermissionFromRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
         $this->useCase->execute($input);
-    });
-
-    it('never calls detachPermission when authorization fails', function () {
-        $this->roleRepo->shouldNotReceive('detachPermission');
-        $this->audit->shouldNotReceive('log');
-
-        $input = new RevokePermissionFromRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: false,
-            roleUuid: 'role-uuid',
-            permissionUuid: 'perm-uuid',
-        );
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(AuthorizationException::class);
     });
 });

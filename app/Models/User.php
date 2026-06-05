@@ -86,22 +86,35 @@ class User extends Authenticatable
         return $this->hasMany(UserRoleAssignment::class);
     }
 
-    /** @var Collection<int, UserRoleAssignment>|null */
-    private ?Collection $cachedAssignments = null;
+    /** @var array<string|int, Collection<int, UserRoleAssignment>> */
+    private array $cachedAssignments = [];
 
     /**
-     * Return all active role assignments (revoked_at IS NULL).
-     * Result is memoized for the lifetime of the request — the DB is hit once
-     * regardless of how many hasRole() / hasPermissionTo() / authorize() calls occur.
+     * Return all active role assignments (revoked_at IS NULL), optionally scoped to a school.
+     * When schoolId is provided, returns assignments for that school AND tenant-level assignments.
+     * Result is memoized per school for the lifetime of the request.
      *
      * @return Collection<int, UserRoleAssignment>
      */
-    public function activeAssignments(): Collection
+    public function activeAssignments(?int $schoolId = null): Collection
     {
-        return $this->cachedAssignments ??= $this->roleAssignments()
-            ->whereNull('revoked_at')
-            ->with(['role', 'role.permissions'])
-            ->get();
+        $cacheKey = $schoolId ?? 'tenant';
+
+        if (! isset($this->cachedAssignments[$cacheKey])) {
+            $query = $this->roleAssignments()->whereNull('revoked_at');
+
+            if ($schoolId !== null) {
+                $query->where(function ($q) use ($schoolId) {
+                    $q->where('school_id', $schoolId)->orWhereNull('school_id');
+                });
+            }
+
+            $this->cachedAssignments[$cacheKey] = $query
+                ->with(['role', 'role.permissions', 'denials'])
+                ->get();
+        }
+
+        return $this->cachedAssignments[$cacheKey];
     }
 
     /**
@@ -130,15 +143,19 @@ class User extends Authenticatable
     }
 
     /**
-     * Return merged permission slugs from all active roles.
+     * Return effective permission slugs for the given school.
+     * Effective permissions = role permissions − denials for each assignment.
+     * Pass null for tenant-level only (no school scope).
      *
      * @return array<string>
      */
-    public function activePermissions(): array
+    public function activePermissions(?int $schoolId = null): array
     {
-        $slugs = [];
+        $permissions = [];
 
-        foreach ($this->activeAssignments() as $assignment) {
+        foreach ($this->activeAssignments($schoolId) as $assignment) {
+            $deniedIds = $assignment->denials->pluck('permission_id')->all();
+
             /** @var Role|null $role */
             $role = $assignment->role;
 
@@ -147,33 +164,31 @@ class User extends Authenticatable
             }
 
             foreach ($role->permissions as $permission) {
-                $slugs[$permission->slug] = true;
+                if (! in_array($permission->id, $deniedIds, true)) {
+                    $permissions[] = $permission->slug;
+                }
             }
         }
 
-        return array_keys($slugs);
+        return array_unique($permissions);
     }
 
     /**
-     * Return true if the user has the given permission slug in their merged active permissions.
+     * Return true if the user has the given permission slug for the given school.
+     * Pass null for tenant-level check only.
      */
-    public function hasPermissionTo(string $slug): bool
+    public function hasPermissionTo(string $slug, ?int $schoolId = null): bool
     {
-        return in_array($slug, $this->activePermissions(), true);
+        return in_array($slug, $this->activePermissions($schoolId), true);
     }
 
     /**
-     * Return the lowest (most privileged) hierarchy_level across all active roles.
-     * Returns PHP_INT_MAX when the user has no active roles (no privileges).
+     * Return true if the user has an active gestor_escuelas assignment for the given school.
      */
-    public function lowestHierarchyLevel(): int
+    public function isGestorOfSchool(int $schoolId): bool
     {
-        $levels = $this->activeAssignments()
-            ->map(fn (UserRoleAssignment $a) => $a->role)
-            ->filter()
-            ->map(fn (Role $role) => $role->hierarchy_level)
-            ->all();
-
-        return $levels !== [] ? (int) min($levels) : PHP_INT_MAX;
+        return $this->activeAssignments($schoolId)->contains(
+            fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'gestor_escuelas'
+        );
     }
 }
