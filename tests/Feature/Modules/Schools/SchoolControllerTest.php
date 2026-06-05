@@ -129,9 +129,7 @@ describe('SchoolController', function () {
 
         describe('?status filter', function () {
             beforeEach(function () {
-                $this->user = User::factory()->for($this->tenant)->create();
-                $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-                assignSchoolRole($this->user, $ownerRole);
+                $this->user = $this->owner;
             });
 
             it('without status param it defaults to Active (excludes suspended and soft-deleted)', function () {
