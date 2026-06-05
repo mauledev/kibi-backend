@@ -5,6 +5,7 @@ use App\Models\School as SchoolModel;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -147,6 +148,109 @@ describe('SchoolController', function () {
             $response->assertStatus(200);
 
             expect($response->json('data'))->toBeArray()->toBeEmpty();
+        });
+
+        describe('?status filter', function () {
+            beforeEach(function () {
+                $this->user = User::factory()->for($this->tenant)->create();
+                $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
+                assignSchoolRole($this->user, $ownerRole);
+            });
+
+            it('without status param it defaults to Active (excludes suspended and soft-deleted)', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools');
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(1);
+                expect($response->json('data.0.status'))->toBe('active');
+                expect($response->json('data.0.deleted_at'))->toBeNull();
+            });
+
+            it('returns 200 and only active schools when status=active', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Active->value);
+
+                $response->assertStatus(200);
+                $statuses = array_column($response->json('data'), 'status');
+                expect($statuses)->each->toBe('active');
+            });
+
+            it('returns 200 and only soft-deleted schools when status=deactivated', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(1);
+                expect($response->json('data.0.deleted_at'))->not->toBeNull();
+            });
+
+            it('returns 200 with all schools (including soft-deleted) when status=all', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::All->value);
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(3);
+            });
+
+            it('returns 422 with a validation error when status=suspended (no longer in filter)', function () {
+                $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status=suspended')
+                    ->assertStatus(422)
+                    ->assertJsonValidationErrors(['status']);
+            });
+
+            it('returns 422 with a validation error on status field when an invalid value is passed', function () {
+                $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status=foo')
+                    ->assertStatus(422)
+                    ->assertJsonValidationErrors(['status']);
+            });
+
+            it('includes deleted_at as null for non-deleted schools in the resource', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools');
+
+                $response->assertStatus(200);
+                expect($response->json('data.0.deleted_at'))->toBeNull();
+            });
+
+            it('includes deleted_at as an ISO 8601 string for deactivated schools in the resource', function () {
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+
+                $response->assertStatus(200);
+                $deletedAt = $response->json('data.0.deleted_at');
+                expect($deletedAt)->toBeString()->not->toBeEmpty();
+                // ISO 8601 basic check: contains a T separator
+                expect(str_contains($deletedAt, 'T'))->toBeTrue();
+            });
         });
     });
 
