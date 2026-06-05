@@ -159,6 +159,17 @@ class RolesAndPermissionsSeeder extends Seeder
                 'hierarchy_level' => 6,
                 'is_system_role' => false,
             ],
+            // Softlinkia staff role — operates cross-tenant.
+            // Not used in MVP (Superadmin handles all treasury work) but kept
+            // seeded for forward-compat once the Líder/Operador separation
+            // from RF-160..189i lands.
+            [
+                'tenant_id' => null,
+                'name' => 'Operador de Tesorería',
+                'slug' => 'treasury_operator',
+                'hierarchy_level' => 2,
+                'is_system_role' => true,
+            ],
             [
                 'tenant_id' => null,
                 'name' => 'RRHH',
@@ -272,6 +283,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'user.view',
             'announcement.view',
         ]);
+
+        // Treasury Operator — Softlinkia staff role.
+        // Permissions for staff roles with `is_system_role = true` are
+        // enforced in code (per architecture.md), not via `role_permissions`.
+        // No assignments needed here.
 
         // RRHH — human resources
         $assign('rrhh', [
