@@ -65,12 +65,37 @@ class EloquentGlobalRoleRepository implements RoleRepositoryInterface
     /** {@inheritDoc} */
     public function create(
         ?int $tenantId,
+        ?int $categoryId,
         string $name,
         string $slug,
         int $hierarchyLevel,
         bool $isSystemRole,
     ): Role {
         throw new RuntimeException('EloquentGlobalRoleRepository::create() is not supported without TenantContext.');
+    }
+
+    /** {@inheritDoc} */
+    public function countCustomRoles(int $tenantId): int
+    {
+        throw new RuntimeException('EloquentGlobalRoleRepository::countCustomRoles() is not supported without TenantContext.');
+    }
+
+    /** {@inheritDoc} */
+    public function attachSchools(int $roleId, array $schoolIds): void
+    {
+        throw new RuntimeException('EloquentGlobalRoleRepository::attachSchools() is not supported without TenantContext.');
+    }
+
+    /** {@inheritDoc} */
+    public function getCustomRolesLimit(int $tenantId): ?int
+    {
+        throw new RuntimeException('EloquentGlobalRoleRepository::getCustomRolesLimit() is not supported without TenantContext.');
+    }
+
+    /** {@inheritDoc} */
+    public function setCustomRolesLimit(int $tenantId, int $limit): void
+    {
+        throw new RuntimeException('EloquentGlobalRoleRepository::setCustomRolesLimit() is not supported without TenantContext.');
     }
 
     /** {@inheritDoc} */
@@ -116,6 +141,7 @@ class EloquentGlobalRoleRepository implements RoleRepositoryInterface
             id: $model->id,
             uuid: $model->uuid,
             tenantId: $model->tenant_id,
+            categoryId: $model->category_id,
             name: $model->name,
             slug: $model->slug,
             hierarchyLevel: $model->hierarchy_level,

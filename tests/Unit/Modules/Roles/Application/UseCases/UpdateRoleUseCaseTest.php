@@ -7,6 +7,7 @@ use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
+use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 describe('UpdateRoleUseCase', function () {
     beforeEach(function () {
@@ -25,6 +26,7 @@ describe('UpdateRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
+            categoryId: null,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 4,
@@ -35,10 +37,17 @@ describe('UpdateRoleUseCase', function () {
         );
     }
 
+    it('throws HierarchyViolationException when actor slug is not an authorised actor', function () {
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'prefectura', uuid: 'role-uuid', name: 'New');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(HierarchyViolationException::class);
+    });
+
     it('throws RoleNotFoundException when role does not exist', function () {
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(null);
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'nonexistent', name: 'New');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'nonexistent', name: 'New');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleNotFoundException::class);
@@ -49,37 +58,48 @@ describe('UpdateRoleUseCase', function () {
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid', name: 'New');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid', name: 'New');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleNotFoundException::class);
     });
 
-    it('throws HierarchyViolationException when role has the same hierarchy level as actor', function () {
-        $role = updateRoleEntity(['hierarchyLevel' => 4]);
+    it('throws SystemRoleViolationException when trying to rename a system role', function () {
+        $role = updateRoleEntity(['isSystemRole' => true, 'slug' => 'superadmin']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid', name: 'New');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid', name: 'New');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(SystemRoleViolationException::class);
+    });
+
+    it('throws HierarchyViolationException when director tries to update gestor_escuelas role', function () {
+        $role = updateRoleEntity(['slug' => 'gestor_escuelas', 'categoryId' => null]);
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
+
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid', name: 'New');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    it('throws HierarchyViolationException when role has a lower level than actor', function () {
-        $role = updateRoleEntity(['hierarchyLevel' => 3]);
+    it('throws HierarchyViolationException when director tries to update owner role', function () {
+        $role = updateRoleEntity(['slug' => 'owner']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid', name: 'New');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid', name: 'New');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    it('renames the role, persists it, and writes audit log when checks pass', function () {
-        $originalRole = updateRoleEntity(['name' => 'Old Name', 'hierarchyLevel' => 5]);
-        $updatedRole = updateRoleEntity(['name' => 'New Name', 'hierarchyLevel' => 5]);
+    it('renames the role, persists it, and writes audit log when owner updates any role', function () {
+        $originalRole = updateRoleEntity(['name' => 'Old Name', 'slug' => 'finanzas']);
+        $updatedRole = updateRoleEntity(['name' => 'New Name', 'slug' => 'finanzas']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($originalRole);
         $this->roleRepo->shouldReceive('update')
@@ -90,21 +110,35 @@ describe('UpdateRoleUseCase', function () {
             ->once()
             ->with('role.update', 1, 10, null, Mockery::type('array'), Mockery::type('array'));
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid', name: 'New Name');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid', name: 'New Name');
         $result = $this->useCase->execute($input);
 
         expect($result)->toBeInstanceOf(Role::class);
         expect($result->getName())->toBe('New Name');
     });
 
-    it('never calls update when hierarchy check fails', function () {
-        $role = updateRoleEntity(['hierarchyLevel' => 4]);
+    it('renames the role when gestor_escuelas updates any non-system role', function () {
+        $originalRole = updateRoleEntity(['name' => 'Old', 'slug' => 'director']);
+        $updatedRole = updateRoleEntity(['name' => 'Updated Director', 'slug' => 'director']);
 
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($originalRole);
+        $this->roleRepo->shouldReceive('update')
+            ->once()
+            ->andReturn($updatedRole);
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'gestor_escuelas', uuid: 'role-uuid', name: 'Updated Director');
+        $result = $this->useCase->execute($input);
+
+        expect($result->getName())->toBe('Updated Director');
+    });
+
+    it('never calls update when actor is not authorised', function () {
+        $this->roleRepo->shouldNotReceive('findByUuid');
         $this->roleRepo->shouldNotReceive('update');
         $this->audit->shouldNotReceive('log');
 
-        $input = new UpdateRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid', name: 'New');
+        $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'alumno', uuid: 'role-uuid', name: 'New');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);

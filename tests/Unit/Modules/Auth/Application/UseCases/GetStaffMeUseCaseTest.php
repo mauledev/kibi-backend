@@ -61,7 +61,7 @@ describe('GetStaffMeUseCase', function () {
 
         $perm = new Permission(id: 1, uuid: 'p-uuid', categoryId: 1, name: 'Manage All', slug: 'tenant.manage');
         $role = new Role(
-            id: 1, uuid: 'r-uuid', tenantId: null, name: 'Superadmin', slug: 'superadmin',
+            id: 1, uuid: 'r-uuid', tenantId: null, categoryId: null, name: 'Superadmin', slug: 'superadmin',
             hierarchyLevel: 1, isSystemRole: true, permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );

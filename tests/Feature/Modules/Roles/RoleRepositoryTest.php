@@ -74,6 +74,7 @@ describe('EloquentRoleRepository', function () {
 
             $role = makeRepo()->create(
                 tenantId: $this->tenantA->id,
+                categoryId: null,
                 name: 'New Role',
                 slug: 'new_role',
                 hierarchyLevel: 5,

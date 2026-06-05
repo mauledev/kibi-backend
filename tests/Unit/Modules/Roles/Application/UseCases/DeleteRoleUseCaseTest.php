@@ -26,6 +26,7 @@ describe('DeleteRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
+            categoryId: null,
             name: $overrides['name'] ?? 'Coordinador',
             slug: $overrides['slug'] ?? 'coordinador',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 5,
@@ -36,10 +37,17 @@ describe('DeleteRoleUseCase', function () {
         );
     }
 
+    it('throws HierarchyViolationException when actor slug is not an authorised actor', function () {
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'prefectura', uuid: 'role-uuid');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(HierarchyViolationException::class);
+    });
+
     it('throws RoleNotFoundException when role does not exist', function () {
         $this->roleRepo->shouldReceive('findByUuid')->once()->with('nonexistent')->andReturn(null);
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'nonexistent');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'nonexistent');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleNotFoundException::class);
@@ -50,7 +58,7 @@ describe('DeleteRoleUseCase', function () {
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleNotFoundException::class);
@@ -61,68 +69,78 @@ describe('DeleteRoleUseCase', function () {
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when role has the same hierarchy level as actor', function () {
-        $role = deleteRoleEntity(['hierarchyLevel' => 4]);
+    it('throws HierarchyViolationException when director tries to delete gestor_escuelas role', function () {
+        $role = deleteRoleEntity(['slug' => 'gestor_escuelas']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    it('throws HierarchyViolationException when role has a lower hierarchy level than actor', function () {
-        // Lower number = more privileged
-        $role = deleteRoleEntity(['hierarchyLevel' => 3]);
+    it('throws HierarchyViolationException when director tries to delete owner role', function () {
+        $role = deleteRoleEntity(['slug' => 'owner']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    it('deletes the role and writes audit log when all checks pass', function () {
-        $role = deleteRoleEntity(['hierarchyLevel' => 5]);
+    it('deletes the role and writes audit log when owner deletes any custom role', function () {
+        $role = deleteRoleEntity(['slug' => 'coordinador', 'hierarchyLevel' => 5]);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->roleRepo->shouldReceive('delete')->once()->with('role-uuid');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid');
 
         $this->useCase->execute($input);
     });
 
-    it('never calls delete when hierarchy check fails', function () {
-        $role = deleteRoleEntity(['hierarchyLevel' => 4]);
+    it('deletes the role when gestor_escuelas deletes a custom role', function () {
+        $role = deleteRoleEntity(['slug' => 'coordinador']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
-        $this->roleRepo->shouldNotReceive('delete');
-        $this->audit->shouldNotReceive('log');
+        $this->roleRepo->shouldReceive('delete')->once()->with('role-uuid');
+        $this->audit->shouldReceive('log')->once();
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 4, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'gestor_escuelas', uuid: 'role-uuid');
 
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
+        $this->useCase->execute($input);
+    });
+
+    it('deletes the role when director deletes a non-protected role', function () {
+        $role = deleteRoleEntity(['slug' => 'finanzas']);
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
+        $this->roleRepo->shouldReceive('delete')->once()->with('role-uuid');
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid');
+
+        $this->useCase->execute($input);
     });
 
     it('never calls delete when system role check fails', function () {
-        $role = deleteRoleEntity(['isSystemRole' => true, 'hierarchyLevel' => 5]);
+        $role = deleteRoleEntity(['isSystemRole' => true]);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->roleRepo->shouldNotReceive('delete');
         $this->audit->shouldNotReceive('log');
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorHierarchyLevel: 3, uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(SystemRoleViolationException::class);

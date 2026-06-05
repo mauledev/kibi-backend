@@ -7,5 +7,6 @@ readonly class TenantData
     public function __construct(
         public int $id,
         public string $status = 'active',
+        public ?int $ownerId = null,
     ) {}
 }

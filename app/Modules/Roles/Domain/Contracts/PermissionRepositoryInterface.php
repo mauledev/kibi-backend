@@ -35,4 +35,17 @@ interface PermissionRepositoryInterface
      * @return array<Permission>
      */
     public function findByRoleIds(array $roleIds): array;
+
+    /**
+     * Return the category scope ('staff'|'tenant'|'school') for the given category id,
+     * or null when the category does not exist.
+     */
+    public function findCategoryScope(int $categoryId): ?string;
+
+    /**
+     * Return all permissions that belong to the given category.
+     *
+     * @return array<Permission>
+     */
+    public function findByCategoryId(int $categoryId): array;
 }

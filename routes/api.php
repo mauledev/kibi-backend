@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Roles\AssignmentDenialController;
+use App\Http\Controllers\Roles\CustomRoleLimitController;
 use App\Http\Controllers\Roles\PermissionController;
 use App\Http\Controllers\Roles\RoleController;
 use App\Http\Controllers\Roles\RolePermissionController;
@@ -66,6 +68,11 @@ Route::middleware('tenant')->group(function () {
         // Roles and Permissions
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+
+        // Custom role creation — must be declared before /roles/{uuid} to avoid /roles/custom
+        // being captured as a UUID segment.
+        Route::post('/roles/custom', [RoleController::class, 'store'])->name('roles.custom.store');
+
         Route::get('/roles/{uuid}', [RoleController::class, 'show'])->name('roles.show');
         Route::put('/roles/{uuid}', [RoleController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{uuid}', [RoleController::class, 'destroy'])->name('roles.destroy');
@@ -77,15 +84,33 @@ Route::middleware('tenant')->group(function () {
         Route::delete('/roles/{uuid}/permissions/{permission_uuid}', [RolePermissionController::class, 'destroy'])
             ->name('roles.permissions.destroy');
 
+        // Configure tenant custom roles limit (owner only)
+        Route::put('/tenant/custom-roles-limit', [CustomRoleLimitController::class, 'update'])
+            ->name('tenant.custom-roles-limit.update');
+
         Route::post('/users/{uuid}/roles', [UserRoleController::class, 'store'])
             ->name('users.roles.store');
         Route::delete('/users/{uuid}/roles/{role_uuid}', [UserRoleController::class, 'destroy'])
             ->name('users.roles.destroy');
+
+        // Permission denials on specific assignments
+        Route::post('/users/{uuid}/assignments/{assignment_uuid}/denials', [AssignmentDenialController::class, 'store'])
+            ->name('users.assignments.denials.store');
+        Route::delete('/users/{uuid}/assignments/{assignment_uuid}/denials/{permission_uuid}', [AssignmentDenialController::class, 'destroy'])
+            ->name('users.assignments.denials.destroy');
+
+        Route::get('/school', [SchoolController::class, 'currentSchool'])
+            ->middleware('school')
+            ->name('school.current');
 
         Route::get('/schools', [SchoolController::class, 'index'])->name('schools.index');
         Route::post('/schools', [SchoolController::class, 'store'])->name('schools.store');
         Route::get('/schools/{uuid}', [SchoolController::class, 'show'])->name('schools.show');
         Route::put('/schools/{uuid}', [SchoolController::class, 'update'])->name('schools.update');
         Route::post('/schools/{uuid}/deactivate', [SchoolController::class, 'deactivate'])->name('schools.deactivate');
+
+        // Permissions scoped to a school and role category
+        Route::get('/schools/{uuid}/permissions', [PermissionController::class, 'schoolIndex'])
+            ->name('schools.permissions.index');
     });
 });

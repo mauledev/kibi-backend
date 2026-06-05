@@ -11,12 +11,12 @@ return new class extends Migration
         Schema::create('permission_categories', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->uuid('uuid')->unique();
-            $table->foreignId('school_id')->nullable()->constrained('schools');
+            $table->string('scope', 20)->notNull();
             $table->string('name', 100)->notNull();
             $table->timestampTz('created_at')->useCurrent();
             $table->timestampTz('deleted_at')->nullable();
 
-            $table->index('school_id');
+            $table->unique(['scope', 'name']);
         });
     }
 

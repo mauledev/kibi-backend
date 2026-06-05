@@ -12,6 +12,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants');
+            $table->foreignId('category_id')->nullable()->constrained('permission_categories');
             $table->string('name', 100)->notNull();
             $table->string('slug', 100)->notNull();
             $table->smallInteger('hierarchy_level')->notNull();
@@ -20,6 +21,7 @@ return new class extends Migration
             $table->timestampTz('deleted_at')->nullable();
 
             $table->index(['tenant_id', 'slug']);
+            $table->index('category_id');
             $table->index('hierarchy_level');
             $table->index('is_system_role');
         });
