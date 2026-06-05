@@ -225,6 +225,39 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 
 `DELETE /staff/tenants/{uuid}` soft-deletes the tenant. Returns 200 with a success message. Returns 404 when not found.
 
+### Treasury (staff side — Superadmin in MVP)
+
+```
+GET    /staff/treasury/payments                       Paginated cross-tenant list of payments
+GET    /staff/treasury/payments/{uuid}                Detail with state_log
+POST   /staff/treasury/payments/{uuid}/approve        Approve a pending payment
+POST   /staff/treasury/payments/{uuid}/reject         Reject a pending payment
+```
+
+Treasury is a **Softlinkia staff** module. In MVP the Superadmin operates the entire payment validation flow on their own (the Líder/Operador separation from the requirements doc is out of MVP scope). Authorization is enforced by the controller via an `is_staff` check; the route group is inside the `/staff` prefix and requires `auth:sanctum`. The seeded `treasury_operator` role (`is_system_role = true`, hierarchy level 2) exists for forward-compat once the post-MVP separation is added — it is not consulted today.
+
+The repository operates **cross-tenant**: no `TenantContext` is applied. Filter to a single company via `?company_id=<tenant_uuid>` when needed.
+
+State machine: every payment starts in `pending`. `approve` and `reject` are the only transitions out of `pending` exposed by MVP; both targets (`approved`, `rejected`) are terminal from the frontend's perspective. Attempting `approve` or `reject` on a non-pending payment returns 409 Conflict. A UUID that doesn't exist returns 404.
+
+`?status` accepts `pending | approved | rejected | with_observation`. Status values are stored verbatim in English; the frontend maps each to a translated label in its i18n layer.
+
+`?company_id` accepts the public UUID of a tenant (company). The controller resolves it to the internal id before constructing the criteria. An unknown UUID short-circuits to an empty result rather than 422.
+
+`?school_id` accepts the public UUID of a school (any tenant). Same short-circuit-to-empty semantics as `?company_id`.
+
+`?date_from` / `?date_to` accept `YYYY-MM-DD` and filter on `paid_at` inclusively. `date_to` must be ≥ `date_from`.
+
+Pagination is fixed at 25 items per page for MVP; the response wraps `data` (array), `total`, `page` and `per_page` inside the standard `ApiResponse` envelope's `data` field.
+
+Each list/detail item carries both `company_name` (tenant name) and `school_name` so the Superadmin can disambiguate cross-tenant rows at a glance.
+
+`POST /approve` body: `{ "amount_received_cents": int, "note": string|null }`. The note is appended to the new `state_log` entry; the `amount_received_cents` is persisted on the payment row.
+
+`POST /reject` body: `{ "reason": enum, "note": string|null }`. The `reason` enum is owned by `PaymentRejectReason` (`amount_mismatch | invalid_reference | illegible_receipt | transfer_not_found | other`). Reason and note are persisted inline on the new `state_log` entry.
+
+Payment documents (attached receipts) are **not** exposed in MVP — there is no upload endpoint for the Owner to submit them, so the detail response intentionally omits the `documents` field. The upload + download flow is tracked in `docs/post-mvp.md` PM-004 and will be reintroduced when the Owner-side payment submission feature is built.
+
 ### Roles and permissions
 
 ```

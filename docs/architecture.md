@@ -191,6 +191,25 @@ For user repositories, the scope matches users who are either the tenant owner (
 
 For all other tenant-owned tables (`roles`, `schools`, etc.), the scope is the standard `WHERE tenant_id = TenantContext::tenantId`.
 
+### Cross-tenant staff repositories (exception)
+
+A small set of repositories serve **only** staff endpoints whose business
+purpose is to operate over every tenant at once — e.g. the Treasury
+`EloquentPaymentRepository` consumed by Superadmin to validate payment
+receipts across all client companies. These repositories are exempt from the
+"tenant scope as first filter" rule because there is no `TenantContext`
+bound on staff routes and the operator is, by design, cross-tenant.
+
+Conventions for cross-tenant staff repositories:
+- Do not inject `TenantContext`.
+- Make the cross-tenant nature explicit in the class PHPDoc.
+- Expose tenant filtering as an **opt-in** criteria field (e.g.
+  `PaymentListCriteria::$tenantId`) so the operator can narrow to one
+  company when needed; the controller resolves the public UUID to the
+  internal id before constructing the criteria.
+- Bind these repositories normally (no contextual binding) — they are not
+  the "staff variant" of a tenant repository; they are their own contract.
+
 ### Request flow with tenant resolution
 
 ```
