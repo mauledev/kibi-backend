@@ -56,7 +56,7 @@ class DenyPermissionFromAssignmentUseCase
         if ($created) {
             $this->audit->log(
                 action: 'permission.deny',
-                userId: null,
+                userId: $input->actorUserId,
                 entityId: $assignment->getId(),
                 structAfter: [
                     'assignment_id' => $assignment->getId(),

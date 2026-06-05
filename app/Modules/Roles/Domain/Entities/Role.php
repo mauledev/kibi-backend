@@ -23,21 +23,25 @@ class Role
         private readonly ?DateTimeImmutable $deletedAt = null,
     ) {}
 
+    /** Return the internal primary key. */
     public function getId(): int
     {
         return $this->id;
     }
 
+    /** Return the public UUID. */
     public function getUuid(): string
     {
         return $this->uuid;
     }
 
+    /** Return the tenant id this role belongs to, or null for global/system roles. */
     public function getTenantId(): ?int
     {
         return $this->tenantId;
     }
 
+    /** Return the permission category id that bounds this role, or null for uncategorised roles. */
     public function getCategoryId(): ?int
     {
         return $this->categoryId;
@@ -54,21 +58,25 @@ class Role
             && ! in_array($this->slug, ['owner', 'gestor_escuelas'], true);
     }
 
+    /** Return the human-readable role name. */
     public function getName(): string
     {
         return $this->name;
     }
 
+    /** Return the role slug used for programmatic identification (e.g. 'gestor_escuelas'). */
     public function getSlug(): string
     {
         return $this->slug;
     }
 
+    /** Return the hierarchy level (lower = higher authority). Kept for future use. */
     public function getHierarchyLevel(): int
     {
         return $this->hierarchyLevel;
     }
 
+    /** Return true when this role is a Softlinkia staff role (tenant_id IS NULL, is_system_role = true). */
     public function isSystemRole(): bool
     {
         return $this->isSystemRole;
@@ -80,16 +88,19 @@ class Role
         return $this->permissions;
     }
 
+    /** Return the timestamp when this role was created. */
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }
 
+    /** Return the soft-delete timestamp, or null when the role is active. */
     public function getDeletedAt(): ?DateTimeImmutable
     {
         return $this->deletedAt;
     }
 
+    /** Return true when this role has been soft-deleted. */
     public function isDeleted(): bool
     {
         return $this->deletedAt !== null;

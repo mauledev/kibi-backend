@@ -37,7 +37,7 @@ class UserRoleController extends Controller
         try {
             $assignment = $useCase->execute(new AssignRoleToUserInput(
                 actorUuid: $actor->uuid,
-                actorSlug: $this->resolveActorSlug($actor),
+                actorSlug: $actor->resolveActorSlug(),
                 targetUserUuid: $uuid,
                 roleUuid: $request->validated('role_uuid'),
                 schoolUuid: $request->validated('school_uuid'),
@@ -71,7 +71,7 @@ class UserRoleController extends Controller
         try {
             $assignment = $useCase->execute(new RevokeRoleFromUserInput(
                 actorUuid: $actor->uuid,
-                actorSlug: $this->resolveActorSlug($actor),
+                actorSlug: $actor->resolveActorSlug(),
                 targetUserUuid: $uuid,
                 roleUuid: $role_uuid,
                 schoolUuid: $request->validated('school_uuid'),
@@ -90,19 +90,5 @@ class UserRoleController extends Controller
         } catch (AssignmentNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
-    }
-
-    /**
-     * Resolve the actor's primary slug for hierarchy validation.
-     */
-    private function resolveActorSlug(User $actor): string
-    {
-        foreach (['owner', 'gestor_escuelas', 'director'] as $slug) {
-            if ($actor->hasRole($slug)) {
-                return $slug;
-            }
-        }
-
-        return 'unknown';
     }
 }

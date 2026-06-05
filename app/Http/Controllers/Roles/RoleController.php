@@ -50,12 +50,10 @@ class RoleController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $actorSlug = $this->resolveActorSlug($actor);
-
         try {
             $role = $useCase->execute(new CreateRoleInput(
                 actorUserId: $actor->id,
-                actorSlug: $actorSlug,
+                actorSlug: $actor->resolveActorSlug(),
                 tenantId: $context->tenantId,
                 name: $request->validated('name'),
                 schoolUuids: $request->validated('school_uuids', []),
@@ -99,7 +97,7 @@ class RoleController extends Controller
         try {
             $role = $useCase->execute(new UpdateRoleInput(
                 actorUserId: $actor->id,
-                actorSlug: $this->resolveActorSlug($actor),
+                actorSlug: $actor->resolveActorSlug(),
                 uuid: $uuid,
                 name: $request->validated('name'),
             ));
@@ -125,7 +123,7 @@ class RoleController extends Controller
         try {
             $useCase->execute(new DeleteRoleInput(
                 actorUserId: $actor->id,
-                actorSlug: $this->resolveActorSlug($actor),
+                actorSlug: $actor->resolveActorSlug(),
                 uuid: $uuid,
             ));
 
@@ -135,19 +133,5 @@ class RoleController extends Controller
         } catch (SystemRoleViolationException|HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         }
-    }
-
-    /**
-     * Resolve the actor's primary slug for hierarchy validation.
-     */
-    private function resolveActorSlug(User $actor): string
-    {
-        foreach (['owner', 'gestor_escuelas', 'director'] as $slug) {
-            if ($actor->hasRole($slug)) {
-                return $slug;
-            }
-        }
-
-        return 'unknown';
     }
 }

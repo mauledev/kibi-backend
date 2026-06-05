@@ -8,5 +8,6 @@ class DenyPermissionFromAssignmentInput
         public readonly string $actorSlug,
         public readonly string $assignmentUuid,
         public readonly string $permissionUuid,
+        public readonly ?int $actorUserId = null,
     ) {}
 }

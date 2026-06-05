@@ -37,12 +37,10 @@ class RolePermissionController extends Controller
             ? app(SchoolContext::class)->schoolId
             : null;
 
-        $actorSlug = $this->resolveActorSlug($actor);
-
         try {
             $useCase->execute(new AssignPermissionToRoleInput(
                 actorUserId: $actor->id,
-                actorSlug: $actorSlug,
+                actorSlug: $actor->resolveActorSlug(),
                 roleUuid: $uuid,
                 permissionUuid: $request->validated('permission_uuid'),
                 schoolId: $schoolId,
@@ -72,12 +70,10 @@ class RolePermissionController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $actorSlug = $this->resolveActorSlug($actor);
-
         try {
             $useCase->execute(new RevokePermissionFromRoleInput(
                 actorUserId: $actor->id,
-                actorSlug: $actorSlug,
+                actorSlug: $actor->resolveActorSlug(),
                 roleUuid: $uuid,
                 permissionUuid: $permission_uuid,
             ));
@@ -90,20 +86,5 @@ class RolePermissionController extends Controller
         } catch (SystemRoleViolationException|HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         }
-    }
-
-    /**
-     * Resolve the actor's primary slug for hierarchy validation.
-     * Checks in order: owner, gestor_escuelas, director.
-     */
-    private function resolveActorSlug(User $actor): string
-    {
-        foreach (['owner', 'gestor_escuelas', 'director'] as $slug) {
-            if ($actor->hasRole($slug)) {
-                return $slug;
-            }
-        }
-
-        return 'unknown';
     }
 }

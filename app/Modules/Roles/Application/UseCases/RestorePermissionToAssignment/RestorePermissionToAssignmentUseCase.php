@@ -41,7 +41,7 @@ class RestorePermissionToAssignmentUseCase
 
         $this->audit->log(
             action: 'permission.restore',
-            userId: null,
+            userId: $input->actorUserId,
             entityId: $assignment->getId(),
             structAfter: [
                 'assignment_id' => $assignment->getId(),

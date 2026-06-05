@@ -112,10 +112,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     /** {@inheritDoc} */
     public function delete(string $uuid): bool
     {
-        return RoleModel::where(function ($q) {
-            $q->where('tenant_id', $this->context->tenantId)
-                ->orWhereNull('tenant_id');
-        })
+        return RoleModel::where('tenant_id', $this->context->tenantId)
             ->where('uuid', $uuid)
             ->delete() > 0;
     }

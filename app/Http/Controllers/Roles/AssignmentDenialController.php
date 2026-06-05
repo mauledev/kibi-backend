@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
+use App\Http\Requests\Roles\DenyPermissionRequest;
 use App\Http\Response\ApiResponse;
 use App\Models\User;
 use App\Modules\Roles\Application\UseCases\DenyPermissionFromAssignment\DenyPermissionFromAssignmentInput;
@@ -22,23 +23,22 @@ class AssignmentDenialController extends Controller
      * Add a permission denial to a specific assignment.
      */
     public function store(
-        Request $request,
+        DenyPermissionRequest $request,
         string $uuid,
         string $assignment_uuid,
         DenyPermissionFromAssignmentUseCase $useCase,
     ): JsonResponse {
         $this->authorize('manage.permissions');
 
-        $request->validate(['permission_uuid' => ['required', 'string', 'uuid']]);
-
+        /** @var User $actor */
         $actor = $request->user();
-        $actorSlug = $this->resolveActorSlug($actor);
 
         try {
             $created = $useCase->execute(new DenyPermissionFromAssignmentInput(
-                actorSlug: $actorSlug,
+                actorUserId: $actor->id,
+                actorSlug: $actor->resolveActorSlug(),
                 assignmentUuid: $assignment_uuid,
-                permissionUuid: $request->input('permission_uuid'),
+                permissionUuid: $request->validated('permission_uuid'),
             ));
 
             return $created
@@ -66,8 +66,12 @@ class AssignmentDenialController extends Controller
     ): JsonResponse {
         $this->authorize('manage.permissions');
 
+        /** @var User $actor */
+        $actor = $request->user();
+
         try {
             $useCase->execute(new RestorePermissionToAssignmentInput(
+                actorUserId: $actor->id,
                 assignmentUuid: $assignment_uuid,
                 permissionUuid: $permission_uuid,
             ));
@@ -78,19 +82,5 @@ class AssignmentDenialController extends Controller
         } catch (PermissionNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
-    }
-
-    /**
-     * Resolve the actor's primary slug for hierarchy validation.
-     */
-    private function resolveActorSlug(User $actor): string
-    {
-        foreach (['owner', 'gestor_escuelas', 'director'] as $slug) {
-            if ($actor->hasRole($slug)) {
-                return $slug;
-            }
-        }
-
-        return 'unknown';
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Modules\Roles\Domain\Enums\ActorRoleEnum;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -180,6 +181,21 @@ class User extends Authenticatable
     public function hasPermissionTo(string $slug, ?int $schoolId = null): bool
     {
         return in_array($slug, $this->activePermissions($schoolId), true);
+    }
+
+    /**
+     * Resolve the user's primary actor slug for hierarchy validation.
+     * Returns the highest-authority slug the user holds, or 'unknown' if none.
+     */
+    public function resolveActorSlug(): string
+    {
+        foreach (ActorRoleEnum::orderedByAuthority() as $case) {
+            if ($this->hasRole($case->value)) {
+                return $case->value;
+            }
+        }
+
+        return 'unknown';
     }
 
     /**
