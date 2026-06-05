@@ -43,6 +43,8 @@ use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
 use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
+use App\Modules\Treasury\Domain\Contracts\PaymentRepositoryInterface;
+use App\Modules\Treasury\Infrastructure\Repositories\EloquentPaymentRepository;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -134,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             \App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface::class,
             \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
+        );
+
+        // --- Treasury module ---
+        $this->app->bind(
+            PaymentRepositoryInterface::class,
+            EloquentPaymentRepository::class
         );
     }
 

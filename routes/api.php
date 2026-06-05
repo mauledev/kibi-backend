@@ -7,6 +7,7 @@ use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\Staff\TenantController;
+use App\Http\Controllers\Treasury\PaymentController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,12 @@ Route::prefix('staff')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
 
         Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
+
+        // Treasury — payment validation (Superadmin operates this in MVP)
+        Route::get('/treasury/payments', [PaymentController::class, 'index'])->name('staff.treasury.payments.index');
+        Route::get('/treasury/payments/{uuid}', [PaymentController::class, 'show'])->name('staff.treasury.payments.show');
+        Route::post('/treasury/payments/{uuid}/approve', [PaymentController::class, 'approve'])->name('staff.treasury.payments.approve');
+        Route::post('/treasury/payments/{uuid}/reject', [PaymentController::class, 'reject'])->name('staff.treasury.payments.reject');
     });
 });
 
