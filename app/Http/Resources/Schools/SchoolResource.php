@@ -28,6 +28,7 @@ class SchoolResource extends JsonResource
             'status' => $school->getStatus(),
             'created_at' => $school->getCreatedAt()?->format('c'),
             'updated_at' => $school->getUpdatedAt()?->format('c'),
+            'deleted_at' => $school->getDeletedAt()?->format('c'),
         ];
     }
 

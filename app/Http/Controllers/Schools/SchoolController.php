@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Schools;
 use App\Common\School\SchoolContext;
 use App\Http\Controller;
 use App\Http\Requests\Schools\CreateSchoolRequest;
+use App\Http\Requests\Schools\ListSchoolsRequest;
 use App\Http\Requests\Schools\UpdateSchoolRequest;
 use App\Http\Resources\Schools\SchoolResource;
 use App\Http\Response\ApiResponse;
@@ -28,13 +29,20 @@ use Illuminate\Http\Request;
 class SchoolController extends Controller
 {
     /**
-     * GET /schools — List all schools of the authenticated tenant.
+     * GET /schools — List schools of the authenticated tenant.
+     *
+     * Optional `?status` query param narrows the result set:
+     *   active | deactivated | all
+     * When omitted, the legacy behaviour is preserved (non-deleted only,
+     * no filtering by the `status` column).
      */
-    public function index(Request $request, ListSchoolsUseCase $useCase): JsonResponse
+    public function index(ListSchoolsRequest $request, ListSchoolsUseCase $useCase): JsonResponse
     {
         $this->authorize('school.view');
 
-        $schools = $useCase->execute(new ListSchoolsInput);
+        $schools = $useCase->execute(new ListSchoolsInput(
+            statusFilter: $request->statusFilter(),
+        ));
 
         return ApiResponse::success(SchoolResource::collection($schools)->resolve());
     }
