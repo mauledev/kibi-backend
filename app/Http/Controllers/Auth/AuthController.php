@@ -124,7 +124,7 @@ class AuthController extends Controller
      */
     public function activate(ActivateAccountRequest $request, ActivateAccountUseCase $useCase): JsonResponse
     {
-        if (! $request->hasValidSignature()) {
+        if (! $request->hasValidSignature(absolute: false) && ! $request->hasValidSignature(absolute: true)) {
             return ApiResponse::error('Invalid or expired activation link', 422);
         }
 
