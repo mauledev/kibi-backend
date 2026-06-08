@@ -4,8 +4,8 @@ namespace App\Modules\Roles\Domain\Enums;
 
 enum RoleExclusionEnum: string
 {
-    case DOCENTE = 'docente';
-    case ALUMNO = 'alumno';
+    case TEACHER = 'teacher';
+    case STUDENT = 'student';
     case TUTOR = 'tutor';
 
     /**
@@ -16,9 +16,9 @@ enum RoleExclusionEnum: string
     public function incompatibleWith(): array
     {
         return match ($this) {
-            self::DOCENTE => ['alumno', 'tutor'],
-            self::ALUMNO => ['docente', 'tutor'],
-            self::TUTOR => ['docente', 'alumno'],
+            self::TEACHER => ['student', 'tutor'],
+            self::STUDENT => ['teacher', 'tutor'],
+            self::TUTOR   => ['teacher', 'student'],
         };
     }
 

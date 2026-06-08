@@ -113,7 +113,7 @@ describe('Role entity', function () {
     });
 
     describe('isCustomRole()', function () {
-        it('returns true when tenantId is set, categoryId is null, and slug is not owner or gestor_escuelas', function () {
+        it('returns true when tenantId is set, categoryId is null, and slug is not owner or school_manager', function () {
             $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'my_custom_role']);
 
             expect($role->isCustomRole())->toBeTrue();
@@ -125,8 +125,8 @@ describe('Role entity', function () {
             expect($role->isCustomRole())->toBeFalse();
         });
 
-        it('returns false for gestor_escuelas slug even when tenantId is set and categoryId is null', function () {
-            $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'gestor_escuelas']);
+        it('returns false for school_manager slug even when tenantId is set and categoryId is null', function () {
+            $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'school_manager']);
 
             expect($role->isCustomRole())->toBeFalse();
         });
