@@ -5,7 +5,7 @@ namespace App\Modules\Roles\Domain\Enums;
 enum ActorRoleEnum: string
 {
     case OWNER = 'owner';
-    case GESTOR_ESCUELAS = 'gestor_escuelas';
+    case SCHOOL_MANAGER = 'school_manager';
     case DIRECTOR = 'director';
 
     /**
@@ -15,6 +15,6 @@ enum ActorRoleEnum: string
      */
     public static function orderedByAuthority(): array
     {
-        return [self::OWNER, self::GESTOR_ESCUELAS, self::DIRECTOR];
+        return [self::OWNER, self::SCHOOL_MANAGER, self::DIRECTOR];
     }
 }

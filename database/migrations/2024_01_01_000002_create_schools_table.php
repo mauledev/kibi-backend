@@ -13,13 +13,14 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->constrained('tenants');
             $table->string('name');
-            $table->string('slug', 100)->unique();
+            $table->string('slug', 100);
             $table->jsonb('address')->nullable();
             $table->string('phone', 30)->nullable();
             $table->string('status', 20)->default('active');
             $table->timestampsTz();
             $table->softDeletesTz();
 
+            $table->unique(['tenant_id', 'slug']);
             $table->index(['tenant_id', 'status']);
         });
     }

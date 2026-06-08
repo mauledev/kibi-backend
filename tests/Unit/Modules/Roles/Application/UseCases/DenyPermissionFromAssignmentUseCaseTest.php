@@ -86,7 +86,7 @@ describe('DenyPermissionFromAssignmentUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws SystemRoleViolationException when assignment role is gestor_escuelas', function () {
+    it('throws SystemRoleViolationException when assignment role is school_manager', function () {
         $input = new DenyPermissionFromAssignmentInput(
             actorSlug: 'director',
             assignmentUuid: 'assignment-uuid',
@@ -99,7 +99,7 @@ describe('DenyPermissionFromAssignmentUseCase', function () {
 
         $this->assignmentRepo->shouldReceive('findRoleSlugByAssignmentId')
             ->with(99)
-            ->andReturn('gestor_escuelas');
+            ->andReturn('school_manager');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(SystemRoleViolationException::class);

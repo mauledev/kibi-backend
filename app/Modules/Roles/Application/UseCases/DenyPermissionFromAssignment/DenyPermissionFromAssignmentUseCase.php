@@ -11,7 +11,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 class DenyPermissionFromAssignmentUseCase
 {
-    private const PROTECTED_SLUGS = ['owner', 'gestor_escuelas'];
+    private const PROTECTED_SLUGS = ['owner', 'school_manager'];
 
     public function __construct(
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
@@ -21,7 +21,7 @@ class DenyPermissionFromAssignmentUseCase
 
     /**
      * Add a permission denial to a specific user_role_assignment.
-     * Cannot be applied to owner or gestor_escuelas assignments.
+     * Cannot be applied to owner or school_manager assignments.
      * Idempotent — does nothing if the denial already exists.
      * Returns true when a new denial was created, false when it already existed.
      *
@@ -41,7 +41,7 @@ class DenyPermissionFromAssignmentUseCase
 
         if ($roleSlug !== null && in_array($roleSlug, self::PROTECTED_SLUGS, true)) {
             throw new SystemRoleViolationException(
-                'Cannot add permission denials to owner or gestor_escuelas assignments.'
+                'Cannot add permission denials to owner or school_manager assignments.'
             );
         }
 

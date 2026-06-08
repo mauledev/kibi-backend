@@ -59,7 +59,7 @@ describe('AssignPermissionToRoleUseCase', function () {
     it('throws HierarchyViolationException when actor slug is unknown', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorSlug: 'prefectura',
+            actorSlug: 'prefect',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
@@ -103,7 +103,7 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws SystemRoleViolationException when director tries to manage gestor_escuelas role', function () {
+    it('throws SystemRoleViolationException when director tries to manage school_manager role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'director',
@@ -111,8 +111,8 @@ describe('AssignPermissionToRoleUseCase', function () {
             permissionUuid: 'perm-uuid',
         );
 
-        // gestor_escuelas is in PROTECTED_SLUGS — SystemRoleViolationException fires first
-        $role = makeRoleEntity(['slug' => 'gestor_escuelas', 'categoryId' => null]);
+        // school_manager is in PROTECTED_SLUGS — SystemRoleViolationException fires first
+        $role = makeRoleEntity(['slug' => 'school_manager', 'categoryId' => null]);
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->once()

@@ -34,9 +34,9 @@ class RevokeRoleFromUserUseCase
      */
     public function execute(RevokeRoleFromUserInput $input): UserRoleAssignment
     {
-        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, gestor_escuelas, or director can revoke roles from users.'
+                'Only owner, school_manager, or director can revoke roles from users.'
             );
         }
 

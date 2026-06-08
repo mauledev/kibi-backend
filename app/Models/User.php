@@ -199,12 +199,12 @@ class User extends Authenticatable
     }
 
     /**
-     * Return true if the user has an active gestor_escuelas assignment for the given school.
+     * Return true if the user has an active school_manager assignment for the given school.
      */
     public function isGestorOfSchool(int $schoolId): bool
     {
         return $this->activeAssignments($schoolId)->contains(
-            fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'gestor_escuelas'
+            fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'school_manager'
         );
     }
 }

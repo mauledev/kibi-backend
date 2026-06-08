@@ -38,7 +38,7 @@ describe('DeleteRoleUseCase', function () {
     }
 
     it('throws HierarchyViolationException when actor slug is not an authorised actor', function () {
-        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'prefectura', uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'prefect', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
@@ -75,8 +75,8 @@ describe('DeleteRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when director tries to delete gestor_escuelas role', function () {
-        $role = deleteRoleEntity(['slug' => 'gestor_escuelas']);
+    it('throws HierarchyViolationException when director tries to delete school_manager role', function () {
+        $role = deleteRoleEntity(['slug' => 'school_manager']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
@@ -109,20 +109,20 @@ describe('DeleteRoleUseCase', function () {
         $this->useCase->execute($input);
     });
 
-    it('deletes the role when gestor_escuelas deletes a custom role', function () {
+    it('deletes the role when school_manager deletes a custom role', function () {
         $role = deleteRoleEntity(['slug' => 'coordinador']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->roleRepo->shouldReceive('delete')->once()->with('role-uuid');
         $this->audit->shouldReceive('log')->once();
 
-        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'gestor_escuelas', uuid: 'role-uuid');
+        $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'school_manager', uuid: 'role-uuid');
 
         $this->useCase->execute($input);
     });
 
     it('deletes the role when director deletes a non-protected role', function () {
-        $role = deleteRoleEntity(['slug' => 'finanzas']);
+        $role = deleteRoleEntity(['slug' => 'finance']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->roleRepo->shouldReceive('delete')->once()->with('role-uuid');
