@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureStaffSuperadmin;
 use App\Http\Middleware\SchoolMiddleware;
 use App\Http\Middleware\TenantMiddleware;
 use App\Http\Response\ApiResponse;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => TenantMiddleware::class,
             'school' => SchoolMiddleware::class,
+            'staff.superadmin' => EnsureStaffSuperadmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -24,7 +24,7 @@ class EloquentActivationRepository implements ActivationRepositoryInterface
     }
 
     /** {@inheritDoc} */
-    public function activate(int $userId, string $passwordHash, int $tenantId): void
+    public function activate(int $userId, string $passwordHash, ?int $tenantId): void
     {
         DB::transaction(function () use ($userId, $passwordHash, $tenantId): void {
             UserModel::where('id', $userId)->update([
@@ -32,9 +32,12 @@ class EloquentActivationRepository implements ActivationRepositoryInterface
                 'email_verified_at' => now(),
             ]);
 
-            TenantModel::where('id', $tenantId)->update([
-                'status' => 'active',
-            ]);
+            // Staff users (tenantId === null) have no tenant to activate.
+            if ($tenantId !== null) {
+                TenantModel::where('id', $tenantId)->update([
+                    'status' => 'active',
+                ]);
+            }
         });
     }
 

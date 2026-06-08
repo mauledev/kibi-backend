@@ -8,6 +8,7 @@ use App\Http\Controllers\Roles\RoleController;
 use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
+use App\Http\Controllers\Staff\PersonnelController;
 use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
@@ -36,6 +37,11 @@ Route::prefix('staff')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
 
         Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
+
+        // Backoffice staff personnel — Superadmin only (explicit check; no Gate on staff routes)
+        Route::post('/personnel', [PersonnelController::class, 'store'])
+            ->middleware('staff.superadmin')
+            ->name('staff.personnel.store');
     });
 });
 

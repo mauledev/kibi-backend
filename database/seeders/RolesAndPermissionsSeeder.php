@@ -47,10 +47,29 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedPermissions(): void
     {
-        $categoryId = fn (string $scope, string $name): int => (int) DB::table('permission_categories')
+        $categoryId = fn(string $scope, string $name): int => (int) DB::table('permission_categories')
             ->where('scope', $scope)->where('name', $name)->value('id');
 
         $permissions = [
+            // Staff / Finance — Softlinkia treasury (SaaS billing tenant → Softlinkia, distinct from school payment.*)
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Ver facturación SaaS',       'slug' => 'billing.view'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Aprobar pagos SaaS',         'slug' => 'billing.approve'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Reembolsar pagos SaaS',      'slug' => 'billing.refund'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Revisar pagos SaaS',         'slug' => 'billing.review'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Devolver pago a operador',   'slug' => 'billing.return'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Ver métricas de facturación', 'slug' => 'billing.metrics'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Generar remesas a Owners',   'slug' => 'remittance.create'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Asignar lotes a operadores', 'slug' => 'batch.assign'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Ver auditoría',              'slug' => 'audit.view'],
+
+            // Staff / Support — Softlinkia support (tickets + temporary tenant linking)
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Ver tickets',                'slug' => 'ticket.view'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Crear tickets',              'slug' => 'ticket.create'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Resolver tickets',           'slug' => 'ticket.resolve'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Escalar tickets',            'slug' => 'ticket.escalate'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Linkeo temporal a tenant',   'slug' => 'tenant.impersonate'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Ver tenants',                'slug' => 'tenant.view'],
+
             // School / Academic
             ['scope' => 'school', 'category' => 'academic', 'name' => 'Publicar calificaciones',  'slug' => 'grade.publish'],
             ['scope' => 'school', 'category' => 'academic', 'name' => 'Crear calificaciones',      'slug' => 'grade.create'],
@@ -109,7 +128,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedRoles(): void
     {
-        $catId = fn (string $scope, string $name): ?int => DB::table('permission_categories')->where('scope', $scope)->where('name', $name)->value('id');
+        $catId = fn(string $scope, string $name): ?int => DB::table('permission_categories')->where('scope', $scope)->where('name', $name)->value('id');
 
         $roles = [
             // Softlinkia staff — is_system_role = true, tenant_id = null
@@ -119,6 +138,32 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Superadmin',
                 'slug' => 'superadmin',
                 'hierarchy_level' => 1,
+                'is_system_role' => true,
+            ],
+            // Softlinkia staff operational roles — is_system_role = true, tenant_id = null,
+            // bound to a staff-scoped category. Permissions managed via role_permissions.
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'finance'),
+                'name' => 'Tesorería Líder',
+                'slug' => 'leader',
+                'hierarchy_level' => 2,
+                'is_system_role' => true,
+            ],
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'finance'),
+                'name' => 'Tesorería Operador',
+                'slug' => 'operator',
+                'hierarchy_level' => 3,
+                'is_system_role' => true,
+            ],
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'support'),
+                'name' => 'Soporte',
+                'slug' => 'support',
+                'hierarchy_level' => 3,
                 'is_system_role' => true,
             ],
             // Tenant-admin roles — no category, authority by Gate bypass / slug
@@ -229,9 +274,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedRolePermissions(): void
     {
-        $permissionId = fn (string $slug): int => (int) DB::table('permissions')->where('slug', $slug)->value('id');
+        $permissionId = fn(string $slug): int => (int) DB::table('permissions')->where('slug', $slug)->value('id');
 
-        $roleId = fn (string $slug): int => (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
+        $roleId = fn(string $slug): int => (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
 
         $assign = function (string $roleSlug, array $permissionSlugs) use ($roleId, $permissionId): void {
             $rid = $roleId($roleSlug);
@@ -243,42 +288,119 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         };
 
+        // --- Softlinkia staff roles ---
+
+        // Tesorería Operador — validates SaaS payments, generates remittances, personal KPIs
+        $assign('operator', [
+            'billing.view',
+            'billing.approve',
+            'remittance.create',
+        ]);
+
+        // Tesorería Líder — everything the operator has + advanced approvals, supervision, audit
+        $assign('leader', [
+            'billing.view',
+            'billing.approve',
+            'remittance.create',
+            'billing.refund',
+            'billing.review',
+            'billing.return',
+            'batch.assign',
+            'billing.metrics',
+            'audit.view',
+        ]);
+
+        // Soporte — ticket management + temporary tenant linking (scoped cross-tenant read)
+        $assign('support', [
+            'ticket.view',
+            'ticket.create',
+            'ticket.resolve',
+            'ticket.escalate',
+            'tenant.impersonate',
+            'tenant.view',
+        ]);
+
         // Gestor de Escuelas — full configuration + hr + all school permissions
         $assign('gestor_escuelas', [
             'manage.permissions',
-            'role.view', 'role.assign', 'role.revoke', 'role.create', 'role.update', 'role.delete',
-            'permission.grant', 'permission.revoke',
-            'user.create', 'user.update', 'user.delete', 'user.suspend', 'user.view',
-            'grade.publish', 'grade.create', 'grade.update', 'grade.delete', 'grade.view',
-            'payment.approve', 'payment.create', 'payment.update', 'payment.delete', 'payment.view', 'payment.reject',
-            'group.manage', 'group.view', 'subject.manage',
-            'announcement.send', 'announcement.view',
+            'role.view',
+            'role.assign',
+            'role.revoke',
+            'role.create',
+            'role.update',
+            'role.delete',
+            'permission.grant',
+            'permission.revoke',
+            'user.create',
+            'user.update',
+            'user.delete',
+            'user.suspend',
+            'user.view',
+            'grade.publish',
+            'grade.create',
+            'grade.update',
+            'grade.delete',
+            'grade.view',
+            'payment.approve',
+            'payment.create',
+            'payment.update',
+            'payment.delete',
+            'payment.view',
+            'payment.reject',
+            'group.manage',
+            'group.view',
+            'subject.manage',
+            'announcement.send',
+            'announcement.view',
         ]);
 
         // Director — manages school, permissions, teachers, grades (cross-category via role_permissions)
         $assign('director', [
             'manage.permissions',
-            'role.view', 'role.assign', 'role.revoke',
-            'permission.grant', 'permission.revoke',
-            'user.create', 'user.update', 'user.view', 'user.suspend',
-            'grade.publish', 'grade.create', 'grade.update', 'grade.delete', 'grade.view',
-            'payment.approve', 'payment.view',
-            'group.manage', 'group.view', 'subject.manage',
-            'announcement.send', 'announcement.view',
+            'role.view',
+            'role.assign',
+            'role.revoke',
+            'permission.grant',
+            'permission.revoke',
+            'user.create',
+            'user.update',
+            'user.view',
+            'user.suspend',
+            'grade.publish',
+            'grade.create',
+            'grade.update',
+            'grade.delete',
+            'grade.view',
+            'payment.approve',
+            'payment.view',
+            'group.manage',
+            'group.view',
+            'subject.manage',
+            'announcement.send',
+            'announcement.view',
         ]);
 
         // Coordinador Académico — academic focus
         $assign('coordinador_academico', [
             'role.view',
-            'grade.publish', 'grade.create', 'grade.update', 'grade.delete', 'grade.view',
-            'group.manage', 'group.view', 'subject.manage',
-            'announcement.send', 'announcement.view',
+            'grade.publish',
+            'grade.create',
+            'grade.update',
+            'grade.delete',
+            'grade.view',
+            'group.manage',
+            'group.view',
+            'subject.manage',
+            'announcement.send',
+            'announcement.view',
             'user.view',
         ]);
 
         // Control Escolar — enrollment and records
         $assign('control_escolar', [
-            'user.create', 'user.update', 'user.view',
+            'user.create',
+            'user.update',
+            'user.view',
             'grade.view',
             'group.view',
             'announcement.view',
@@ -293,20 +415,32 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Finanzas — financial operations
         $assign('finanzas', [
-            'payment.approve', 'payment.create', 'payment.update', 'payment.delete', 'payment.view', 'payment.reject',
+            'payment.approve',
+            'payment.create',
+            'payment.update',
+            'payment.delete',
+            'payment.view',
+            'payment.reject',
             'user.view',
             'announcement.view',
         ]);
 
         // RRHH — human resources
         $assign('rrhh', [
-            'user.create', 'user.update', 'user.delete', 'user.view', 'user.suspend',
-            'announcement.send', 'announcement.view',
+            'user.create',
+            'user.update',
+            'user.delete',
+            'user.view',
+            'user.suspend',
+            'announcement.send',
+            'announcement.view',
         ]);
 
         // Docente — teacher access
         $assign('docente', [
-            'grade.create', 'grade.update', 'grade.view',
+            'grade.create',
+            'grade.update',
+            'grade.view',
             'group.view',
             'announcement.view',
         ]);

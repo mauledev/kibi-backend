@@ -34,6 +34,21 @@ interface GlobalUserRepositoryInterface
     ): User;
 
     /**
+     * Create a new Softlinkia staff user in a pending state.
+     * The user has is_staff = true, tenant_id = null, no password and no
+     * email_verified_at yet (account activation is a separate flow).
+     *
+     * @param  string|null  $phone  Contact phone (optional).
+     */
+    public function createPendingStaff(
+        string $email,
+        string $firstName,
+        string $lastNamePaternal,
+        ?string $lastNameMaternal,
+        ?string $phone,
+    ): User;
+
+    /**
      * Set the tenant_id on a user row.
      * Called inside the tenant creation transaction after the tenant record exists.
      */
