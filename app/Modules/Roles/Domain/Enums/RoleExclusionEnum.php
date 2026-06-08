@@ -18,7 +18,7 @@ enum RoleExclusionEnum: string
         return match ($this) {
             self::TEACHER => ['student', 'tutor'],
             self::STUDENT => ['teacher', 'tutor'],
-            self::TUTOR   => ['teacher', 'student'],
+            self::TUTOR => ['teacher', 'student'],
         };
     }
 

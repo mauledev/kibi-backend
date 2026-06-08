@@ -41,9 +41,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         foreach ($categories as $category) {
             DB::table('permission_categories')->insertOrIgnore([
-                'uuid'       => (string) Str::uuid(),
-                'scope'      => $category['scope'],
-                'name'       => $category['name'],
+                'uuid' => (string) Str::uuid(),
+                'scope' => $category['scope'],
+                'name' => $category['name'],
                 'created_at' => now(),
             ]);
         }
@@ -51,11 +51,10 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedPermissions(): void
     {
-        $catId = fn (string $scope, string $name): int =>
-            (int) DB::table('permission_categories')
-                ->where('scope', $scope)
-                ->where('name', $name)
-                ->value('id');
+        $catId = fn (string $scope, string $name): int => (int) DB::table('permission_categories')
+            ->where('scope', $scope)
+            ->where('name', $name)
+            ->value('id');
 
         $permissions = [
             // school/director — full school management
@@ -143,172 +142,169 @@ class RolesAndPermissionsSeeder extends Seeder
 
         foreach ($permissions as $permission) {
             DB::table('permissions')->insertOrIgnore([
-                'uuid'        => (string) Str::uuid(),
+                'uuid' => (string) Str::uuid(),
                 'category_id' => $catId($permission['scope'], $permission['category']),
-                'name'        => $permission['name'],
-                'slug'        => $permission['slug'],
-                'created_at'  => now(),
+                'name' => $permission['name'],
+                'slug' => $permission['slug'],
+                'created_at' => now(),
             ]);
         }
     }
 
     private function seedRoles(): void
     {
-        $catId = fn (string $scope, string $name): ?int =>
-            DB::table('permission_categories')
-                ->where('scope', $scope)
-                ->where('name', $name)
-                ->value('id');
+        $catId = fn (string $scope, string $name): ?int => DB::table('permission_categories')
+            ->where('scope', $scope)
+            ->where('name', $name)
+            ->value('id');
 
         $roles = [
             // Softlinkia staff — is_system_role = true, tenant_id = null
             [
-                'tenant_id'       => null,
-                'category_id'     => null,
-                'name'            => 'Superadmin',
-                'slug'            => 'superadmin',
+                'tenant_id' => null,
+                'category_id' => null,
+                'name' => 'Superadmin',
+                'slug' => 'superadmin',
                 'hierarchy_level' => 1,
-                'is_system_role'  => true,
+                'is_system_role' => true,
             ],
 
             // Tenant-admin — no category, authority by Gate bypass / slug
             [
-                'tenant_id'       => null,
-                'category_id'     => null,
-                'name'            => 'Owner',
-                'slug'            => 'owner',
+                'tenant_id' => null,
+                'category_id' => null,
+                'name' => 'Owner',
+                'slug' => 'owner',
                 'hierarchy_level' => 2,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => null,
-                'name'            => 'School Manager',
-                'slug'            => 'school_manager',
+                'tenant_id' => null,
+                'category_id' => null,
+                'name' => 'School Manager',
+                'slug' => 'school_manager',
                 'hierarchy_level' => 3,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
 
             // Tenant operational — scope = tenant
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('tenant', 'finance'),
-                'name'            => 'Tenant Finance',
-                'slug'            => 'tenant_finance',
+                'tenant_id' => null,
+                'category_id' => $catId('tenant', 'finance'),
+                'name' => 'Tenant Finance',
+                'slug' => 'tenant_finance',
                 'hierarchy_level' => 4,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('tenant', 'hr'),
-                'name'            => 'Tenant HR',
-                'slug'            => 'tenant_hr',
+                'tenant_id' => null,
+                'category_id' => $catId('tenant', 'hr'),
+                'name' => 'Tenant HR',
+                'slug' => 'tenant_hr',
                 'hierarchy_level' => 4,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
 
             // School operational — one category per role
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'director'),
-                'name'            => 'Director',
-                'slug'            => 'director',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'director'),
+                'name' => 'Director',
+                'slug' => 'director',
                 'hierarchy_level' => 5,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'academic_coordinator'),
-                'name'            => 'Academic Coordinator',
-                'slug'            => 'academic_coordinator',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'academic_coordinator'),
+                'name' => 'Academic Coordinator',
+                'slug' => 'academic_coordinator',
                 'hierarchy_level' => 6,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'school_registrar'),
-                'name'            => 'School Registrar',
-                'slug'            => 'school_registrar',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'school_registrar'),
+                'name' => 'School Registrar',
+                'slug' => 'school_registrar',
                 'hierarchy_level' => 6,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'prefect'),
-                'name'            => 'Prefect',
-                'slug'            => 'prefect',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'prefect'),
+                'name' => 'Prefect',
+                'slug' => 'prefect',
                 'hierarchy_level' => 6,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'finance'),
-                'name'            => 'Finance',
-                'slug'            => 'finance',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'finance'),
+                'name' => 'Finance',
+                'slug' => 'finance',
                 'hierarchy_level' => 6,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'hr'),
-                'name'            => 'HR',
-                'slug'            => 'hr',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'hr'),
+                'name' => 'HR',
+                'slug' => 'hr',
                 'hierarchy_level' => 6,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'teacher'),
-                'name'            => 'Teacher',
-                'slug'            => 'teacher',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'teacher'),
+                'name' => 'Teacher',
+                'slug' => 'teacher',
                 'hierarchy_level' => 7,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'student'),
-                'name'            => 'Student',
-                'slug'            => 'student',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'student'),
+                'name' => 'Student',
+                'slug' => 'student',
                 'hierarchy_level' => 8,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
             [
-                'tenant_id'       => null,
-                'category_id'     => $catId('school', 'tutor'),
-                'name'            => 'Tutor',
-                'slug'            => 'tutor',
+                'tenant_id' => null,
+                'category_id' => $catId('school', 'tutor'),
+                'name' => 'Tutor',
+                'slug' => 'tutor',
                 'hierarchy_level' => 8,
-                'is_system_role'  => false,
+                'is_system_role' => false,
             ],
         ];
 
         foreach ($roles as $role) {
             DB::table('roles')->insertOrIgnore([
-                'uuid'            => (string) Str::uuid(),
-                'tenant_id'       => $role['tenant_id'],
-                'category_id'     => $role['category_id'],
-                'name'            => $role['name'],
-                'slug'            => $role['slug'],
+                'uuid' => (string) Str::uuid(),
+                'tenant_id' => $role['tenant_id'],
+                'category_id' => $role['category_id'],
+                'name' => $role['name'],
+                'slug' => $role['slug'],
                 'hierarchy_level' => $role['hierarchy_level'],
-                'is_system_role'  => $role['is_system_role'],
-                'created_at'      => now(),
+                'is_system_role' => $role['is_system_role'],
+                'created_at' => now(),
             ]);
         }
     }
 
     private function seedRolePermissions(): void
     {
-        $permissionId = fn (string $slug): int =>
-            (int) DB::table('permissions')->where('slug', $slug)->value('id');
+        $permissionId = fn (string $slug): int => (int) DB::table('permissions')->where('slug', $slug)->value('id');
 
-        $roleId = fn (string $slug): int =>
-            (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
+        $roleId = fn (string $slug): int => (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
 
         $assign = function (string $roleSlug, array $permissionSlugs) use ($roleId, $permissionId): void {
             $rid = $roleId($roleSlug);
             foreach ($permissionSlugs as $slug) {
                 DB::table('role_permissions')->insertOrIgnore([
-                    'role_id'       => $rid,
+                    'role_id' => $rid,
                     'permission_id' => $permissionId($slug),
                 ]);
             }
