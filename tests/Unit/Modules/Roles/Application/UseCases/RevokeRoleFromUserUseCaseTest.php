@@ -48,15 +48,16 @@ describe('RevokeRoleFromUserUseCase', function () {
         );
     }
 
-    function revokeRole(int $level = 5, bool $deleted = false): Role
+    function revokeRole(bool $deleted = false): Role
     {
         return new Role(
             id: 10,
             uuid: 'role-public-uuid',
             tenantId: 1,
+            categoryId: null,
             name: 'Coordinador',
             slug: 'coordinador',
-            hierarchyLevel: $level,
+            hierarchyLevel: 5,
             isSystemRole: false,
             permissions: [],
             createdAt: new DateTimeImmutable,
@@ -68,6 +69,7 @@ describe('RevokeRoleFromUserUseCase', function () {
     {
         return new UserRoleAssignment(
             id: $id,
+            uuid: 'assignment-uuid',
             userId: 20,
             roleId: 10,
             schoolId: $schoolId,
@@ -86,12 +88,26 @@ describe('RevokeRoleFromUserUseCase', function () {
             ->andReturn(revokeUser($targetId, 'target-uuid'));
     }
 
+    it('throws HierarchyViolationException when actor slug is not owner/gestor/director', function () {
+        mockRevokeUsers($this);
+
+        $input = new RevokeRoleFromUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'coordinador',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'role-public-uuid',
+            schoolUuid: null,
+        );
+
+        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
+    });
+
     it('throws RoleNotFoundException when role does not exist', function () {
         mockRevokeUsers($this);
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'nonexistent',
             schoolUuid: null,
@@ -107,7 +123,7 @@ describe('RevokeRoleFromUserUseCase', function () {
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: null,
@@ -118,50 +134,18 @@ describe('RevokeRoleFromUserUseCase', function () {
         expect(fn () => $this->useCase->execute($input))->toThrow(RoleNotFoundException::class);
     });
 
-    it('throws HierarchyViolationException when actor has equal hierarchy level to target role', function () {
-        mockRevokeUsers($this);
-
-        $input = new RevokeRoleFromUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 4,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole(level: 4));
-
-        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
-    });
-
-    it('throws HierarchyViolationException when actor has higher privilege than target role', function () {
-        mockRevokeUsers($this);
-
-        $input = new RevokeRoleFromUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 4,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole(level: 3));
-
-        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
-    });
-
     it('throws AssignmentNotFoundException when no active assignment exists', function () {
         mockRevokeUsers($this);
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: null,
         );
 
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole(level: 5));
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole());
         $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, null)->andReturn(null);
 
         expect(fn () => $this->useCase->execute($input))->toThrow(AssignmentNotFoundException::class);
@@ -172,16 +156,16 @@ describe('RevokeRoleFromUserUseCase', function () {
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: null,
         );
 
-        $role = revokeRole(level: 5);
+        $role = revokeRole();
         $active = revokeAssignment(50);
         $revoked = new UserRoleAssignment(
-            id: 50, userId: 20, roleId: 10, schoolId: null,
+            id: 50, uuid: 'assignment-uuid', userId: 20, roleId: 10, schoolId: null,
             assignedBy: 1, assignedAt: new DateTimeImmutable, revokedAt: new DateTimeImmutable,
         );
 
@@ -201,7 +185,7 @@ describe('RevokeRoleFromUserUseCase', function () {
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'gestor_escuelas',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: 'school-uuid',
@@ -209,12 +193,12 @@ describe('RevokeRoleFromUserUseCase', function () {
 
         $active = revokeAssignment(50, 7);
         $revoked = new UserRoleAssignment(
-            id: 50, userId: 20, roleId: 10, schoolId: 7,
+            id: 50, uuid: 'assignment-uuid', userId: 20, roleId: 10, schoolId: 7,
             assignedBy: 1, assignedAt: new DateTimeImmutable, revokedAt: new DateTimeImmutable,
         );
 
         $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(7);
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole(level: 5));
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(revokeRole());
         $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, 7)->andReturn($active);
         $this->assignmentRepo->shouldReceive('revoke')->once()->andReturn($revoked);
         $this->audit->shouldReceive('log')->once();

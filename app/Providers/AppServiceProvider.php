@@ -6,6 +6,7 @@ use App\Common\Audit\AuditLogger;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Common\Mail\LaravelMailer;
 use App\Common\Mail\MailerInterface;
+use App\Common\School\SchoolContext;
 use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
@@ -171,19 +172,35 @@ class AppServiceProvider extends ServiceProvider
     {
         // Owner bypass — runs before any ability check.
         // Skipped on staff routes where TenantContext is never bound.
+        // The owner identity comes from tenants.owner_id, not from role assignments.
         Gate::before(function (User $user, string $ability): ?bool {
-            if ($user->hasRole('owner')) {
+            if (! app()->bound(TenantContext::class)) {
+                return null;
+            }
+
+            $context = app(TenantContext::class);
+
+            if ($context->ownerId === $user->id) {
                 return true;
             }
 
             return null;
         });
 
-        // Dynamic permission gate — checks merged permissions from all active roles.
-        // Gate::after fires for every ability not short-circuited by Gate::before,
-        // giving all authenticated users a permission-based fallback check.
+        // Dynamic permission gate — checks effective permissions for the current school context.
+        // Includes gestor bypass: gestores have all permissions within their assigned schools.
+        // Gate::after fires for every ability not short-circuited by Gate::before.
         Gate::after(function (User $user, string $ability): ?bool {
-            return $user->hasPermissionTo($ability) ? true : null;
+            $schoolId = app()->bound(SchoolContext::class)
+                ? app(SchoolContext::class)->schoolId
+                : null;
+
+            // Gestor bypass — school level, all permissions in assigned schools
+            if ($schoolId !== null && $user->isGestorOfSchool($schoolId)) {
+                return true;
+            }
+
+            return $user->hasPermissionTo($ability, $schoolId) ? true : null;
         });
     }
 }

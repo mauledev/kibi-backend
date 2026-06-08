@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SchoolMiddleware;
 use App\Http\Middleware\TenantMiddleware;
 use App\Http\Response\ApiResponse;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'tenant' => TenantMiddleware::class,
+            'school' => SchoolMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

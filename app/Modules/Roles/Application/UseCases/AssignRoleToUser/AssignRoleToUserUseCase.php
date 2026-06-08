@@ -9,8 +9,10 @@ use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
+use App\Modules\Roles\Domain\Enums\RoleExclusionEnum;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
+use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 
 class AssignRoleToUserUseCase
@@ -25,16 +27,23 @@ class AssignRoleToUserUseCase
 
     /**
      * Assign a role to a user.
-     * The actor can only assign roles with a hierarchy_level strictly greater than their own.
-     * If the user already holds an active assignment for this role, a new one is NOT created.
+     * Only owner, gestor_escuelas, and director can assign roles.
+     * If the user already holds an active assignment for this role+school, it is returned unchanged.
      *
      * @throws UserNotFoundException
      * @throws RoleNotFoundException
      * @throws OwnerRoleAssignmentException
      * @throws HierarchyViolationException
+     * @throws RoleExclusionException
      */
     public function execute(AssignRoleToUserInput $input): UserRoleAssignment
     {
+        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas', 'director'], true)) {
+            throw new HierarchyViolationException(
+                'Only owner, gestor_escuelas, or director can assign roles to users.'
+            );
+        }
+
         $actor = $this->users->findByUuid($input->actorUuid);
 
         $targetUser = $this->users->findByUuid($input->targetUserUuid);
@@ -53,15 +62,36 @@ class AssignRoleToUserUseCase
             throw new OwnerRoleAssignmentException;
         }
 
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
+        // Director cannot assign gestor_escuelas role
+        if ($input->actorSlug === 'director' && $role->getSlug() === 'gestor_escuelas') {
             throw new HierarchyViolationException(
-                'You can only assign roles with a hierarchy level strictly greater than your own.'
+                'Director cannot assign the gestor_escuelas role.'
             );
         }
 
         $schoolId = $input->schoolUuid !== null
             ? $this->schools->findIdByUuid($input->schoolUuid)
             : null;
+
+        // Mutual exclusion check for school-scoped assignments
+        if ($schoolId !== null) {
+            $incompatible = RoleExclusionEnum::getIncompatible($role->getSlug());
+
+            if ($incompatible !== []) {
+                $existingSlugs = $this->assignments->findActiveRoleSlugsForUserInSchool(
+                    $targetUser->getId(),
+                    $schoolId,
+                );
+
+                foreach ($existingSlugs as $existingSlug) {
+                    if (in_array($existingSlug, $incompatible, true)) {
+                        throw new RoleExclusionException(
+                            "Cannot assign '{$role->getSlug()}' because the user already holds '{$existingSlug}' in this school."
+                        );
+                    }
+                }
+            }
+        }
 
         $existing = $this->assignments->findActiveByUserAndRole(
             $targetUser->getId(),

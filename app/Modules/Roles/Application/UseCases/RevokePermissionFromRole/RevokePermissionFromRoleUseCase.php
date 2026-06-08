@@ -9,10 +9,11 @@ use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use Illuminate\Auth\Access\AuthorizationException;
 
 class RevokePermissionFromRoleUseCase
 {
+    private const PROTECTED_SLUGS = ['superadmin', 'owner', 'gestor_escuelas'];
+
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly PermissionRepositoryInterface $permissions,
@@ -21,8 +22,9 @@ class RevokePermissionFromRoleUseCase
 
     /**
      * Revoke a permission from a role.
+     * Actor slug must be owner, gestor_escuelas, or director.
+     * Cannot revoke from system-protected roles.
      *
-     * @throws AuthorizationException
      * @throws RoleNotFoundException
      * @throws PermissionNotFoundException
      * @throws SystemRoleViolationException
@@ -30,8 +32,10 @@ class RevokePermissionFromRoleUseCase
      */
     public function execute(RevokePermissionFromRoleInput $input): void
     {
-        if (! $input->actorCanManagePermissions) {
-            throw new AuthorizationException('Actor does not hold the manage.permissions permission.');
+        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas', 'director'], true)) {
+            throw new HierarchyViolationException(
+                'Only owner, gestor_escuelas, or director can manage role permissions.'
+            );
         }
 
         $role = $this->roles->findByUuid($input->roleUuid);
@@ -40,13 +44,14 @@ class RevokePermissionFromRoleUseCase
             throw new RoleNotFoundException;
         }
 
-        if ($role->isSystemRole()) {
+        if (in_array($role->getSlug(), self::PROTECTED_SLUGS, true)) {
             throw new SystemRoleViolationException;
         }
 
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
+        // Director cannot manage gestor or owner roles
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'gestor_escuelas'], true)) {
             throw new HierarchyViolationException(
-                'You can only manage permissions for roles with a hierarchy level strictly greater than your own.'
+                'Director cannot manage permissions on owner or gestor_escuelas roles.'
             );
         }
 

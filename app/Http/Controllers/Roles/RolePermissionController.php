@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Roles;
 
+use App\Common\School\SchoolContext;
 use App\Http\Controller;
 use App\Http\Requests\Roles\AssignPermissionRequest;
 use App\Http\Response\ApiResponse;
@@ -14,7 +15,6 @@ use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,13 +33,17 @@ class RolePermissionController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
+        $schoolId = app()->bound(SchoolContext::class)
+            ? app(SchoolContext::class)->schoolId
+            : null;
+
         try {
             $useCase->execute(new AssignPermissionToRoleInput(
                 actorUserId: $actor->id,
-                actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                actorCanManagePermissions: $actor->hasRole('owner') || $actor->hasPermissionTo('manage.permissions'),
+                actorSlug: $actor->resolveActorSlug(),
                 roleUuid: $uuid,
                 permissionUuid: $request->validated('permission_uuid'),
+                schoolId: $schoolId,
             ));
 
             return ApiResponse::success(null, 'Permission assigned to role');
@@ -47,7 +51,7 @@ class RolePermissionController extends Controller
             return ApiResponse::notFound($e->getMessage());
         } catch (PermissionNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
-        } catch (SystemRoleViolationException|HierarchyViolationException|AuthorizationException $e) {
+        } catch (SystemRoleViolationException|HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         }
     }
@@ -69,8 +73,7 @@ class RolePermissionController extends Controller
         try {
             $useCase->execute(new RevokePermissionFromRoleInput(
                 actorUserId: $actor->id,
-                actorHierarchyLevel: $actor->lowestHierarchyLevel(),
-                actorCanManagePermissions: $actor->hasRole('owner') || $actor->hasPermissionTo('manage.permissions'),
+                actorSlug: $actor->resolveActorSlug(),
                 roleUuid: $uuid,
                 permissionUuid: $permission_uuid,
             ));
@@ -80,7 +83,7 @@ class RolePermissionController extends Controller
             return ApiResponse::notFound($e->getMessage());
         } catch (PermissionNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
-        } catch (SystemRoleViolationException|HierarchyViolationException|AuthorizationException $e) {
+        } catch (SystemRoleViolationException|HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         }
     }

@@ -12,6 +12,7 @@ use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Entities\UserRoleAssignment;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
+use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 
 describe('AssignRoleToUserUseCase', function () {
@@ -34,7 +35,7 @@ describe('AssignRoleToUserUseCase', function () {
         Mockery::close();
     });
 
-    function buildUser(int $id, string $uuid): User
+    function assignBuildUser(int $id, string $uuid): User
     {
         return new User(
             id: $id,
@@ -48,15 +49,16 @@ describe('AssignRoleToUserUseCase', function () {
         );
     }
 
-    function buildRole(int $level = 5, bool $deleted = false): Role
+    function assignBuildRole(string $slug = 'coordinador', bool $deleted = false): Role
     {
         return new Role(
             id: 10,
             uuid: 'role-public-uuid',
             tenantId: 1,
+            categoryId: null,
             name: 'Coordinador',
-            slug: 'coordinador',
-            hierarchyLevel: $level,
+            slug: $slug,
+            hierarchyLevel: 5,
             isSystemRole: false,
             permissions: [],
             createdAt: new DateTimeImmutable,
@@ -64,10 +66,11 @@ describe('AssignRoleToUserUseCase', function () {
         );
     }
 
-    function buildAssignment(int $id = 99): UserRoleAssignment
+    function assignBuildAssignment(int $id = 99): UserRoleAssignment
     {
         return new UserRoleAssignment(
             id: $id,
+            uuid: 'test-assignment-uuid',
             userId: 20,
             roleId: 10,
             schoolId: null,
@@ -76,22 +79,36 @@ describe('AssignRoleToUserUseCase', function () {
         );
     }
 
-    function mockUsers(object $test, int $actorId = 1, int $targetId = 20): void
+    function assignMockUsers(object $test, int $actorId = 1, int $targetId = 20): void
     {
         $test->userRepo->shouldReceive('findByUuid')
             ->with('actor-uuid')
-            ->andReturn(buildUser($actorId, 'actor-uuid'));
+            ->andReturn(assignBuildUser($actorId, 'actor-uuid'));
         $test->userRepo->shouldReceive('findByUuid')
             ->with('target-uuid')
-            ->andReturn(buildUser($targetId, 'target-uuid'));
+            ->andReturn(assignBuildUser($targetId, 'target-uuid'));
     }
 
-    it('throws RoleNotFoundException when role does not exist', function () {
-        mockUsers($this);
+    it('throws HierarchyViolationException when actor slug is not owner/gestor/director', function () {
+        assignMockUsers($this);
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'coordinador',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'role-public-uuid',
+            schoolUuid: null,
+        );
+
+        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
+    });
+
+    it('throws RoleNotFoundException when role does not exist', function () {
+        assignMockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'nonexistent',
             schoolUuid: null,
@@ -103,146 +120,27 @@ describe('AssignRoleToUserUseCase', function () {
     });
 
     it('throws RoleNotFoundException when role is soft-deleted', function () {
-        mockUsers($this);
+        assignMockUsers($this);
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: null,
         );
 
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(deleted: true));
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(assignBuildRole(deleted: true));
 
         expect(fn () => $this->useCase->execute($input))->toThrow(RoleNotFoundException::class);
     });
 
-    it('throws HierarchyViolationException when actor has equal hierarchy level to target role', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 4,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(level: 4));
-
-        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
-    });
-
-    it('throws HierarchyViolationException when actor has higher privilege level than target role', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 4,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(level: 3));
-
-        expect(fn () => $this->useCase->execute($input))->toThrow(HierarchyViolationException::class);
-    });
-
-    it('creates assignment and writes audit log when checks pass', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $role = buildRole(level: 5);
-        $assignment = buildAssignment(99);
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
-        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, null)->andReturn(null);
-        $this->assignmentRepo->shouldReceive('create')->once()->with(20, 10, null, 1)->andReturn($assignment);
-        $this->audit->shouldReceive('log')->once()->with('role.assign', 1, 99, null, null, Mockery::type('array'));
-
-        $result = $this->useCase->execute($input);
-
-        expect($result)->toBeInstanceOf(UserRoleAssignment::class);
-        expect($result->getId())->toBe(99);
-    });
-
-    it('returns existing assignment without creating a new one when active assignment exists', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(level: 5));
-        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->andReturn(buildAssignment(77));
-        $this->assignmentRepo->shouldNotReceive('create');
-        $this->audit->shouldNotReceive('log');
-
-        $result = $this->useCase->execute($input);
-
-        expect($result->getId())->toBe(77);
-    });
-
-    it('level 1 actor can assign any role regardless of level', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 1,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: null,
-        );
-
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(level: 2));
-        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->andReturn(null);
-        $this->assignmentRepo->shouldReceive('create')->once()->andReturn(buildAssignment(55));
-        $this->audit->shouldReceive('log')->once();
-
-        $result = $this->useCase->execute($input);
-
-        expect($result)->toBeInstanceOf(UserRoleAssignment::class);
-    });
-
-    it('resolves schoolUuid to schoolId and passes it through to assignment creation', function () {
-        mockUsers($this);
-
-        $input = new AssignRoleToUserInput(
-            actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 3,
-            targetUserUuid: 'target-uuid',
-            roleUuid: 'role-public-uuid',
-            schoolUuid: 'school-uuid',
-        );
-
-        $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(5);
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(buildRole(level: 5));
-        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, 5)->andReturn(null);
-        $this->assignmentRepo->shouldReceive('create')->once()->with(20, 10, 5, 1)->andReturn(buildAssignment());
-        $this->audit->shouldReceive('log')->once();
-
-        $this->useCase->execute($input);
-    });
-
     it('throws OwnerRoleAssignmentException when trying to assign the owner role', function () {
-        mockUsers($this);
+        assignMockUsers($this);
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorHierarchyLevel: 1,
+            actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
             roleUuid: 'owner-role-uuid',
             schoolUuid: null,
@@ -252,6 +150,7 @@ describe('AssignRoleToUserUseCase', function () {
             id: 2,
             uuid: 'owner-role-uuid',
             tenantId: null,
+            categoryId: null,
             name: 'Owner',
             slug: 'owner',
             hierarchyLevel: 2,
@@ -265,5 +164,143 @@ describe('AssignRoleToUserUseCase', function () {
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(OwnerRoleAssignmentException::class);
+    });
+
+    it('throws HierarchyViolationException when director tries to assign gestor_escuelas', function () {
+        assignMockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'director',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'gestor-uuid',
+            schoolUuid: null,
+        );
+
+        $gestorRole = new Role(
+            id: 3,
+            uuid: 'gestor-uuid',
+            tenantId: null,
+            categoryId: null,
+            name: 'Gestor',
+            slug: 'gestor_escuelas',
+            hierarchyLevel: 3,
+            isSystemRole: false,
+            permissions: [],
+            createdAt: new DateTimeImmutable,
+            deletedAt: null,
+        );
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->with('gestor-uuid')->andReturn($gestorRole);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(HierarchyViolationException::class);
+    });
+
+    it('creates assignment and writes audit log when checks pass', function () {
+        assignMockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'owner',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'role-public-uuid',
+            schoolUuid: null,
+        );
+
+        $role = assignBuildRole();
+        $assignment = assignBuildAssignment(99);
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
+        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, null)->andReturn(null);
+        $this->assignmentRepo->shouldReceive('create')->once()->with(20, 10, null, 1)->andReturn($assignment);
+        $this->audit->shouldReceive('log')->once();
+
+        $result = $this->useCase->execute($input);
+
+        expect($result)->toBeInstanceOf(UserRoleAssignment::class);
+        expect($result->getId())->toBe(99);
+    });
+
+    it('returns existing assignment without creating a new one when active assignment exists', function () {
+        assignMockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'gestor_escuelas',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'role-public-uuid',
+            schoolUuid: null,
+        );
+
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn(assignBuildRole());
+        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->andReturn(assignBuildAssignment(77));
+        $this->assignmentRepo->shouldNotReceive('create');
+        $this->audit->shouldNotReceive('log');
+
+        $result = $this->useCase->execute($input);
+
+        expect($result->getId())->toBe(77);
+    });
+
+    it('resolves schoolUuid to schoolId and passes it through to assignment creation', function () {
+        assignMockUsers($this);
+
+        // Use docente role to trigger the exclusion check (docente has exclusions)
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'gestor_escuelas',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'role-public-uuid',
+            schoolUuid: 'school-uuid',
+        );
+
+        $docenteRole = new Role(
+            id: 10, uuid: 'role-public-uuid', tenantId: 1, categoryId: 1,
+            name: 'Docente', slug: 'docente', hierarchyLevel: 7, isSystemRole: false,
+            permissions: [], createdAt: new DateTimeImmutable,
+        );
+
+        $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(5);
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($docenteRole);
+        $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')->once()->with(20, 5)->andReturn([]);
+        $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, 5)->andReturn(null);
+        $this->assignmentRepo->shouldReceive('create')->once()->with(20, 10, 5, 1)->andReturn(assignBuildAssignment());
+        $this->audit->shouldReceive('log')->once();
+
+        $this->useCase->execute($input);
+    });
+
+    it('throws RoleExclusionException when teacher is being assigned and student role exists', function () {
+        assignMockUsers($this);
+
+        $input = new AssignRoleToUserInput(
+            actorUuid: 'actor-uuid',
+            actorSlug: 'director',
+            targetUserUuid: 'target-uuid',
+            roleUuid: 'docente-uuid',
+            schoolUuid: 'school-uuid',
+        );
+
+        $docenteRole = new Role(
+            id: 20,
+            uuid: 'docente-uuid',
+            tenantId: null,
+            categoryId: 1,
+            name: 'Docente',
+            slug: 'docente',
+            hierarchyLevel: 7,
+            isSystemRole: false,
+            permissions: [],
+            createdAt: new DateTimeImmutable,
+            deletedAt: null,
+        );
+
+        $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(5);
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($docenteRole);
+        $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')->once()->with(20, 5)->andReturn(['alumno']);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(RoleExclusionException::class);
     });
 });

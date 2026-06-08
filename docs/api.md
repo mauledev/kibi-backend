@@ -79,9 +79,19 @@ When a user holds multiple roles, the frontend sends the currently selected role
 X-Active-Role: {role_uuid}
 ```
 
-This header is **UI context only**. The frontend uses it to decide which dashboard to render. It does **not** participate in permission checks on the backend.
+**UI context only.** The frontend uses it to decide which dashboard to render. The backend never reads it — permission checks are always evaluated against all active assignments for the current school.
 
-Permission checks always merge all active role assignments — no backend logic reads `X-Active-Role`. Reading an HTTP header inside a UseCase would couple the Application layer to HTTP, violating hexagonal architecture.
+### X-School-Uuid
+
+Identifies the school the user is currently operating in:
+
+```
+X-School-Uuid: {school_uuid}
+```
+
+Read by `SchoolMiddleware`, which resolves the UUID to a `school_id`, verifies it belongs to the current tenant, and binds `SchoolContext` into the container. The Gate uses this context to scope permission checks to the correct `user_role_assignments` rows and apply the corresponding `user_role_assignment_denials`.
+
+Required on all school-level endpoints. Absent on tenant-level endpoints (e.g. managing gestores, configuring custom role limits).
 
 ---
 
@@ -282,17 +292,28 @@ Payment documents (attached receipts) are **not** exposed in MVP — there is no
 ### Roles and permissions
 
 ```
-GET    /roles                                              List roles for current tenant
-POST   /roles                                             Create role (requires manage.permissions)
-GET    /roles/{uuid}                                 Get role with its permissions
-PUT    /roles/{uuid}                                 Update role
-DELETE /roles/{uuid}                                 Delete role
-GET    /permissions                                       List permissions grouped by category
-POST   /roles/{uuid}/permissions                     Assign permission to role
-DELETE /roles/{uuid}/permissions/{permission_uuid}   Revoke permission from role
-POST   /users/{uuid}/roles                           Assign role to user
-DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
+GET    /roles                                                        List roles for current tenant
+POST   /roles/custom                                                 Create a custom role (owner and gestor only)
+GET    /roles/{uuid}                                                 Get role with its effective permissions
+PUT    /roles/{uuid}                                                 Update role name (custom roles only)
+DELETE /roles/{uuid}                                                 Delete role (custom roles only)
+GET    /permissions                                                  List permissions (filtered by role category if role_uuid provided)
+POST   /roles/{uuid}/permissions                                     Assign permission to role (category-bound)
+DELETE /roles/{uuid}/permissions/{permission_uuid}                   Revoke permission from role
+POST   /users/{uuid}/roles                                           Assign role to user (owner, gestor, director only)
+DELETE /users/{uuid}/roles/{role_uuid}                               Revoke role from user
+POST   /users/{uuid}/assignments/{assignment_uuid}/denials            Deny a permission for a specific assignment
+DELETE /users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
+PUT    /tenant/custom-roles-limit                                    Configure max custom roles (owner only)
 ```
+
+`POST /roles/custom` creates a custom role (`category_id = NULL`) and assigns it to one or more schools. Requires the tenant's `custom_roles_limit` to be set and not exceeded. Body: `{ "name": "...", "school_uuids": ["..."] }`.
+
+`GET /permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+
+`POST /users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
+
+`PUT /tenant/custom-roles-limit` sets `tenants.custom_roles_limit` for the authenticated owner's tenant. Body: `{ "limit": 10 }` (1–50).
 
 ---
 

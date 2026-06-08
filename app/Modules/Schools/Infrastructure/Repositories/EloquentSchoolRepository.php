@@ -33,6 +33,16 @@ class EloquentSchoolRepository implements SchoolRepositoryInterface
     }
 
     /** {@inheritDoc} */
+    public function findById(int $id): ?School
+    {
+        $model = SchoolModel::where('tenant_id', $this->context->tenantId)
+            ->where('id', $id)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
+    }
+
+    /** {@inheritDoc} */
     public function findByUuid(string $uuid): ?School
     {
         $model = SchoolModel::where('tenant_id', $this->context->tenantId)

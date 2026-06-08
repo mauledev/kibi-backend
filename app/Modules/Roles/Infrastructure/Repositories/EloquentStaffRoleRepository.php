@@ -57,6 +57,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
     /** {@inheritDoc} */
     public function create(
         ?int $tenantId,
+        ?int $categoryId,
         string $name,
         string $slug,
         int $hierarchyLevel,
@@ -64,6 +65,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
     ): Role {
         $model = RoleModel::create([
             'tenant_id' => null,
+            'category_id' => $categoryId,
             'name' => $name,
             'slug' => $slug,
             'hierarchy_level' => $hierarchyLevel,
@@ -145,6 +147,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
             id: $model->id,
             uuid: $model->uuid,
             tenantId: $model->tenant_id,
+            categoryId: $model->category_id,
             name: $model->name,
             slug: $model->slug,
             hierarchyLevel: $model->hierarchy_level,
@@ -155,5 +158,29 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
                 ? new DateTimeImmutable($model->deleted_at->toIso8601String())
                 : null,
         );
+    }
+
+    /** {@inheritDoc} */
+    public function countCustomRoles(int $tenantId): int
+    {
+        throw new \RuntimeException('EloquentStaffRoleRepository::countCustomRoles() is not applicable for staff roles.');
+    }
+
+    /** {@inheritDoc} */
+    public function attachSchools(int $roleId, array $schoolIds): void
+    {
+        throw new \RuntimeException('EloquentStaffRoleRepository::attachSchools() is not applicable for staff roles.');
+    }
+
+    /** {@inheritDoc} */
+    public function getCustomRolesLimit(int $tenantId): ?int
+    {
+        throw new \RuntimeException('EloquentStaffRoleRepository::getCustomRolesLimit() is not applicable for staff roles.');
+    }
+
+    /** {@inheritDoc} */
+    public function setCustomRolesLimit(int $tenantId, int $limit): void
+    {
+        throw new \RuntimeException('EloquentStaffRoleRepository::setCustomRolesLimit() is not applicable for staff roles.');
     }
 }

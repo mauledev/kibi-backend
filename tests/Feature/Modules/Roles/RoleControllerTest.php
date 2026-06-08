@@ -3,6 +3,7 @@
 use App\Models\Permission as PermissionModel;
 use App\Models\PermissionCategory;
 use App\Models\Role as RoleModel;
+use App\Models\School;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
@@ -45,7 +46,7 @@ describe('RoleController', function () {
         $this->tenant = Tenant::factory()->create();
         $this->otherTenant = Tenant::factory()->create();
         // The tenant owner is the user whose id matches TenantContext::ownerId.
-        // Assign a low-level role so their lowestHierarchyLevel() allows creating/managing roles.
+        // The owner bypasses all permission checks via the Gate::before hook.
         $this->owner = User::find($this->tenant->owner_id);
         $ownerFixtureRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(1)->create([
             'slug' => 'rc_owner_fixture',
@@ -108,10 +109,16 @@ describe('RoleController', function () {
         });
     });
 
-    describe('POST /api/roles', function () {
-        it('returns 403 when user lacks manage.permissions', function () {
+    describe('POST /api/roles (custom role creation)', function () {
+        beforeEach(function () {
+            $this->school = School::factory()->forTenant($this->tenant)->create();
+            // Set a limit so custom roles can be created
+            Tenant::where('id', $this->tenant->id)->update(['custom_roles_limit' => 5]);
+        });
+
+        it('returns 403 when user lacks roles.custom.create permission', function () {
             $user = User::factory()->create();
-            $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'some_role']);
+            $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'rc_some_role']);
             assignRole($user, $role);
             grantPermission($role, 'role.view');
 
@@ -120,91 +127,76 @@ describe('RoleController', function () {
                 ->postJson('/api/roles', [
                     'name' => 'New Role',
                     'slug' => 'new_role',
-                    'hierarchy_level' => 7,
+                    'school_uuids' => [$this->school->uuid],
                 ])
                 ->assertStatus(403);
         });
 
-        it('creates a role and returns 201 when actor has manage.permissions and valid hierarchy', function () {
-            $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor']);
-            assignRole($user, $actorRole);
-            grantPermission($actorRole, 'manage.permissions');
-
-            $response = $this->actingAs($user)
+        it('creates a custom role and returns 201 when actor is owner', function () {
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
                     'name' => 'New Director',
-                    'slug' => 'new_director',
-                    'hierarchy_level' => 4,
+                    'slug' => 'new_director_cr',
+                    'school_uuids' => [$this->school->uuid],
                 ]);
 
             $response->assertStatus(201)
-                ->assertJsonStructure(['success', 'data' => ['uuid', 'name', 'slug', 'hierarchy_level']]);
+                ->assertJsonStructure(['success', 'data' => ['uuid', 'name', 'slug']]);
 
-            expect($response->json('data.slug'))->toBe('new_director');
+            expect($response->json('data.slug'))->toBe('new_director_cr');
         });
 
-        it('returns 403 when actor tries to create role at same hierarchy level', function () {
+        it('returns 403 when actor is not owner or gestor_escuelas', function () {
             $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'director_actor']);
             assignRole($user, $actorRole);
-            grantPermission($actorRole, 'manage.permissions');
+            grantPermission($actorRole, 'roles.custom.create');
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
                     'name' => 'Director Copy',
-                    'slug' => 'director_copy',
-                    'hierarchy_level' => 4, // same level
+                    'slug' => 'director_copy_cr',
+                    'school_uuids' => [$this->school->uuid],
                 ])
                 ->assertStatus(403);
         });
 
-        it('owner can create a role at any hierarchy level', function () {
+        it('owner can create a custom role', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
-                    'name' => 'Custom Level 3',
-                    'slug' => 'custom_level_3',
-                    'hierarchy_level' => 3,
+                    'name' => 'Owner Custom',
+                    'slug' => 'owner_custom',
+                    'school_uuids' => [$this->school->uuid],
                 ]);
 
             $response->assertStatus(201);
         });
 
         it('creates audit_log entry on successful role creation', function () {
-            $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_audit']);
-            assignRole($user, $actorRole);
-            grantPermission($actorRole, 'manage.permissions');
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
                     'name' => 'Audited Role',
-                    'slug' => 'audited_role',
-                    'hierarchy_level' => 5,
+                    'slug' => 'audited_role_cr',
+                    'school_uuids' => [$this->school->uuid],
                 ]);
 
             $this->assertDatabaseHas('audit_logs', [
                 'action' => 'role.create',
-                'user_id' => $user->id,
+                'user_id' => $this->owner->id,
             ]);
         });
 
         it('response uses uuid not internal id', function () {
-            $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_pubid']);
-            assignRole($user, $actorRole);
-            grantPermission($actorRole, 'manage.permissions');
-
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/roles', [
                     'name' => 'Public Id Role',
-                    'slug' => 'uuid_role',
-                    'hierarchy_level' => 5,
+                    'slug' => 'uuid_role_cr',
+                    'school_uuids' => [$this->school->uuid],
                 ]);
 
             $response->assertStatus(201);
@@ -237,9 +229,10 @@ describe('RoleController', function () {
     });
 
     describe('PUT /api/roles/{uuid}', function () {
-        it('updates role name and writes audit log', function () {
+        it('updates role name and writes audit log when actor is gestor_escuelas', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_update']);
+            // Use the reserved 'gestor_escuelas' slug so the controller resolves it as an authorised actor.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
 
@@ -258,13 +251,14 @@ describe('RoleController', function () {
             ]);
         });
 
-        it('returns 403 when actor tries to update role at same hierarchy level', function () {
+        it('returns 403 when actor is not an authorised role manager', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'same_level_actor']);
+            // Unknown slug — not owner/gestor_escuelas/director → HierarchyViolationException → 403.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'unknown_actor_role']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
 
-            $targetRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'same_level_target']);
+            $targetRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(7)->create(['slug' => 'some_target_role']);
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
@@ -274,9 +268,10 @@ describe('RoleController', function () {
     });
 
     describe('DELETE /api/roles/{uuid}', function () {
-        it('soft-deletes role and writes audit log', function () {
+        it('soft-deletes role and writes audit log when actor is gestor_escuelas', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_delete']);
+            // Use the reserved 'gestor_escuelas' slug so the controller resolves it as an authorised actor.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
 

@@ -19,17 +19,26 @@ class RolesAndPermissionsSeeder extends Seeder
     private function seedPermissionCategories(): void
     {
         $categories = [
-            ['name' => 'academic'],
-            ['name' => 'financial'],
-            ['name' => 'hr'],
-            ['name' => 'communication'],
-            ['name' => 'configuration'],
+            // Staff scope — Softlinkia internal operational roles
+            ['scope' => 'staff',  'name' => 'support'],
+            ['scope' => 'staff',  'name' => 'finance'],
+
+            // Tenant scope — tenant-level operational roles
+            ['scope' => 'tenant', 'name' => 'finance'],
+            ['scope' => 'tenant', 'name' => 'hr'],
+
+            // School scope — school-level operational roles
+            ['scope' => 'school', 'name' => 'academic'],
+            ['scope' => 'school', 'name' => 'financial'],
+            ['scope' => 'school', 'name' => 'hr'],
+            ['scope' => 'school', 'name' => 'configuration'],
+            ['scope' => 'school', 'name' => 'communication'],
         ];
 
         foreach ($categories as $category) {
             DB::table('permission_categories')->insertOrIgnore([
                 'uuid' => (string) Str::uuid(),
-                'school_id' => null,
+                'scope' => $category['scope'],
                 'name' => $category['name'],
                 'created_at' => now(),
             ]);
@@ -38,59 +47,59 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedPermissions(): void
     {
-        $categoryId = fn (string $name): int => (int) DB::table('permission_categories')
-            ->where('name', $name)
-            ->value('id');
+        $categoryId = fn (string $scope, string $name): int => (int) DB::table('permission_categories')
+            ->where('scope', $scope)->where('name', $name)->value('id');
 
         $permissions = [
-            // Academic
-            ['category' => 'academic', 'name' => 'Publicar calificaciones',     'slug' => 'grade.publish'],
-            ['category' => 'academic', 'name' => 'Crear calificaciones',         'slug' => 'grade.create'],
-            ['category' => 'academic', 'name' => 'Actualizar calificaciones',    'slug' => 'grade.update'],
-            ['category' => 'academic', 'name' => 'Eliminar calificaciones',      'slug' => 'grade.delete'],
-            ['category' => 'academic', 'name' => 'Ver calificaciones',           'slug' => 'grade.view'],
-            ['category' => 'academic', 'name' => 'Gestionar grupos',             'slug' => 'group.manage'],
-            ['category' => 'academic', 'name' => 'Ver grupos',                   'slug' => 'group.view'],
-            ['category' => 'academic', 'name' => 'Gestionar materias',           'slug' => 'subject.manage'],
+            // School / Academic
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Publicar calificaciones',  'slug' => 'grade.publish'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Crear calificaciones',      'slug' => 'grade.create'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Actualizar calificaciones', 'slug' => 'grade.update'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Eliminar calificaciones',   'slug' => 'grade.delete'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Ver calificaciones',        'slug' => 'grade.view'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Gestionar grupos',          'slug' => 'group.manage'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Ver grupos',                'slug' => 'group.view'],
+            ['scope' => 'school', 'category' => 'academic', 'name' => 'Gestionar materias',        'slug' => 'subject.manage'],
 
-            // Financial
-            ['category' => 'financial', 'name' => 'Aprobar pagos',              'slug' => 'payment.approve'],
-            ['category' => 'financial', 'name' => 'Crear pagos',                'slug' => 'payment.create'],
-            ['category' => 'financial', 'name' => 'Actualizar pagos',           'slug' => 'payment.update'],
-            ['category' => 'financial', 'name' => 'Eliminar pagos',             'slug' => 'payment.delete'],
-            ['category' => 'financial', 'name' => 'Ver pagos',                  'slug' => 'payment.view'],
-            ['category' => 'financial', 'name' => 'Rechazar pagos',             'slug' => 'payment.reject'],
+            // School / Financial
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Aprobar pagos',    'slug' => 'payment.approve'],
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Crear pagos',      'slug' => 'payment.create'],
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Actualizar pagos', 'slug' => 'payment.update'],
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Eliminar pagos',   'slug' => 'payment.delete'],
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Ver pagos',        'slug' => 'payment.view'],
+            ['scope' => 'school', 'category' => 'financial', 'name' => 'Rechazar pagos',   'slug' => 'payment.reject'],
 
-            // HR
-            ['category' => 'hr', 'name' => 'Suspender usuarios',               'slug' => 'user.suspend'],
-            ['category' => 'hr', 'name' => 'Crear usuarios',                    'slug' => 'user.create'],
-            ['category' => 'hr', 'name' => 'Actualizar usuarios',               'slug' => 'user.update'],
-            ['category' => 'hr', 'name' => 'Eliminar usuarios',                 'slug' => 'user.delete'],
-            ['category' => 'hr', 'name' => 'Ver usuarios',                      'slug' => 'user.view'],
+            // School / HR
+            ['scope' => 'school', 'category' => 'hr', 'name' => 'Suspender usuarios',  'slug' => 'user.suspend'],
+            ['scope' => 'school', 'category' => 'hr', 'name' => 'Crear usuarios',       'slug' => 'user.create'],
+            ['scope' => 'school', 'category' => 'hr', 'name' => 'Actualizar usuarios',  'slug' => 'user.update'],
+            ['scope' => 'school', 'category' => 'hr', 'name' => 'Eliminar usuarios',    'slug' => 'user.delete'],
+            ['scope' => 'school', 'category' => 'hr', 'name' => 'Ver usuarios',         'slug' => 'user.view'],
 
-            // Configuration
-            ['category' => 'configuration', 'name' => 'Ver escuelas',          'slug' => 'school.view'],
-            ['category' => 'configuration', 'name' => 'Crear escuelas',        'slug' => 'school.create'],
-            ['category' => 'configuration', 'name' => 'Actualizar escuelas',   'slug' => 'school.update'],
-            ['category' => 'configuration', 'name' => 'Ver roles',             'slug' => 'role.view'],
-            ['category' => 'configuration', 'name' => 'Asignar roles',         'slug' => 'role.assign'],
-            ['category' => 'configuration', 'name' => 'Revocar roles',         'slug' => 'role.revoke'],
-            ['category' => 'configuration', 'name' => 'Otorgar permisos',      'slug' => 'permission.grant'],
-            ['category' => 'configuration', 'name' => 'Revocar permisos',      'slug' => 'permission.revoke'],
-            ['category' => 'configuration', 'name' => 'Gestionar permisos',    'slug' => 'manage.permissions'],
-            ['category' => 'configuration', 'name' => 'Crear roles',           'slug' => 'role.create'],
-            ['category' => 'configuration', 'name' => 'Actualizar roles',      'slug' => 'role.update'],
-            ['category' => 'configuration', 'name' => 'Eliminar roles',        'slug' => 'role.delete'],
+            // School / Configuration
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Ver escuelas',                 'slug' => 'school.view'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Crear escuelas',               'slug' => 'school.create'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Actualizar escuelas',          'slug' => 'school.update'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Ver roles',                    'slug' => 'role.view'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Asignar roles',                'slug' => 'role.assign'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Revocar roles',                'slug' => 'role.revoke'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Otorgar permisos',             'slug' => 'permission.grant'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Revocar permisos',             'slug' => 'permission.revoke'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Gestionar permisos',           'slug' => 'manage.permissions'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Crear roles',                  'slug' => 'role.create'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Actualizar roles',             'slug' => 'role.update'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Eliminar roles',               'slug' => 'role.delete'],
+            ['scope' => 'school', 'category' => 'configuration', 'name' => 'Crear roles personalizados',   'slug' => 'roles.custom.create'],
 
-            // Communication
-            ['category' => 'communication', 'name' => 'Enviar comunicados',    'slug' => 'announcement.send'],
-            ['category' => 'communication', 'name' => 'Ver comunicados',       'slug' => 'announcement.view'],
+            // School / Communication
+            ['scope' => 'school', 'category' => 'communication', 'name' => 'Enviar comunicados', 'slug' => 'announcement.send'],
+            ['scope' => 'school', 'category' => 'communication', 'name' => 'Ver comunicados',    'slug' => 'announcement.view'],
         ];
 
         foreach ($permissions as $permission) {
             DB::table('permissions')->insertOrIgnore([
                 'uuid' => (string) Str::uuid(),
-                'category_id' => $categoryId($permission['category']),
+                'category_id' => $categoryId($permission['scope'], $permission['category']),
                 'name' => $permission['name'],
                 'slug' => $permission['slug'],
                 'created_at' => now(),
@@ -100,18 +109,22 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private function seedRoles(): void
     {
+        $catId = fn (string $scope, string $name): ?int => DB::table('permission_categories')->where('scope', $scope)->where('name', $name)->value('id');
+
         $roles = [
             // Softlinkia staff — is_system_role = true, tenant_id = null
             [
                 'tenant_id' => null,
+                'category_id' => null,
                 'name' => 'Superadmin',
                 'slug' => 'superadmin',
                 'hierarchy_level' => 1,
                 'is_system_role' => true,
             ],
-            // Tenant roles — is_system_role = false (permissions managed via role_permissions)
+            // Tenant-admin roles — no category, authority by Gate bypass / slug
             [
                 'tenant_id' => null,
+                'category_id' => null,
                 'name' => 'Owner',
                 'slug' => 'owner',
                 'hierarchy_level' => 2,
@@ -119,13 +132,16 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => null,
                 'name' => 'Gestor de Escuelas',
                 'slug' => 'gestor_escuelas',
                 'hierarchy_level' => 3,
                 'is_system_role' => false,
             ],
+            // School operational roles — bound to a school-scoped category
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'configuration'),
                 'name' => 'Director',
                 'slug' => 'director',
                 'hierarchy_level' => 4,
@@ -133,6 +149,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'academic'),
                 'name' => 'Coordinador Académico',
                 'slug' => 'coordinador_academico',
                 'hierarchy_level' => 5,
@@ -140,6 +157,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'hr'),
                 'name' => 'Control Escolar',
                 'slug' => 'control_escolar',
                 'hierarchy_level' => 5,
@@ -147,6 +165,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'hr'),
                 'name' => 'Prefectura',
                 'slug' => 'prefectura',
                 'hierarchy_level' => 6,
@@ -154,6 +173,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'financial'),
                 'name' => 'Finanzas',
                 'slug' => 'finanzas',
                 'hierarchy_level' => 6,
@@ -172,6 +192,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'hr'),
                 'name' => 'RRHH',
                 'slug' => 'rrhh',
                 'hierarchy_level' => 6,
@@ -179,6 +200,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'academic'),
                 'name' => 'Docente',
                 'slug' => 'docente',
                 'hierarchy_level' => 7,
@@ -186,6 +208,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'academic'),
                 'name' => 'Alumno',
                 'slug' => 'alumno',
                 'hierarchy_level' => 8,
@@ -193,6 +216,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             [
                 'tenant_id' => null,
+                'category_id' => $catId('school', 'academic'),
                 'name' => 'Tutor',
                 'slug' => 'tutor',
                 'hierarchy_level' => 8,
@@ -204,6 +228,7 @@ class RolesAndPermissionsSeeder extends Seeder
             DB::table('roles')->insertOrIgnore([
                 'uuid' => (string) Str::uuid(),
                 'tenant_id' => $role['tenant_id'],
+                'category_id' => $role['category_id'],
                 'name' => $role['name'],
                 'slug' => $role['slug'],
                 'hierarchy_level' => $role['hierarchy_level'],
@@ -229,7 +254,7 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         };
 
-        // Gestor de Escuelas — full configuration + hr + all
+        // Gestor de Escuelas — full configuration + hr + all school permissions
         $assign('gestor_escuelas', [
             'manage.permissions',
             'role.view', 'role.assign', 'role.revoke', 'role.create', 'role.update', 'role.delete',
@@ -241,7 +266,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'announcement.send', 'announcement.view',
         ]);
 
-        // Director — manages school, permissions, teachers, grades
+        // Director — manages school, permissions, teachers, grades (cross-category via role_permissions)
         $assign('director', [
             'manage.permissions',
             'role.view', 'role.assign', 'role.revoke',

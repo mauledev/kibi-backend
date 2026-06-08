@@ -229,16 +229,19 @@ HTTP Request ({tenant_slug}.kibi.com)
 ### Two separate systems
 
 **Softlinkia staff** (`users.is_staff = true`):
-- Roles are system roles (`roles.is_system_role = true`)
-- Permissions are fixed in code — no `role_permissions` rows
+- Roles have `is_system_role = true` and `tenant_id = NULL`
+- Superadmin has no `category_id` — authority is handled by the Gate bypass on staff routes
+- All other staff roles (support L1/L2/L3, finance L1/L2/L3) have a `category_id` of scope `staff` and manage permissions via `role_permissions` rows
 - Access is controlled by domain: staff only accesses `app.kibi.com`
 - Repositories scope by `WHERE is_staff = true`
 
-**School users** (`users.is_staff = false`):
-- Roles belong to a tenant (`roles.tenant_id`)
-- Permissions are dynamic, managed via `role_permissions`
+**Tenant users** (`users.is_staff = false`):
+- Roles belong to a tenant (`roles.tenant_id`) and always have `is_system_role = false`
+- Permissions are managed via `role_permissions` within category bounds
 - Access is controlled by subdomain: `{slug}.kibi.com`
 - Users belong to a tenant via `user_role_assignments` or by being the tenant owner (`tenants.owner_id`)
+
+There are six distinct role types across both systems (see `docs/database.md` — Role types table). Authority for tenant-admin roles (owner, gestor) is determined by their reserved slug, not by permission checks.
 
 ### Owner
 
@@ -250,21 +253,26 @@ Owner never sees a permissions UI. All permission management flows downward from
 
 The `owner` role slug is kept in the seeder for hierarchy reference purposes, but assigning it via `AssignRoleToUserUseCase` is blocked by a domain guard (`OwnerRoleAssignmentException`). The owner bypass is determined solely by `tenants.owner_id`, not by role assignment.
 
-### Hierarchy
+### Role authority — hardcoded actor rules
 
-Role assignment and permission granting are constrained by `hierarchy_level`. A user can only assign roles or grant permissions to roles with a `hierarchy_level` strictly greater than their own.
+Role authority is no longer driven by the `hierarchy_level` column at runtime. It is hardcoded in the domain as a static enum. The three actors that can operate on other users are:
 
 ```
-Level 1 → Superadmin           (Softlinkia, is_system_role)
-Level 2 → Owner                (Gate::before bypass)
-Level 3 → Gestor de Escuelas
-Level 4 → Director
-Level 5 → Coordinador Académico, Control Escolar
-Level 6 → Prefectura, Finanzas, RRHH, Psicopedagogía, Biblioteca
-Level 7 → Docente
-Level 8 → Alumno, Tutor
-Level 9 → Proveedor Cafetería, Proveedor Uniformes
+Owner   > Gestor   > Director
 ```
+
+**Who can create users:** Owner, Gestor, Director — no one else.
+**Who can assign roles to users:** Owner, Gestor, Director — scoped to their school access.
+**Who can create custom roles:** Owner and Gestor only. Custom roles are created at the tenant level (`roles.tenant_id`) and their school availability is defined at creation time via `custom_role_schools`. The role's permissions are consistent across all schools it is available in.
+**Who can configure `custom_roles_limit`:** Owner only.
+**Who can manage permissions on a role:** Owner (any role), Gestor (roles in their schools), Director (roles of users in their school, never gestor roles).
+
+Mutual exclusions enforced at assignment time (hardcoded enum in domain):
+- `teacher` and `student` cannot coexist for the same user in the same school.
+- `teacher` and `tutor` cannot coexist for the same user in the same school.
+- `student` and `tutor` cannot coexist for the same user in the same school.
+
+The `hierarchy_level` column is kept in the schema for future use. See `post-mvp.md`.
 
 ### Teacher scope
 
@@ -272,9 +280,19 @@ Level 9 → Proveedor Cafetería, Proveedor Uniformes
 
 A teacher only sees groups and subjects where an active row exists (`unassigned_at IS NULL`). Only one active teacher per `subject_id + group_id` is allowed, enforced by a partial unique index.
 
-### manage.permissions
+### Permission category bounds
 
-The permission `manage.permissions` allows a role to assign permissions to roles with a higher `hierarchy_level`. Only Gestor, Director and roles explicitly granted this permission can use it. Owner manages permissions implicitly through the Gate bypass.
+Every operational role has a `category_id`. Permission categories have a `scope` (`staff`, `tenant`, or `school`) that prevents name collisions across contexts — for example, `staff/finance` and `school/finance` are independent categories with different permission sets.
+
+When assigning a permission to a role, the system validates two things:
+1. The permission belongs to the same category as the role (`category_id` match).
+2. The category's scope matches the role's context (staff roles only accept `staff`-scoped categories, tenant roles accept `tenant`-scoped, school roles accept `school`-scoped).
+
+This prevents a school teacher role from receiving staff-support permissions, or a tenant finance role from receiving school-director permissions.
+
+Custom roles (`category_id = NULL`, slug not in reserved list) have no category restriction and can receive permissions from any category and scope.
+
+Owner manages all permissions implicitly through the Gate bypass. Gestor manages permissions for roles assigned within their schools. Director manages permissions for roles of users in their school but cannot modify gestor or owner roles.
 
 ### Gate setup (AppServiceProvider)
 
@@ -282,7 +300,7 @@ Two gates are registered in `AppServiceProvider::boot()`:
 
 1. **`Gate::before` — Owner bypass**: the user whose `id` matches `TenantContext::ownerId` is granted every ability unconditionally. The gate first checks `app()->bound(TenantContext::class)` — if `TenantContext` is not bound (staff routes), the bypass is skipped entirely. Owner is a tenant concept — staff routes do not use `$this->authorize()` and do not need a gate bypass.
 
-2. **`Gate::after` — Dynamic permission gate**: for all other users, every `$this->authorize('some.slug')` call in a Controller resolves against the merged permission slugs from all active role assignments (`revoked_at IS NULL`). Returns `true` if the permission is found, `null` otherwise (letting any policy take precedence). Use `Gate::after` — not `Gate::define('*')` — to avoid overriding policies.
+2. **`Gate::after` — Dynamic permission gate**: for all other users, every `$this->authorize('some.slug')` call in a Controller resolves against the effective permission slugs for the current school context. Returns `true` if the permission is found, `null` otherwise. Use `Gate::after` — not `Gate::define('*')` — to avoid overriding policies.
 
 ```php
 Gate::before(function (User $user, string $ability): ?bool {
@@ -297,9 +315,19 @@ Gate::before(function (User $user, string $ability): ?bool {
 });
 
 Gate::after(function (User $user, string $ability): ?bool {
-    return $user->hasPermissionTo($ability) ? true : null;
+    $schoolId = app()->bound(SchoolContext::class)
+        ? app(SchoolContext::class)->schoolId
+        : null;
+    return $user->hasPermissionTo($ability, $schoolId) ? true : null;
 });
 ```
+
+**Effective permission calculation per school:**
+For each active assignment scoped to the current school (or tenant-level assignments where `school_id IS NULL`):
+```
+effective permissions = role_permissions − user_role_assignment_denials for that assignment
+```
+All effective permission sets are then unioned across all active assignments for that school.
 
 ### Permission query optimization
 
@@ -320,27 +348,46 @@ public function activeAssignments(): Collection
 {
     return $this->cachedAssignments ??= $this->roleAssignments()
         ->whereNull('revoked_at')
-        ->with(['role', 'role.permissions'])
+        ->with(['role', 'role.permissions', 'denials'])
         ->get();
 }
 ```
 
+The eager load now includes `denials` (the `user_role_assignment_denials` rows) so effective permissions can be computed without additional queries.
+
 Without these optimizations, a single `$this->authorize()` for a non-owner user triggers `activeAssignments()` three times: twice in `Gate::before` (one `hasRole()` per bypass slug) and once in `Gate::after`. With memoization, all three calls hit the cache after the first.
 
-### X-Active-Role header
+### Request headers for context
 
-`X-Active-Role` is **UI context only** — the frontend uses it to know which dashboard to render. It does **not** participate in permission checks. All active assignments are always merged.
+| Header | Purpose | Backend effect |
+|---|---|---|
+| `X-Active-Role` | UI context — which dashboard to render | None. Not read by backend. |
+| `X-School-Uuid` | Identifies the school the user is operating in | Resolved by middleware → `SchoolContext` bound in container → Gate applies school-scoped permissions and denials. |
+
+Neither header participates in authentication. `X-School-Uuid` is the only header that affects permission evaluation.
+
+### School context
+
+`SchoolContext` is a per-request value object bound by a middleware that reads the `X-School-Uuid` request header. It is analogous to `TenantContext`:
+
+```php
+final class SchoolContext
+{
+    public function __construct(public readonly int $schoolId) {}
+}
+```
+
+The middleware resolves the UUID to an internal `school_id`, verifies the school belongs to the current tenant, and binds the instance into the container. When `X-School-Uuid` is absent (tenant-level endpoints), `SchoolContext` is not bound and the Gate operates without school scope, considering only tenant-level assignments (`school_id IS NULL`).
+
+`SchoolContext` lives in `app/Common/School/`. Like `TenantContext`, it is a per-request binding — never register it as a permanent singleton.
 
 ### User model permission helpers
-
-Four methods added to `App\Models\User`:
 
 | Method | Returns | Purpose |
 |---|---|---|
 | `hasRole(string $slug): bool` | `bool` | True if ANY active assignment has this role slug |
-| `activePermissions(): array<string>` | `array<string>` | Merged permission slugs from all active roles |
-| `hasPermissionTo(string $slug): bool` | `bool` | True if slug is in `activePermissions()` |
-| `lowestHierarchyLevel(): int` | `int` | Lowest level across active roles (most privileged); `PHP_INT_MAX` when no roles |
+| `activePermissions(?int $schoolId): array<string>` | `array<string>` | Effective permission slugs for the given school (role permissions − denials). Pass `null` for tenant-level only. |
+| `hasPermissionTo(string $slug, ?int $schoolId): bool` | `bool` | True if slug is in `activePermissions($schoolId)` |
 
 ### Common/Audit
 

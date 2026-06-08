@@ -7,58 +7,28 @@ These are not bugs — they are known trade-offs accepted for MVP.
 
 ---
 
-## PM-001 — School-scoped permissions
 
-**Current behavior**
+## PM-003 — hierarchy_level re-activation
 
-`User::activePermissions()` merges permission slugs from **all active role assignments**, regardless of which school the assignment belongs to. A Director assigned to School A with `teachers.create` effectively holds that permission across all schools in the tenant.
+**Current behavior (MVP)**
 
-Security at the data layer is preserved because every repository method filters by `school_id` — a Director can never read or mutate records outside their assigned school. But the permission check itself is not school-aware.
+The `hierarchy_level` column exists in the `roles` table but is not used in business logic. Role authority is determined by slug-based rules hardcoded in the domain (`owner > gestor > director`). Only these three roles can create users or assign roles to others.
 
 **Problem at scale**
 
-A single tenant running 10 schools where some staff work across multiple schools in different roles (e.g., Director of School A, Teacher in School B) will produce incorrect UI gates on the frontend. The user will see buttons and actions they should not see in the context of the school they are currently operating in.
+If user creation or role assignment is ever extended beyond the three hardcoded actors (e.g., a coordinator who can register students, or a custom role that can onboard tutors), the hardcoded rules cannot accommodate it without code changes.
 
 **Recommended solution**
 
-Introduce `SchoolContext` — a per-request value object bound by a middleware or resolved from the active route — analogous to `TenantContext`:
-
-```php
-final class SchoolContext
-{
-    public function __construct(public readonly int $schoolId) {}
-}
-```
-
-Extend `hasPermissionTo` and `activePermissions` to accept an optional school scope:
-
-```php
-public function activePermissions(?int $schoolId = null): array
-// When $schoolId is provided, only roles where
-// user_role_assignments.school_id = $schoolId OR school_id IS NULL
-// (tenant-level roles like Owner, Gestor) are included.
-```
-
-The gate would pass `SchoolContext` automatically so controllers and use cases remain unchanged:
-
-```php
-Gate::after(function (User $user, string $ability) use ($container): ?bool {
-    $schoolId = $container->bound(SchoolContext::class)
-        ? $container->make(SchoolContext::class)->schoolId
-        : null;
-    return $user->hasPermissionTo($ability, $schoolId) ? true : null;
-});
-```
+Re-activate `hierarchy_level` as the runtime authority mechanism. `AssignRoleToUserUseCase` would check `actor.lowestHierarchyLevel() < target_role.hierarchyLevel` instead of checking the actor's slug against a hardcoded list. The column is already populated by the seeder, so no data migration is needed — only business logic changes.
 
 **Why deferred**
 
-For MVP, all tenants are expected to operate one or a small number of schools with no cross-school staff overlap. Repository-level scoping prevents data leakage. The UI inconsistency is cosmetic at this stage.
-
-Revisit before onboarding tenants with more than 3 schools or any staff member holding roles at multiple schools simultaneously.
+For MVP the three-actor model (owner, gestor, director) covers all user creation scenarios. Extending it introduces complexity in determining which roles a given actor can assign, which is better solved once the full role catalog is stable.
 
 ---
 
-## PM-003 — Superadmin cross-tenant access (impersonation)
+## PM-004 — Superadmin cross-tenant access (impersonation)
 
 **Current behavior**
 
@@ -84,40 +54,41 @@ Impersonation requires audit trail design, session expiry enforcement, and caref
 
 ---
 
-## PM-002 — Teacher / Tutor role incompatibility
-
-**Context**
-
-The system supports multi-role — a user can hold several role assignments simultaneously. However, one combination is explicitly forbidden: a user cannot hold both `docente` (Teacher) and `tutor` (Tutor/Parent) roles at the same school.
-
-The conflict arises when a teacher has a child enrolled at the school where they work. As a teacher they have operational access to all students in their assigned groups (grades, attendance, etc.). As a tutor they should only have visibility into their own child's data. Allowing both roles simultaneously creates an access ambiguity that the current permission model cannot resolve cleanly — the merged permission set would grant teacher-level access disguised as parental access, or vice versa.
+## PM-002 — Role mutual exclusions — table-driven enforcement
 
 **Current behavior (MVP)**
 
-No validation exists in `AssignRoleToUserUseCase` to prevent this combination. The constraint is not enforced. For MVP this is acceptable because initial tenants are not expected to have teachers who are also parents at the same school.
+Mutual exclusions between roles are enforced in `AssignRoleToUserUseCase` via a hardcoded enum in the domain:
+
+- `teacher` and `student` cannot coexist for the same user in the same school.
+- `teacher` and `tutor` cannot coexist for the same user in the same school.
+- `student` and `tutor` cannot coexist for the same user in the same school.
+
+The check is school-scoped — a user can be a teacher at School A and a tutor at School B without conflict.
+
+**Problem at scale**
+
+As the role catalog grows, hardcoded enums require code changes and redeployment to add or modify exclusion rules. Tenants with unusual role structures cannot define their own exclusion policies.
 
 **Recommended solution**
 
-Introduce an `incompatible_roles` concept — either a config table or a hardcoded map in the Domain layer:
+Introduce a `role_exclusions` table:
 
-```php
-// Domain/Contracts/RoleCompatibilityInterface.php
-interface RoleCompatibilityInterface
-{
-    /** @return array<string> slugs that cannot coexist with $roleSlug for the same user+school */
-    public function incompatibleWith(string $roleSlug): array;
+```sql
+Table role_exclusions {
+  role_id            bigint [not null, ref: > roles.id]
+  excluded_role_id   bigint [not null, ref: > roles.id]
+  indexes {
+    (role_id, excluded_role_id) [pk]
+  }
 }
-
-// Initial map:
-// 'docente' => ['tutor']
-// 'tutor'   => ['docente']
 ```
 
-`AssignRoleToUserUseCase` checks this before persisting the assignment and throws a domain exception if a conflict is found. The check is school-scoped — a user can be a teacher at School A and a tutor at School B without conflict.
+`AssignRoleToUserUseCase` queries this table instead of reading the hardcoded enum. The seeder populates the initial pairs. Tenant-level custom exclusions can be added without code changes.
 
 **Why deferred**
 
-The rule requires knowing which roles a user already holds at a given school before assigning a new one, plus maintaining the incompatibility map as the role catalog grows. For MVP the edge case is not present in the target user base.
+The hardcoded enum covers all known incompatible combinations for MVP tenants. A table adds migration and seeder complexity with no immediate benefit.
 
 ---
 

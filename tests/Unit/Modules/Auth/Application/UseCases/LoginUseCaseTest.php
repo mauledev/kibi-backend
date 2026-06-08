@@ -126,12 +126,12 @@ describe('LoginUseCase', function () {
         $permB = new Permission(id: 2, uuid: 'perm-b', categoryId: 1, name: 'B', slug: 'payment.approve');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
+            id: 10, uuid: 'r-a', tenantId: 10, categoryId: null, name: 'Role A', slug: 'role_a',
             hierarchyLevel: 4, isSystemRole: false, permissions: [$permA],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
+            id: 11, uuid: 'r-b', tenantId: 10, categoryId: null, name: 'Role B', slug: 'role_b',
             hierarchyLevel: 5, isSystemRole: false, permissions: [$permB],
             createdAt: new DateTimeImmutable,
         );
@@ -155,12 +155,12 @@ describe('LoginUseCase', function () {
         $perm = new Permission(id: 1, uuid: 'perm-shared', categoryId: 1, name: 'Shared', slug: 'role.view');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, name: 'Role A', slug: 'role_a',
+            id: 10, uuid: 'r-a', tenantId: 10, categoryId: null, name: 'Role A', slug: 'role_a',
             hierarchyLevel: 4, isSystemRole: false, permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, name: 'Role B', slug: 'role_b',
+            id: 11, uuid: 'r-b', tenantId: 10, categoryId: null, name: 'Role B', slug: 'role_b',
             hierarchyLevel: 5, isSystemRole: false, permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );

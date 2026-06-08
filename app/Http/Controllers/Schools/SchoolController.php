@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Schools;
 
+use App\Common\School\SchoolContext;
 use App\Http\Controller;
 use App\Http\Requests\Schools\CreateSchoolRequest;
 use App\Http\Requests\Schools\ListSchoolsRequest;
@@ -12,6 +13,8 @@ use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolInput;
 use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\DeactivateSchool\DeactivateSchoolInput;
 use App\Modules\Schools\Application\UseCases\DeactivateSchool\DeactivateSchoolUseCase;
+use App\Modules\Schools\Application\UseCases\GetCurrentSchool\GetCurrentSchoolInput;
+use App\Modules\Schools\Application\UseCases\GetCurrentSchool\GetCurrentSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolInput;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
@@ -53,6 +56,23 @@ class SchoolController extends Controller
 
         try {
             $school = $useCase->execute(new GetSchoolInput($uuid));
+
+            return ApiResponse::success((new SchoolResource($school))->resolve());
+        } catch (SchoolNotFoundException $e) {
+            return ApiResponse::notFound($e->getMessage());
+        }
+    }
+
+    /**
+     * GET /school — Return the school the user is currently operating in,
+     * identified by the X-School-Uuid header resolved by SchoolMiddleware.
+     */
+    public function currentSchool(Request $request, GetCurrentSchoolUseCase $useCase): JsonResponse
+    {
+        try {
+            $school = $useCase->execute(new GetCurrentSchoolInput(
+                schoolId: app(SchoolContext::class)->schoolId,
+            ));
 
             return ApiResponse::success((new SchoolResource($school))->resolve());
         } catch (SchoolNotFoundException $e) {

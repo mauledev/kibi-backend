@@ -6,13 +6,14 @@ use App\Models\Tenant as TenantModel;
 use App\Modules\Auth\Domain\Entities\User as UserEntity;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface;
 use App\Modules\Tenant\Domain\Entities\Tenant;
+use Illuminate\Support\Str;
 
 class EloquentTenantRepository implements TenantRepositoryInterface
 {
     /** {@inheritDoc} */
     public function findBySlug(string $slug): ?Tenant
     {
-        $model = TenantModel::where('slug', $slug)->first();
+        $model = TenantModel::where('slug', Str::lower($slug))->first();
 
         return $model ? $this->toDomain($model) : null;
     }
@@ -23,7 +24,7 @@ class EloquentTenantRepository implements TenantRepositoryInterface
      */
     public function findBySlugWithOwner(string $slug): Tenant
     {
-        $model = TenantModel::where('slug', $slug)
+        $model = TenantModel::where('slug', Str::lower($slug))
             ->with('owner')
             ->firstOrFail();
 
@@ -35,7 +36,7 @@ class EloquentTenantRepository implements TenantRepositoryInterface
     {
         $model = TenantModel::create([
             'name' => $name,
-            'slug' => $slug,
+            'slug' => Str::lower($slug),
             'owner_id' => $ownerId,
             'status' => 'pending',
         ]);
@@ -88,7 +89,7 @@ class EloquentTenantRepository implements TenantRepositoryInterface
         $model = TenantModel::findOrFail($id);
         $model->update([
             'name' => $name,
-            'slug' => $slug,
+            'slug' => Str::lower($slug),
             'status' => $status,
         ]);
 
