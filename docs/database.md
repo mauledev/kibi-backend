@@ -225,18 +225,25 @@ Table permission_categories {
 }
 ```
 
-Categories are global, pre-seeded by Softlinkia and non-negotiable. The `scope` column separates categories that share the same name across different contexts:
+Categories are global, pre-seeded by Softlinkia and non-negotiable. The `scope` column separates categories that share the same name across different contexts.
 
-| scope | name | Used by |
+**Rule: one category per system role.** Each operational role is bound to its own category. A teacher cannot receive coordinator permissions — assign a second role instead. Custom roles have no category and can hold permissions from any category.
+
+| scope | name | Role slug |
 |---|---|---|
-| `staff` | support | Softlinkia support role (`support`) |
-| `staff` | finance | Softlinkia treasury roles (`operator`, `leader`) |
-| `tenant` | finance | Tenant-level finance manager (billing across all schools) |
-| `tenant` | hr | Tenant-level HR manager |
-| `school` | director | School director |
-| `school` | teacher | School teacher |
-| `school` | finance | School finance user |
-| `school` | hr | School HR user |
+| `staff` | support | _(future: support L1/L2/L3)_ |
+| `staff` | finance | _(future: finance L1/L2/L3)_ |
+| `tenant` | finance | `tenant_finance` |
+| `tenant` | hr | `tenant_hr` |
+| `school` | director | `director` |
+| `school` | academic_coordinator | `academic_coordinator` |
+| `school` | school_registrar | `school_registrar` |
+| `school` | prefect | `prefect` |
+| `school` | finance | `finance` |
+| `school` | hr | `hr` |
+| `school` | teacher | `teacher` |
+| `school` | student | `student` |
+| `school` | tutor | `tutor` |
 
 The same name (e.g. `finance`) can exist in multiple scopes — they are completely independent categories with different permission sets.
 
@@ -401,9 +408,8 @@ Table staff_work_schedules {
 ```
 
 Working schedule of a Backoffice staff member, captured during personnel creation
-(`POST /staff/personnel`). Only applies to staff users (`is_staff = true`); tenant
-users do not have one. The `user_id` unique constraint enforces one schedule per staff
-member.
+(`POST /staff/personnel`). Independent table from `users` (no columns added there);
+one schedule per staff user enforced by the unique `user_id`.
 
 ### audit_logs
 ```sql
@@ -436,18 +442,16 @@ Table audit_logs {
 - **Permission categories** — seeded with three scopes:
   - `staff` scope: `support`, `finance` (for Softlinkia staff operational roles)
   - `tenant` scope: `finance`, `hr` (for tenant-level operational roles, e.g. tenant billing manager)
-  - `school` scope: `director`, `teacher`, `finance`, `hr`, `academic_coordinator`, `control_escolar`, `library`, `prefectura`, `student`, `tutor`, `provider`
+  - `school` scope: `director`, `academic_coordinator`, `school_registrar`, `prefect`, `finance`, `hr`, `teacher`, `student`, `tutor`
 - **System permissions**: seeded per category. Each permission belongs to exactly one category. Administrative permissions (e.g. `user.create`, `user.suspend`, `permissions.manage`, `roles.custom.create`) are seeded alongside the first modules that need them.
 - **Staff roles** (`tenant_id = NULL`, `is_system_role = true`):
   - Superadmin — no `category_id`, authority via an explicit superadmin check on staff routes.
   - Tesorería Operador (`operator`), Tesorería Líder (`leader`) — `category_id` pointing to `staff/finance`.
   - Soporte (`support`) — `category_id` pointing to `staff/support`.
-- **Staff permission slugs** (seeded under the staff-scoped categories; the contract consumed by the Backoffice creation wizard):
-  - `staff/finance`: `billing.view`, `billing.approve`, `billing.refund`, `billing.review`, `billing.return`, `billing.metrics`, `remittance.create`, `batch.assign`, `audit.view`
-  - `staff/support`: `ticket.view`, `ticket.create`, `ticket.resolve`, `ticket.escalate`, `tenant.impersonate`, `tenant.view`
-- **Tenant-admin roles** (seeded per tenant, `is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), Gestor (all permissions in assigned schools, authority by slug).
-- **Tenant operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `tenant`): Tenant Finance Manager, Tenant HR Manager (examples — expand as product grows).
-- **School operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `school`): Director, Teacher, Finance, HR, Academic Coordinator, Control Escolar, Prefectura, Library, Student (Alumno), Tutor, Provider.
+  - **Staff permission slugs**: `staff/finance` → `billing.view/approve/refund/review/return/metrics`, `remittance.create`, `batch.assign`, `audit.view`; `staff/support` → `ticket.view/create/resolve/escalate`, `tenant.impersonate`, `tenant.view`.
+- **Tenant-admin roles** (`is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), School Manager (all permissions in assigned schools, authority by slug). Neither holds `role_permissions` rows — their authority is entirely Gate-driven.
+- **Tenant operational roles** (`is_system_role = false`, `category_id` of scope `tenant`): Tenant Finance (`tenant_finance`), Tenant HR (`tenant_hr`).
+- **School operational roles** (`is_system_role = false`, `category_id` of scope `school`): Director, Academic Coordinator, School Registrar, Prefect, Finance, HR, Teacher, Student, Tutor. Each role has its own exclusive category — cross-category permissions require assigning a second role.
 - **Default role_permissions**: each operational role (staff, tenant, or school) receives the permissions that belong to its category. These are the defaults — authorized actors can adjust them within category bounds.
 
 Re-running the seeder is safe — all inserts use `insertOrIgnore`.

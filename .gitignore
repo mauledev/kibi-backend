@@ -166,7 +166,6 @@ database.sqlite
 research/
 experiments/
 /http-requests
-roles-and-permissions-guide.md
 
 # Archivos compilados
 *.php.bak

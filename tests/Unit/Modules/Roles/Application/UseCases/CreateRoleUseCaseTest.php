@@ -37,7 +37,7 @@ describe('CreateRoleUseCase', function () {
         );
     }
 
-    it('throws HierarchyViolationException when actor slug is not owner or gestor_escuelas', function () {
+    it('throws HierarchyViolationException when actor slug is not owner or school_manager', function () {
         $input = new CreateRoleInput(
             actorUserId: 1,
             actorSlug: 'director',
@@ -112,7 +112,7 @@ describe('CreateRoleUseCase', function () {
     it('associates schools when schoolUuids are provided', function () {
         $input = new CreateRoleInput(
             actorUserId: 1,
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             tenantId: 1,
             name: 'Multi School Role',
             schoolUuids: ['school-uuid-1', 'school-uuid-2'],

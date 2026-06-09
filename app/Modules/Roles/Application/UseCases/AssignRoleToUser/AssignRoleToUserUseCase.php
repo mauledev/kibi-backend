@@ -27,7 +27,7 @@ class AssignRoleToUserUseCase
 
     /**
      * Assign a role to a user.
-     * Only owner, gestor_escuelas, and director can assign roles.
+     * Only owner, school_manager, and director can assign roles.
      * If the user already holds an active assignment for this role+school, it is returned unchanged.
      *
      * @throws UserNotFoundException
@@ -38,9 +38,9 @@ class AssignRoleToUserUseCase
      */
     public function execute(AssignRoleToUserInput $input): UserRoleAssignment
     {
-        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, gestor_escuelas, or director can assign roles to users.'
+                'Only owner, school_manager, or director can assign roles to users.'
             );
         }
 
@@ -62,10 +62,10 @@ class AssignRoleToUserUseCase
             throw new OwnerRoleAssignmentException;
         }
 
-        // Director cannot assign gestor_escuelas role
-        if ($input->actorSlug === 'director' && $role->getSlug() === 'gestor_escuelas') {
+        // Director cannot assign school_manager role
+        if ($input->actorSlug === 'director' && $role->getSlug() === 'school_manager') {
             throw new HierarchyViolationException(
-                'Director cannot assign the gestor_escuelas role.'
+                'Director cannot assign the school_manager role.'
             );
         }
 

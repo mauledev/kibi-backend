@@ -16,7 +16,7 @@ Rules that apply to all code, without exception. Regardless of the task — thes
 | Database tables | `snake_case`, plural |
 | Database columns | `snake_case` |
 | Permission slugs | `{model}.{verb}` — `grade.publish`, `payment.approve` |
-| Role slugs | `snake_case` — `gestor_escuelas`, `control_escolar` |
+| Role slugs | `snake_case` — `school_manager`, `school_registrar` |
 | Public IDs in routes | `{uuid}` — never `{id}` |
 
 ## User name fields

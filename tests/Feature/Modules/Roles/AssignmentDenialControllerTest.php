@@ -81,7 +81,7 @@ describe('Assignment Denial endpoints', function () {
 
         it('returns 403 when trying to add a denial on a gestor assignment', function () {
             $gestorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create([
-                'slug' => 'gestor_escuelas',
+                'slug' => 'school_manager',
             ]);
             $gestorUser = User::factory()->create();
             $gestorAssignment = denialAssignRole($gestorUser, $gestorRole, $this->school->id);
