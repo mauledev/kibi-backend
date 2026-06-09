@@ -122,7 +122,7 @@ describe('POST /api/staff/personnel', function () {
         $created = User::where('email', 'karla.mendoza@softlinkia.com')->firstOrFail();
 
         $hasRole = UserRoleAssignment::where('user_id', $created->id)
-            ->whereHas('role', fn($q) => $q->where('slug', 'operator'))
+            ->whereHas('role', fn ($q) => $q->where('slug', 'operator'))
             ->whereNull('revoked_at')
             ->exists();
 
