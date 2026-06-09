@@ -43,6 +43,35 @@ class DevSeeder extends Seeder
         }
 
         // -------------------------------------------------------
+        // Backoffice Superadmin — dedicated example account with the `superadmin`
+        // role, so it can manage staff personnel (POST /staff/personnel is guarded
+        // by the staff.superadmin middleware).
+        // Login: POST /api/staff/auth/login  (superadmin@kibi.com / password)
+        // -------------------------------------------------------
+        $superadmin = User::firstOrCreate(
+            ['email' => 'superadmin@kibi.com'],
+            [
+                'is_staff' => true,
+                'first_name' => 'Super',
+                'last_name_paternal' => 'Admin',
+                'last_name_maternal' => null,
+                'password_hash' => Hash::make('password'),
+                'status' => 'active',
+            ]
+        );
+
+        $superadminRole = Role::where('slug', 'superadmin')->whereNull('tenant_id')->first();
+
+        if ($superadminRole !== null) {
+            UserRoleAssignment::firstOrCreate([
+                'user_id' => $superadmin->id,
+                'role_id' => $superadminRole->id,
+                'school_id' => null,
+                'revoked_at' => null,
+            ]);
+        }
+
+        // -------------------------------------------------------
         // Demo tenant — for testing tenant auth flow
         // Login: POST /api/auth/login  (header X-Tenant-Slug: demo)
         // -------------------------------------------------------
