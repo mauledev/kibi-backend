@@ -41,7 +41,9 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelUseCase;
+use App\Modules\Staff\Domain\Contracts\StaffPersonnelReadRepositoryInterface;
 use App\Modules\Staff\Domain\Contracts\StaffWorkScheduleRepositoryInterface;
+use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffPersonnelReadRepository;
 use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffWorkScheduleRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
@@ -81,6 +83,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             StaffWorkScheduleRepositoryInterface::class,
             EloquentStaffWorkScheduleRepository::class
+        );
+
+        $this->app->bind(
+            StaffPersonnelReadRepositoryInterface::class,
+            EloquentStaffPersonnelReadRepository::class
         );
 
         // CreatePersonnelUseCase runs on staff routes (no TenantContext): resolve the

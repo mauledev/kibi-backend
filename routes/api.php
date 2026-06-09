@@ -39,9 +39,11 @@ Route::prefix('staff')->group(function () {
         Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
 
         // Backoffice staff personnel — Superadmin only (explicit check; no Gate on staff routes)
-        Route::post('/personnel', [PersonnelController::class, 'store'])
-            ->middleware('staff.superadmin')
-            ->name('staff.personnel.store');
+        Route::middleware('staff.superadmin')->group(function () {
+            Route::get('/personnel', [PersonnelController::class, 'index'])->name('staff.personnel.index');
+            Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
+            Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
+        });
     });
 });
 

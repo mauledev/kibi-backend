@@ -5,18 +5,53 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controller;
 use App\Http\Requests\Staff\CreatePersonnelRequest;
 use App\Http\Resources\Staff\StaffMemberResource;
+use App\Http\Resources\Staff\StaffPersonnelListResource;
+use App\Http\Resources\Staff\StaffPersonnelResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelInput;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelUseCase;
+use App\Modules\Staff\Application\UseCases\GetPersonnel\GetPersonnelUseCase;
+use App\Modules\Staff\Application\UseCases\ListPersonnel\ListPersonnelUseCase;
 use App\Modules\Staff\Domain\Entities\WorkSchedule;
 use App\Modules\Staff\Domain\Exceptions\InvalidStaffRoleException;
 use App\Modules\Staff\Domain\Exceptions\PermissionNotAllowedException;
+use App\Modules\Staff\Domain\Exceptions\PersonnelNotFoundException;
 use App\Modules\Staff\Domain\Exceptions\StaffEmailAlreadyTakenException;
 use App\Modules\Staff\Domain\Exceptions\StaffRoleNotFoundException;
 use Illuminate\Http\JsonResponse;
 
 class PersonnelController extends Controller
 {
+    /**
+     * List all Backoffice staff members.
+     * GET /staff/personnel
+     */
+    public function index(ListPersonnelUseCase $useCase): JsonResponse
+    {
+        $items = array_map(
+            fn ($item) => (new StaffPersonnelListResource($item))->resolve(),
+            $useCase->execute(),
+        );
+
+        return ApiResponse::success($items);
+    }
+
+    /**
+     * Get a single Backoffice staff member by UUID.
+     * GET /staff/personnel/{uuid}
+     *
+     * Responds 200 with the full member (role, personal data, work schedule,
+     * effective permissions, requires_2fa). 404 when not found.
+     */
+    public function show(string $uuid, GetPersonnelUseCase $useCase): JsonResponse
+    {
+        try {
+            return ApiResponse::success(new StaffPersonnelResource($useCase->execute($uuid)));
+        } catch (PersonnelNotFoundException) {
+            return ApiResponse::notFound();
+        }
+    }
+
     /**
      * Create a Backoffice staff member.
      * POST /staff/personnel
