@@ -207,4 +207,22 @@ class User extends Authenticatable
             fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'school_manager'
         );
     }
+
+    /**
+     * Return the distinct school IDs this user can operate in, derived from their
+     * active, school-scoped assignments. Tenant-level assignments (school_id IS NULL)
+     * are excluded — they grant no specific school. Used to scope listings for
+     * non-owner actors (gestor sees all managed schools, director sees their school).
+     *
+     * @return array<int, int>
+     */
+    public function accessibleSchoolIds(): array
+    {
+        return $this->activeAssignments()
+            ->pluck('school_id')
+            ->reject(fn (?int $id) => $id === null)
+            ->unique()
+            ->values()
+            ->all();
+    }
 }
