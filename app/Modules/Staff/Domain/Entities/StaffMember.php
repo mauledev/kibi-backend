@@ -24,6 +24,7 @@ class StaffMember
         private readonly ?string $lastNameMaternal,
         private readonly string $email,
         private readonly ?string $phone,
+        private readonly WorkSchedule $workSchedule,
         private readonly array $permissions,
         private readonly bool $requires2fa,
         private readonly DateTimeImmutable $createdAt,
@@ -62,6 +63,11 @@ class StaffMember
     public function getPhone(): ?string
     {
         return $this->phone;
+    }
+
+    public function getWorkSchedule(): WorkSchedule
+    {
+        return $this->workSchedule;
     }
 
     /** @return array<string> */

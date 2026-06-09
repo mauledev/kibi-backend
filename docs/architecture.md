@@ -211,8 +211,8 @@ HTTP Request ({tenant_slug}.kibi.com)
 
 **Softlinkia staff** (`users.is_staff = true`):
 - Roles have `is_system_role = true` and `tenant_id = NULL`
-- Superadmin has no `category_id` — authority is handled by the Gate bypass on staff routes
-- All other staff roles (support L1/L2/L3, finance L1/L2/L3) have a `category_id` of scope `staff` and manage permissions via `role_permissions` rows
+- Superadmin has no `category_id` — authority is handled by an explicit superadmin check on staff routes (the `Gate::before` owner bypass never fires on staff routes, where `TenantContext` is not bound). The `EnsureStaffSuperadmin` middleware guards staff-management routes.
+- All other staff operational roles (Tesorería Operador `operator`, Tesorería Líder `leader` → category `staff/finance`; Soporte `support` → category `staff/support`) have a `category_id` of scope `staff` and manage permissions via `role_permissions` rows
 - Access is controlled by domain: staff only accesses `app.kibi.com`
 - Repositories scope by `WHERE is_staff = true`
 

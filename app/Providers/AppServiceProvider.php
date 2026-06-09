@@ -41,6 +41,8 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelUseCase;
+use App\Modules\Staff\Domain\Contracts\StaffWorkScheduleRepositoryInterface;
+use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffWorkScheduleRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
@@ -76,6 +78,11 @@ class AppServiceProvider extends ServiceProvider
             ->give(EloquentUserRoleAssignmentRepository::class);
 
         // --- Staff module ---
+        $this->app->bind(
+            StaffWorkScheduleRepositoryInterface::class,
+            EloquentStaffWorkScheduleRepository::class
+        );
+
         // CreatePersonnelUseCase runs on staff routes (no TenantContext): resolve the
         // staff-scoped role repo (is_system_role = true) and the assignment repo directly.
         $this->app->when(CreatePersonnelUseCase::class)

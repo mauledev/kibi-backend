@@ -27,6 +27,13 @@ class CreatePersonnelRequest extends FormRequest
             'personal_data.email' => ['required', 'email', 'max:255'],
             'personal_data.phone' => ['nullable', 'string', 'max:30'],
 
+            'work_schedule' => ['required', 'array'],
+            'work_schedule.timezone' => ['required', 'string', 'max:64'],
+            'work_schedule.days' => ['required', 'array', 'min:1'],
+            'work_schedule.days.*' => ['string', 'in:mon,tue,wed,thu,fri,sat,sun'],
+            'work_schedule.start_time' => ['required', 'date_format:H:i'],
+            'work_schedule.end_time' => ['required', 'date_format:H:i'],
+
             'permissions' => ['present', 'array'],
             'permissions.*' => ['string'],
         ];

@@ -8,6 +8,7 @@ use App\Http\Resources\Staff\StaffMemberResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelInput;
 use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelUseCase;
+use App\Modules\Staff\Domain\Entities\WorkSchedule;
 use App\Modules\Staff\Domain\Exceptions\InvalidStaffRoleException;
 use App\Modules\Staff\Domain\Exceptions\PermissionNotAllowedException;
 use App\Modules\Staff\Domain\Exceptions\StaffEmailAlreadyTakenException;
@@ -34,6 +35,12 @@ class PersonnelController extends Controller
                 lastNameMaternal: $request->validated('personal_data.last_name_maternal'),
                 email: $request->validated('personal_data.email'),
                 phone: $request->validated('personal_data.phone'),
+                workSchedule: new WorkSchedule(
+                    timezone: $request->validated('work_schedule.timezone'),
+                    days: $request->validated('work_schedule.days'),
+                    startTime: $request->validated('work_schedule.start_time'),
+                    endTime: $request->validated('work_schedule.end_time'),
+                ),
                 permissions: $request->validated('permissions'),
                 createdBy: $request->user()?->id,
             ));
@@ -41,7 +48,7 @@ class PersonnelController extends Controller
             return ApiResponse::created(new StaffMemberResource($member));
         } catch (StaffEmailAlreadyTakenException $e) {
             return ApiResponse::conflict($e->getMessage(), ['personal_data.email' => [$e->getMessage()]]);
-        } catch (InvalidStaffRoleException | PermissionNotAllowedException | StaffRoleNotFoundException $e) {
+        } catch (InvalidStaffRoleException|PermissionNotAllowedException|StaffRoleNotFoundException $e) {
             return ApiResponse::error($e->getMessage(), 422);
         }
     }

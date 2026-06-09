@@ -223,7 +223,10 @@ POST   /staff/tenants            Create a new tenant + owner (requires auth:sanc
 GET    /staff/tenants/{uuid}     Get a single tenant with embedded owner
 PUT    /staff/tenants/{uuid}     Update a tenant's name, slug, and status
 DELETE /staff/tenants/{uuid}     Soft-delete a tenant
+POST   /staff/personnel          Create a Backoffice staff member (superadmin only)
 ```
+
+`POST /staff/personnel` creates a Softlinkia Backoffice staff member (`operator`, `leader` or `support`). Guarded by the `staff.superadmin` middleware (only Superadmin can create personnel). Body: `{ role, personal_data: { first_name, last_name_paternal, last_name_maternal?, email, phone? }, work_schedule: { timezone, days[], start_time, end_time }, permissions[] }`. Creates a pending staff user (no password, `is_staff = true`), assigns the role (recording denials for any default permission the actor unchecked), persists the work schedule, and emails a magic-link activation (168h signed URL to the staff host). `requires_2fa` is derived server-side from the role (`operator` = false, `leader`/`support` = true) — never trusted from the request. Returns 201 with the created member. Returns 403 when the caller is not Superadmin, 409 when the email is already taken, 422 for an invalid role, a permission outside the role's catalogue, or an invalid work schedule.
 
 `GET /staff/tenants` returns 200 with a paginated list of tenants. Accepts a `page` query parameter (default: 1, page size: 20). Each item includes a compact owner shape (`uuid`, `email`, `full_name`) and a `created_at` ISO 8601 timestamp. The response envelope includes a `meta.pagination` object with `total`, `per_page`, `current_page`, and `last_page`.
 

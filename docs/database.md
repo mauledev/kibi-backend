@@ -229,8 +229,8 @@ Categories are global, pre-seeded by Softlinkia and non-negotiable. The `scope` 
 
 | scope | name | Used by |
 |---|---|---|
-| `staff` | support | Softlinkia support roles (L1, L2, L3) |
-| `staff` | finance | Softlinkia finance roles |
+| `staff` | support | Softlinkia support role (`support`) |
+| `staff` | finance | Softlinkia treasury roles (`operator`, `leader`) |
 | `tenant` | finance | Tenant-level finance manager (billing across all schools) |
 | `tenant` | hr | Tenant-level HR manager |
 | `school` | director | School director |
@@ -384,6 +384,27 @@ Table teacher_subject_groups {
 }
 ```
 
+### staff_work_schedules
+```sql
+Table staff_work_schedules {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null]
+  user_id bigint [not null, unique, ref: > users.id,
+    note: 'One work schedule per Softlinkia staff user.']
+  timezone varchar(64) [not null, note: 'IANA name, e.g. America/Mexico_City']
+  days jsonb [not null, note: 'Weekday codes, e.g. ["mon","tue","wed","thu","fri"]']
+  start_time time [not null, note: '24h time of day']
+  end_time time [not null]
+  created_at timestamptz [default: `now()`]
+  deleted_at timestamptz
+}
+```
+
+Working schedule of a Backoffice staff member, captured during personnel creation
+(`POST /staff/personnel`). Only applies to staff users (`is_staff = true`); tenant
+users do not have one. The `user_id` unique constraint enforces one schedule per staff
+member.
+
 ### audit_logs
 ```sql
 Table audit_logs {
@@ -418,9 +439,12 @@ Table audit_logs {
   - `school` scope: `director`, `teacher`, `finance`, `hr`, `academic_coordinator`, `control_escolar`, `library`, `prefectura`, `student`, `tutor`, `provider`
 - **System permissions**: seeded per category. Each permission belongs to exactly one category. Administrative permissions (e.g. `user.create`, `user.suspend`, `permissions.manage`, `roles.custom.create`) are seeded alongside the first modules that need them.
 - **Staff roles** (`tenant_id = NULL`, `is_system_role = true`):
-  - Superadmin — no `category_id`, authority via Gate bypass on staff routes.
-  - Support L1, L2, L3 — `category_id` pointing to `staff/support`.
-  - Finance L1, L2, L3 — `category_id` pointing to `staff/finance`.
+  - Superadmin — no `category_id`, authority via an explicit superadmin check on staff routes.
+  - Tesorería Operador (`operator`), Tesorería Líder (`leader`) — `category_id` pointing to `staff/finance`.
+  - Soporte (`support`) — `category_id` pointing to `staff/support`.
+- **Staff permission slugs** (seeded under the staff-scoped categories; the contract consumed by the Backoffice creation wizard):
+  - `staff/finance`: `billing.view`, `billing.approve`, `billing.refund`, `billing.review`, `billing.return`, `billing.metrics`, `remittance.create`, `batch.assign`, `audit.view`
+  - `staff/support`: `ticket.view`, `ticket.create`, `ticket.resolve`, `ticket.escalate`, `tenant.impersonate`, `tenant.view`
 - **Tenant-admin roles** (seeded per tenant, `is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), Gestor (all permissions in assigned schools, authority by slug).
 - **Tenant operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `tenant`): Tenant Finance Manager, Tenant HR Manager (examples — expand as product grows).
 - **School operational roles** (seeded per tenant, `is_system_role = false`, `category_id` of scope `school`): Director, Teacher, Finance, HR, Academic Coordinator, Control Escolar, Prefectura, Library, Student (Alumno), Tutor, Provider.

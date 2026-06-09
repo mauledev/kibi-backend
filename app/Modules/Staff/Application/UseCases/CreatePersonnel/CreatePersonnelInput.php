@@ -2,6 +2,8 @@
 
 namespace App\Modules\Staff\Application\UseCases\CreatePersonnel;
 
+use App\Modules\Staff\Domain\Entities\WorkSchedule;
+
 class CreatePersonnelInput
 {
     /**
@@ -14,6 +16,7 @@ class CreatePersonnelInput
         public readonly ?string $lastNameMaternal,
         public readonly string $email,
         public readonly ?string $phone,
+        public readonly WorkSchedule $workSchedule,
         public readonly array $permissions,
         public readonly ?int $createdBy,
     ) {}

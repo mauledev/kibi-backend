@@ -29,9 +29,15 @@ class StaffMemberResource extends JsonResource
                 'email' => $member->getEmail(),
                 'phone' => $member->getPhone(),
             ],
+            'work_schedule' => [
+                'timezone' => $member->getWorkSchedule()->getTimezone(),
+                'days' => $member->getWorkSchedule()->getDays(),
+                'start_time' => $member->getWorkSchedule()->getStartTime(),
+                'end_time' => $member->getWorkSchedule()->getEndTime(),
+            ],
             'permissions' => $member->getPermissions(),
             'requires_2fa' => $member->requires2fa(),
-            'created_at' => $member->getCreatedAt(),
+            'created_at' => $member->getCreatedAt()->format(\DateTimeInterface::ATOM),
         ];
     }
 }

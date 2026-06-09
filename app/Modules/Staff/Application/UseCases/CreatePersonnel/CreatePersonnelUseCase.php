@@ -6,6 +6,7 @@ use App\Common\Mail\MailerInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
+use App\Modules\Staff\Domain\Contracts\StaffWorkScheduleRepositoryInterface;
 use App\Modules\Staff\Domain\Entities\StaffMember;
 use App\Modules\Staff\Domain\Enums\StaffRoleEnum;
 use App\Modules\Staff\Domain\Exceptions\InvalidStaffRoleException;
@@ -39,6 +40,7 @@ class CreatePersonnelUseCase
         private readonly GlobalUserRepositoryInterface $users,
         private readonly RoleRepositoryInterface $roles,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
+        private readonly StaffWorkScheduleRepositoryInterface $workSchedules,
         private readonly MailerInterface $mailer,
     ) {}
 
@@ -96,6 +98,8 @@ class CreatePersonnelUseCase
                 }
             }
 
+            $this->workSchedules->create($user->getId(), $input->workSchedule);
+
             return new StaffMember(
                 uuid: $user->getUuid(),
                 role: $role->value,
@@ -104,6 +108,7 @@ class CreatePersonnelUseCase
                 lastNameMaternal: $input->lastNameMaternal,
                 email: $input->email,
                 phone: $input->phone,
+                workSchedule: $input->workSchedule,
                 permissions: $effective,
                 requires2fa: $role->requires2fa(),
                 createdAt: DateTimeImmutable::createFromInterface($user->getCreatedAt()),
