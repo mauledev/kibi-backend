@@ -21,12 +21,16 @@ use App\Modules\Auth\Domain\Contracts\ActivationRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorRepositoryInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentActivationRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentTwoFactorRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
+use App\Modules\Auth\Infrastructure\Services\Google2faService;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
@@ -108,6 +112,16 @@ class AppServiceProvider extends ServiceProvider
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
         $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
+
+        // Two-factor (TOTP) base — reusable engine + persistence (not wired into login yet)
+        $this->app->bind(
+            TwoFactorServiceInterface::class,
+            Google2faService::class,
+        );
+        $this->app->bind(
+            TwoFactorRepositoryInterface::class,
+            EloquentTwoFactorRepository::class,
+        );
 
         // Tenant login — scoped by TenantContext
         $this->app->when(LoginUseCase::class)

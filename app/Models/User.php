@@ -60,15 +60,27 @@ class User extends Authenticatable
         'last_name_maternal',
         'phone',
         'status',
+        'two_factor_secret',
+        'two_factor_confirmed_at',
+        'two_factor_recovery_codes',
     ];
 
-    protected $hidden = ['password_hash'];
+    protected $hidden = ['password_hash', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     protected $casts = [
         'tenant_id' => 'integer',
         'is_staff' => 'boolean',
         'email_verified_at' => 'datetime',
+        'two_factor_confirmed_at' => 'datetime',
+        'two_factor_secret' => 'encrypted',
+        'two_factor_recovery_codes' => 'encrypted:array',
     ];
+
+    /** Whether the user has completed two-factor (TOTP) enrollment. */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
+    }
 
     public function getAuthPassword(): string
     {
