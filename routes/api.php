@@ -31,6 +31,11 @@ Route::prefix('staff')->group(function () {
     // Public
     Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:5,15')->name('staff.auth.login');
 
+    // Public — 2FA login step (guarded by an opaque challenge token, not a session)
+    Route::post('/auth/2fa/setup', [AuthController::class, 'twoFactorSetup'])->middleware('throttle:5,15')->name('staff.auth.2fa.setup');
+    Route::post('/auth/2fa/confirm', [AuthController::class, 'twoFactorConfirm'])->middleware('throttle:5,15')->name('staff.auth.2fa.confirm');
+    Route::post('/auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])->middleware('throttle:5,15')->name('staff.auth.2fa.challenge');
+
     // Authenticated
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
