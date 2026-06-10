@@ -9,7 +9,6 @@ use App\Modules\Staff\Domain\Contracts\StaffPersonnelReadRepositoryInterface;
 use App\Modules\Staff\Domain\Entities\StaffPersonnelDetail;
 use App\Modules\Staff\Domain\Entities\StaffPersonnelListItem;
 use App\Modules\Staff\Domain\Entities\WorkSchedule;
-use App\Modules\Staff\Domain\Enums\StaffRoleEnum;
 use DateTimeImmutable;
 
 class EloquentStaffPersonnelReadRepository implements StaffPersonnelReadRepositoryInterface
@@ -52,9 +51,8 @@ class EloquentStaffPersonnelReadRepository implements StaffPersonnelReadReposito
         $role = $this->staffRoleOf($user);
         $roleSlug = $role?->slug;
 
-        $requires2fa = $roleSlug !== null
-            ? (StaffRoleEnum::tryFrom($roleSlug)?->requires2fa() ?? false)
-            : false;
+        // Sourced from the role itself (roles.requires_2fa) — single source of truth.
+        $requires2fa = $role !== null ? (bool) $role->requires_2fa : false;
 
         $schedule = StaffWorkScheduleModel::where('user_id', $user->id)->first();
 

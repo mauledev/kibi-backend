@@ -21,6 +21,7 @@ class Role
         private array $permissions = [],
         private readonly DateTimeImmutable $createdAt = new DateTimeImmutable,
         private readonly ?DateTimeImmutable $deletedAt = null,
+        private readonly bool $requiresTwoFactor = false,
     ) {}
 
     /** Return the internal primary key. */
@@ -80,6 +81,12 @@ class Role
     public function isSystemRole(): bool
     {
         return $this->isSystemRole;
+    }
+
+    /** Return true when holding this role forces two-factor authentication at login. */
+    public function requiresTwoFactor(): bool
+    {
+        return $this->requiresTwoFactor;
     }
 
     /** @return array<Permission> */

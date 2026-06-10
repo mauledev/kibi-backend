@@ -44,6 +44,7 @@ class Role extends Model
         'slug',
         'hierarchy_level',
         'is_system_role',
+        'requires_2fa',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class Role extends Model
         'category_id' => 'integer',
         'hierarchy_level' => 'integer',
         'is_system_role' => 'boolean',
+        'requires_2fa' => 'boolean',
         'created_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];

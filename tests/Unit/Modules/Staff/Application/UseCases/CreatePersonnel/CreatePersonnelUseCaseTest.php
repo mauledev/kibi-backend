@@ -20,6 +20,7 @@ use App\Modules\Staff\Domain\Exceptions\InvalidStaffRoleException;
 use App\Modules\Staff\Domain\Exceptions\PermissionNotAllowedException;
 use App\Modules\Staff\Domain\Exceptions\StaffEmailAlreadyTakenException;
 use App\Modules\Staff\Domain\Exceptions\StaffRoleNotFoundException;
+use Illuminate\Support\Defer\DeferredCallbackCollection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -51,6 +52,7 @@ function staffRole(string $slug, array $permissionSlugs): Role
         hierarchyLevel: 3,
         isSystemRole: true,
         permissions: $permissions,
+        requiresTwoFactor: in_array($slug, ['leader', 'support'], true),
     );
 }
 
@@ -126,6 +128,17 @@ describe('CreatePersonnelUseCase', function () {
         Mockery::close();
     });
 
+    /**
+     * The activation email is dispatched via defer() (runs after the HTTP response
+     * in production). Flush it synchronously so unit-test assertions on the mailer
+     * mock are satisfied. Must run inside the test body (the scoped collection is
+     * reset on framework tearDown, before afterEach).
+     */
+    function flushDeferred(): void
+    {
+        app(DeferredCallbackCollection::class)->invoke();
+    }
+
     it('creates the user, assigns the role, persists the schedule and emails activation', function () {
         $this->users->shouldReceive('existsByEmail')->once()->andReturn(false);
         $this->roles->shouldReceive('findBySlug')->with('operator')->once()
@@ -137,6 +150,7 @@ describe('CreatePersonnelUseCase', function () {
         $this->mailer->shouldReceive('sendActivation')->once();
 
         $result = $this->useCase->execute(staffInput());
+        flushDeferred();
 
         expect($result->getRole())->toBe('operator');
         expect($result->requires2fa())->toBeFalse();
@@ -155,6 +169,7 @@ describe('CreatePersonnelUseCase', function () {
         $this->mailer->shouldReceive('sendActivation')->once();
 
         $result = $this->useCase->execute(staffInput('operator', ['billing.view']));
+        flushDeferred();
 
         expect($result->getPermissions())->toBe(['billing.view']);
     });

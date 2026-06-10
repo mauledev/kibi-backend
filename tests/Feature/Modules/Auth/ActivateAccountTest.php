@@ -1,12 +1,36 @@
 <?php
 
+use App\Models\Role as RoleModel;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
+
+/**
+ * Build a pending staff user (no password / unverified) with a single staff
+ * (system) role, ready for activation.
+ */
+function pendingStaffWithRole(string $slug): User
+{
+    $user = User::factory()->staff()->create([
+        'email' => $slug.'.activate@kibi.com',
+        'password_hash' => null,
+        'email_verified_at' => null,
+    ]);
+
+    $role = RoleModel::factory()->system()->create([
+        'slug' => $slug,
+        'name' => ucfirst($slug),
+        'requires_2fa' => in_array($slug, ['leader', 'support'], true),
+    ]);
+    UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
+
+    return $user;
+}
 
 /**
  * Build a pending owner + tenant fixture ready for activation.
@@ -172,6 +196,40 @@ describe('POST /api/auth/activate', function () {
             'password_confirmation' => 'DifferentPass2!',
         ])
             ->assertStatus(422);
+    });
+
+    it('withholds the session token when the staff role enforces 2FA', function () {
+        $user = pendingStaffWithRole('support');
+
+        $queryParams = signedActivationParams($user);
+
+        $response = $this->postJson('/api/auth/activate?'.http_build_query($queryParams), [
+            'password' => 'SecurePass1!',
+            'password_confirmation' => 'SecurePass1!',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.token', null)
+            ->assertJsonPath('data.is_staff', true);
+
+        // Password was still set: the account is activated, only the session is withheld.
+        $activated = User::where('email', $user->email)->firstOrFail();
+        expect($activated->password_hash)->not->toBeNull();
+        expect($activated->email_verified_at)->not->toBeNull();
+    });
+
+    it('issues a session token when the staff role does not enforce 2FA', function () {
+        $user = pendingStaffWithRole('operator');
+
+        $queryParams = signedActivationParams($user);
+
+        $response = $this->postJson('/api/auth/activate?'.http_build_query($queryParams), [
+            'password' => 'SecurePass1!',
+            'password_confirmation' => 'SecurePass1!',
+        ]);
+
+        $response->assertStatus(200)->assertJsonPath('data.is_staff', true);
+        expect($response->json('data.token'))->toBeString()->not->toBeEmpty();
     });
 
     it('returns 422 when password is too short', function () {

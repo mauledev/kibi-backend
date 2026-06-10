@@ -6,11 +6,14 @@ use App\Http\Controller;
 use App\Http\Requests\Auth\ActivateAccountRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\OAuthRequest;
+use App\Http\Requests\Auth\TwoFactorCodeRequest;
+use App\Http\Requests\Auth\TwoFactorSetupRequest;
 use App\Http\Resources\Auth\LoginResource;
 use App\Http\Resources\Auth\MeResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\OAuthLoginInput;
+use App\Modules\Auth\Application\DTOs\TwoFactorChallenge;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountInput;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
@@ -19,7 +22,13 @@ use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\Logout\LogoutUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
+use App\Modules\Auth\Application\UseCases\TwoFactorLogin\ConfirmTwoFactorLoginUseCase;
+use App\Modules\Auth\Application\UseCases\TwoFactorLogin\StartTwoFactorSetupUseCase;
+use App\Modules\Auth\Application\UseCases\TwoFactorLogin\VerifyTwoFactorLoginUseCase;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
+use App\Modules\Auth\Domain\Exceptions\InvalidTwoFactorChallengeException;
+use App\Modules\Auth\Domain\Exceptions\InvalidTwoFactorCodeException;
+use App\Modules\Auth\Domain\Exceptions\TwoFactorNotEnrolledException;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use Illuminate\Http\JsonResponse;
@@ -62,10 +71,86 @@ class AuthController extends Controller
                 password: $request->validated('password'),
             ));
 
+            if ($output instanceof TwoFactorChallenge) {
+                return ApiResponse::success([
+                    'two_factor' => [
+                        'status' => $output->status,
+                        'challenge_token' => $output->challengeToken,
+                    ],
+                ], 'Two-factor authentication required');
+            }
+
             return ApiResponse::success(new LoginResource($output), 'Login successful');
 
         } catch (InvalidCredentialsException $e) {
             return ApiResponse::unauthorized($e->getMessage());
+        }
+    }
+
+    /**
+     * Staff 2FA enrollment (first login) — returns the provisioning URI to render
+     * the QR. Requires a valid login challenge token; no session is issued yet.
+     * POST /staff/auth/2fa/setup
+     */
+    public function twoFactorSetup(TwoFactorSetupRequest $request, StartTwoFactorSetupUseCase $useCase): JsonResponse
+    {
+        try {
+            $enrollment = $useCase->execute($request->validated('challenge_token'));
+
+            return ApiResponse::success([
+                'secret' => $enrollment->getSecret(),
+                'provisioning_uri' => $enrollment->getProvisioningUri(),
+            ], 'Two-factor setup started');
+
+        } catch (InvalidTwoFactorChallengeException $e) {
+            return ApiResponse::unauthorized($e->getMessage());
+        }
+    }
+
+    /**
+     * Staff 2FA confirmation (first login) — confirms the TOTP code, returns the
+     * recovery codes (shown once) and issues the session.
+     * POST /staff/auth/2fa/confirm
+     */
+    public function twoFactorConfirm(TwoFactorCodeRequest $request, ConfirmTwoFactorLoginUseCase $useCase): JsonResponse
+    {
+        try {
+            $result = $useCase->execute(
+                $request->validated('challenge_token'),
+                $request->validated('code'),
+            );
+
+            return ApiResponse::success([
+                'session' => new LoginResource($result->session),
+                'recovery_codes' => $result->recoveryCodes,
+            ], 'Two-factor authentication enabled');
+
+        } catch (InvalidTwoFactorChallengeException $e) {
+            return ApiResponse::unauthorized($e->getMessage());
+        } catch (TwoFactorNotEnrolledException|InvalidTwoFactorCodeException $e) {
+            return ApiResponse::error($e->getMessage(), 422);
+        }
+    }
+
+    /**
+     * Staff 2FA challenge (already enrolled) — verifies a TOTP or recovery code
+     * and issues the session.
+     * POST /staff/auth/2fa/challenge
+     */
+    public function twoFactorChallenge(TwoFactorCodeRequest $request, VerifyTwoFactorLoginUseCase $useCase): JsonResponse
+    {
+        try {
+            $output = $useCase->execute(
+                $request->validated('challenge_token'),
+                $request->validated('code'),
+            );
+
+            return ApiResponse::success(new LoginResource($output), 'Login successful');
+
+        } catch (InvalidTwoFactorChallengeException $e) {
+            return ApiResponse::unauthorized($e->getMessage());
+        } catch (InvalidTwoFactorCodeException $e) {
+            return ApiResponse::error($e->getMessage(), 422);
         }
     }
 

@@ -197,6 +197,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => 'leader',
                 'hierarchy_level' => 2,
                 'is_system_role' => true,
+                'requires_2fa' => true,
             ],
             [
                 'tenant_id' => null,
@@ -213,6 +214,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => 'support',
                 'hierarchy_level' => 3,
                 'is_system_role' => true,
+                'requires_2fa' => true,
             ],
 
             // Tenant-admin — no category, authority by Gate bypass / slug
@@ -335,6 +337,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => $role['slug'],
                 'hierarchy_level' => $role['hierarchy_level'],
                 'is_system_role' => $role['is_system_role'],
+                'requires_2fa' => $role['requires_2fa'] ?? false,
                 'created_at' => now(),
             ]);
         }

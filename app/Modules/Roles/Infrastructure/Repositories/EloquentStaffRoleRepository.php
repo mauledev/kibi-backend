@@ -152,6 +152,7 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
             slug: $model->slug,
             hierarchyLevel: $model->hierarchy_level,
             isSystemRole: $model->is_system_role,
+            requiresTwoFactor: (bool) $model->requires_2fa,
             permissions: $permissions,
             createdAt: new DateTimeImmutable($model->created_at?->toIso8601String() ?? 'now'),
             deletedAt: $model->deleted_at !== null

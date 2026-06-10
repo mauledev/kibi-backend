@@ -16,15 +16,19 @@ use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
+use App\Modules\Auth\Application\UseCases\StaffLogin\IssueStaffSessionUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
+use App\Modules\Auth\Application\UseCases\TwoFactorLogin\StartTwoFactorSetupUseCase;
 use App\Modules\Auth\Domain\Contracts\ActivationRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorChallengeRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\TwoFactorRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\TwoFactorServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
+use App\Modules\Auth\Infrastructure\Repositories\CacheTwoFactorChallengeRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentActivationRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
@@ -113,7 +117,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
         $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
 
-        // Two-factor (TOTP) base — reusable engine + persistence (not wired into login yet)
+        // Two-factor (TOTP) base — reusable engine + persistence
         $this->app->bind(
             TwoFactorServiceInterface::class,
             Google2faService::class,
@@ -121,6 +125,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             TwoFactorRepositoryInterface::class,
             EloquentTwoFactorRepository::class,
+        );
+        // Short-lived login challenge store (cache-backed, TTL from config)
+        $this->app->bind(
+            TwoFactorChallengeRepositoryInterface::class,
+            fn () => new CacheTwoFactorChallengeRepository((int) config('twofactor.challenge_ttl', 600)),
         );
 
         // Tenant login — scoped by TenantContext
@@ -141,6 +150,24 @@ class AppServiceProvider extends ServiceProvider
         $this->app->when(StaffLoginUseCase::class)
             ->needs(RoleRepositoryInterface::class)
             ->give(EloquentStaffRoleRepository::class);
+
+        // Staff session issuer — reused by the 2FA completion endpoints
+        $this->app->when(IssueStaffSessionUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentStaffUserRepository::class);
+
+        $this->app->when(IssueStaffSessionUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentStaffRoleRepository::class);
+
+        // Staff 2FA enrollment at first login
+        $this->app->when(StartTwoFactorSetupUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentStaffUserRepository::class);
+
+        $this->app->when(StartTwoFactorSetupUseCase::class)
+            ->needs('$issuer')
+            ->giveConfig('twofactor.issuer');
 
         // Get me — tenant
         $this->app->when(GetMeUseCase::class)

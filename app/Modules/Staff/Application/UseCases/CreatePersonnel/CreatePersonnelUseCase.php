@@ -17,6 +17,8 @@ use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 
+use function Illuminate\Support\defer;
+
 /**
  * Create a Softlinkia Backoffice staff member (operator / leader / support).
  *
@@ -110,12 +112,15 @@ class CreatePersonnelUseCase
                 phone: $input->phone,
                 workSchedule: $input->workSchedule,
                 permissions: $effective,
-                requires2fa: $role->requires2fa(),
+                requires2fa: $roleEntity->requiresTwoFactor(),
                 createdAt: DateTimeImmutable::createFromInterface($user->getCreatedAt()),
             );
         });
 
-        $this->sendActivationEmail($member->getUuid(), $member->getEmail());
+        // Send the activation email AFTER the HTTP response is flushed to the client.
+        // Keeps creation fast (cold Blade compile / SMTP handshake no longer blocks the
+        // request) and prevents the 15s client timeout that caused duplicate-on-retry.
+        defer(fn () => $this->sendActivationEmail($member->getUuid(), $member->getEmail()));
 
         return $member;
     }
