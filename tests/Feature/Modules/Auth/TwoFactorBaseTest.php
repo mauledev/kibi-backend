@@ -41,6 +41,23 @@ it('enrolls, confirms with a valid TOTP code, and verifies', function () {
     expect(app(VerifyTwoFactorUseCase::class)->execute($user->id, '000000'))->toBeFalse();
 });
 
+it('reuses the pending secret on repeated enrollment (idempotent while unconfirmed)', function () {
+    $user = User::factory()->create();
+    $enroll = app(EnrollTwoFactorUseCase::class);
+
+    $first = $enroll->execute($user->id, $user->email, 'Kibi');
+    $second = $enroll->execute($user->id, $user->email, 'Kibi');
+
+    expect($second->getSecret())->toBe($first->getSecret());
+
+    // After confirming, a new enrollment must mint a fresh secret (no reuse of
+    // the active one).
+    app(ConfirmTwoFactorUseCase::class)->execute($user->id, currentOtp($first->getSecret()));
+    $third = $enroll->execute($user->id, $user->email, 'Kibi');
+
+    expect($third->getSecret())->not->toBe($first->getSecret());
+});
+
 it('stores the secret encrypted at rest', function () {
     $user = User::factory()->create();
     $enrollment = app(EnrollTwoFactorUseCase::class)->execute($user->id, $user->email, 'Kibi');

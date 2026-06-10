@@ -16,6 +16,13 @@ use PragmaRX\Google2FA\Google2FA;
  */
 class Google2faService implements TwoFactorServiceInterface
 {
+    /**
+     * Acceptance window in 30s steps on each side of the current slice.
+     * 2 ⇒ ±60s, absorbing realistic authenticator-app/device clock drift
+     * (the library default of 1 only tolerates ±30s).
+     */
+    private const VERIFY_WINDOW = 2;
+
     private Google2FA $engine;
 
     public function __construct()
@@ -38,7 +45,7 @@ class Google2faService implements TwoFactorServiceInterface
     /** {@inheritDoc} */
     public function verify(string $secret, string $code): bool
     {
-        return (bool) $this->engine->verifyKey($secret, $code);
+        return (bool) $this->engine->verifyKey($secret, $code, self::VERIFY_WINDOW);
     }
 
     /** {@inheritDoc} */
