@@ -196,6 +196,9 @@ Table users {
   last_name_maternal varchar(100)
   phone varchar(30)
   status varchar(20) [not null, default: 'active']
+  two_factor_secret text [note: 'encrypted; TOTP secret']
+  two_factor_confirmed_at timestamptz [note: 'NULL = 2FA not active']
+  two_factor_recovery_codes text [note: 'encrypted JSON array; codes hashed, single-use']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 
@@ -281,6 +284,8 @@ Table roles {
     note: 'Stored but not enforced in business logic. Reserved for future use. See post-mvp.md.']
   is_system_role boolean [default: false,
     note: 'true ONLY for Softlinkia staff roles (tenant_id IS NULL). Never true for tenant roles.']
+  requires_2fa boolean [default: false,
+    note: 'true ⇒ holding this role forces 2FA at login. Single source of truth (see two-factor.md). Seeded true for leader/support.']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 

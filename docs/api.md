@@ -210,12 +210,15 @@ POST   /auth/activate            Activate owner account via signed URL (public, 
 
 `POST /auth/oauth/{provider}` accepts `{ "access_token": "..." }` and returns the same `LoginOutput` as a password login. See `docs/oauth.md` for the full flow.
 
-`POST /auth/activate` is a public endpoint (no `auth:sanctum`, no `TenantMiddleware`). It expects the signed URL query params (`user`, `expires`, `signature`) forwarded from the frontend SPA, plus a JSON body `{ "password": "...", "password_confirmation": "..." }`. On success it returns the same `LoginOutput` as a standard login, plus a 24h Sanctum token.
+`POST /auth/activate` is a public endpoint (no `auth:sanctum`, no `TenantMiddleware`). It expects the signed URL query params (`user`, `expires`, `signature`) forwarded from the frontend SPA, plus a JSON body `{ "password": "...", "password_confirmation": "..." }`. On success it returns the same `LoginOutput` as a standard login, plus a 24h Sanctum token — **except** when the user's role enforces 2FA (`leader`/`support`): the password is set but the session is withheld (`token: null`) so the SPA redirects to login to complete 2FA. See `docs/two-factor.md`.
 
 ### Staff
 
 ```
-POST   /staff/auth/login         Authenticate Softlinkia staff
+POST   /staff/auth/login         Authenticate Softlinkia staff (may return a 2FA challenge)
+POST   /staff/auth/2fa/setup     First-login 2FA enrollment — returns the QR provisioning material
+POST   /staff/auth/2fa/confirm   Confirm enrollment — returns session + one-time recovery codes
+POST   /staff/auth/2fa/challenge Complete 2FA for an enrolled user — returns session
 GET    /staff/auth/me            Return authenticated staff user data
 POST   /staff/auth/logout        Revoke staff token
 GET    /staff/tenants            List all tenants (paginated) with embedded owners
@@ -226,7 +229,9 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 POST   /staff/personnel          Create a Backoffice staff member (superadmin only)
 ```
 
-`POST /staff/personnel` creates a Softlinkia Backoffice staff member (`operator`, `leader` or `support`). Guarded by the `staff.superadmin` middleware (only Superadmin can create personnel). Body: `{ role, personal_data: { first_name, last_name_paternal, last_name_maternal?, email, phone? }, work_schedule: { timezone, days[], start_time, end_time }, permissions[] }`. Creates a pending staff user (no password, `is_staff = true`), assigns the role (recording denials for any default permission the actor unchecked), persists the work schedule, and emails a magic-link activation (168h signed URL to the staff host). `requires_2fa` is derived server-side from the role (`operator` = false, `leader`/`support` = true) — never trusted from the request. Returns 201 with the created member. Returns 403 when the caller is not Superadmin, 409 when the email is already taken, 422 for an invalid role, a permission outside the role's catalogue, or an invalid work schedule.
+`POST /staff/auth/login` returns the usual `LoginOutput` for roles without 2FA. When any of the user's active roles is flagged `roles.requires_2fa` (or the user already enrolled in 2FA) it withholds the session and returns `{ "two_factor": { "status", "challenge_token" } }` instead, where `status` is `setup_required` (not yet enrolled) or `required` (enrolled). The `2fa/setup`, `2fa/confirm` and `2fa/challenge` endpoints are public (no `auth:sanctum`), guarded by that opaque, cache-stored `challenge_token` (not a Sanctum token; TTL `config('twofactor.challenge_ttl')`), and throttled `5,15`. `2fa/setup` returns `{ secret, provisioning_uri }` for the QR; `2fa/confirm` returns `{ session, recovery_codes }`; `2fa/challenge` returns a `LoginResource`. Invalid/expired challenge → 401; wrong code → 422. See `docs/two-factor.md` for the full design.
+
+`POST /staff/personnel` creates a Softlinkia Backoffice staff member (`operator`, `leader` or `support`). Guarded by the `staff.superadmin` middleware (only Superadmin can create personnel). Body: `{ role, personal_data: { first_name, last_name_paternal, last_name_maternal?, email, phone? }, work_schedule: { timezone, days[], start_time, end_time }, permissions[] }`. Creates a pending staff user (no password, `is_staff = true`), assigns the role (recording denials for any default permission the actor unchecked), persists the work schedule, and emails a magic-link activation (168h signed URL to the staff host; sent after the response via `defer()` so creation never blocks on the mail). `requires_2fa` is derived server-side from the role's `roles.requires_2fa` flag (`operator` = false, `leader`/`support` = true) — never trusted from the request. Returns 201 with the created member. Returns 403 when the caller is not Superadmin, 409 when the email is already taken, 422 for an invalid role, a permission outside the role's catalogue, or an invalid work schedule.
 
 `GET /staff/tenants` returns 200 with a paginated list of tenants. Accepts a `page` query parameter (default: 1, page size: 20). Each item includes a compact owner shape (`uuid`, `email`, `full_name`) and a `created_at` ISO 8601 timestamp. The response envelope includes a `meta.pagination` object with `total`, `per_page`, `current_page`, and `last_page`.
 
