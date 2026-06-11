@@ -11,10 +11,18 @@ use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\User\UserDetailResource;
 use App\Http\Resources\User\UserListResource;
 use App\Http\Response\ApiResponse;
+use App\Models\Tenant as TenantModel;
+use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
+use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
+use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
+use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\User\Application\UseCases\GetUser\GetUserInput;
 use App\Modules\User\Application\UseCases\GetUser\GetUserUseCase;
+use App\Modules\User\Application\UseCases\InviteUser\InviteUserInput;
+use App\Modules\User\Application\UseCases\InviteUser\InviteUserUseCase;
 use App\Modules\User\Application\UseCases\ListUsers\ListUsersInput;
 use App\Modules\User\Application\UseCases\ListUsers\ListUsersUseCase;
+use App\Modules\User\Domain\Exceptions\EmailAlreadyTakenException;
 use App\Modules\User\Domain\Exceptions\SchoolAccessDeniedException;
 use App\Modules\User\Domain\Exceptions\UserNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +77,7 @@ class UserController extends Controller
                 search: $request->validated('q') ?: null,
                 roleSlugs: $request->roleSlugs(),
                 status: $request->validated('filter.status') ?: null,
+                unassigned: $request->wantsUnassigned(),
                 isOwner: $isOwner,
                 accessibleSchoolIds: $isOwner ? [] : $actor->accessibleSchoolIds(),
                 requestedSchoolId: $requestedSchoolId,
@@ -115,12 +124,63 @@ class UserController extends Controller
     }
 
     /**
-     * Create a user (not yet implemented).
+     * Invite a tenant user.
      * POST /users
+     *
+     * Creates a pending user (no password) with the given role/school assignments
+     * and emails a signed activation (magic link). The invitee sets a password on
+     * activation and is logged in — same flow as the owner.
+     *
+     * Responds 201 with the created user's public fields.
+     * Responds 409 when the email is already registered.
+     * Responds 403 on a hierarchy / role-exclusion violation.
      */
-    public function store(CreateUserRequest $request): JsonResponse
-    {
-        return ApiResponse::error('Not implemented', 501);
+    public function store(
+        CreateUserRequest $request,
+        InviteUserUseCase $useCase,
+        TenantContext $tenant,
+    ): JsonResponse {
+        $this->authorize('user.create');
+
+        $actor = $request->user();
+
+        $tenantSlug = TenantModel::find($tenant->tenantId)->slug ?? '';
+
+        /** @var array<int, array{role_uuid: string, school_uuid?: string|null}> $rawAssignments */
+        $rawAssignments = $request->validated('assignments');
+        $assignments = array_map(
+            fn (array $a): array => [
+                'roleUuid' => $a['role_uuid'],
+                'schoolUuid' => $a['school_uuid'] ?? null,
+            ],
+            $rawAssignments,
+        );
+
+        try {
+            $user = $useCase->execute(new InviteUserInput(
+                tenantId: $tenant->tenantId,
+                tenantSlug: $tenantSlug,
+                actorUuid: $actor->uuid,
+                actorSlug: $actor->resolveActorSlug(),
+                email: $request->validated('email'),
+                firstName: $request->validated('first_name'),
+                lastNamePaternal: $request->validated('last_name_paternal'),
+                lastNameMaternal: $request->validated('last_name_maternal'),
+                assignments: $assignments,
+            ));
+
+            return ApiResponse::created([
+                'uuid' => $user->getUuid(),
+                'email' => $user->getEmail(),
+                'full_name' => $user->getFullName(),
+            ]);
+        } catch (EmailAlreadyTakenException $e) {
+            return ApiResponse::conflict($e->getMessage(), ['email' => [$e->getMessage()]]);
+        } catch (HierarchyViolationException|RoleExclusionException|OwnerRoleAssignmentException $e) {
+            return ApiResponse::forbidden($e->getMessage());
+        } catch (RoleNotFoundException $e) {
+            return ApiResponse::notFound($e->getMessage());
+        }
     }
 
     /**

@@ -35,17 +35,24 @@ class ListUsersRequest extends FormRequest
         ];
     }
 
+    /** Sentinel value of filter[role] meaning "users without any active role". */
+    public const UNASSIGNED = 'none';
+
     /**
      * Normalize the filter[role] parameter to a string array.
      *
      * The client may send a single role slug as a string or multiple slugs as
      * an array. This helper always returns a consistent array<string> — empty
-     * when the parameter is absent or empty.
+     * when the parameter is absent, empty, or the "unassigned" sentinel.
      *
      * @return array<int, string>
      */
     public function roleSlugs(): array
     {
+        if ($this->wantsUnassigned()) {
+            return [];
+        }
+
         $raw = $this->input('filter.role');
 
         if ($raw === null || $raw === '') {
@@ -61,5 +68,24 @@ class ListUsersRequest extends FormRequest
         }
 
         return [];
+    }
+
+    /**
+     * True when the client asked for users with NO active role assignment
+     * (filter[role]=none). Mutually exclusive with concrete role slugs.
+     */
+    public function wantsUnassigned(): bool
+    {
+        $raw = $this->input('filter.role');
+
+        if (is_string($raw)) {
+            return $raw === self::UNASSIGNED;
+        }
+
+        if (is_array($raw)) {
+            return count($raw) === 1 && reset($raw) === self::UNASSIGNED;
+        }
+
+        return false;
     }
 }

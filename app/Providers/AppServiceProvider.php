@@ -28,6 +28,8 @@ use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
+use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
+use App\Modules\Onboarding\Infrastructure\Repositories\EloquentOnboardingRepository;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
@@ -137,6 +139,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             \App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface::class,
             \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
+        );
+
+        // --- Onboarding module ---
+        $this->app->bind(
+            OnboardingRepositoryInterface::class,
+            EloquentOnboardingRepository::class
         );
 
         // --- User module ---
