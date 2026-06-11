@@ -14,13 +14,13 @@ use DateTimeImmutable;
 class EloquentStaffPersonnelReadRepository implements StaffPersonnelReadRepositoryInterface
 {
     /** {@inheritDoc} */
-    public function list(): array
+    public function list(int $page, int $perPage): array
     {
-        $users = UserModel::where('is_staff', true)
+        $paginator = UserModel::where('is_staff', true)
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        return $users->map(function (UserModel $user): StaffPersonnelListItem {
+        $items = array_map(function (UserModel $user): StaffPersonnelListItem {
             $role = $this->staffRoleOf($user);
 
             return new StaffPersonnelListItem(
@@ -34,7 +34,15 @@ class EloquentStaffPersonnelReadRepository implements StaffPersonnelReadReposito
                 status: $user->status,
                 createdAt: $this->toImmutable($user->created_at?->toIso8601String()),
             );
-        })->all();
+        }, $paginator->items());
+
+        return [
+            'items' => $items,
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
     }
 
     /** {@inheritDoc} */

@@ -8,11 +8,17 @@ use App\Modules\Staff\Domain\Entities\StaffPersonnelListItem;
 interface StaffPersonnelReadRepositoryInterface
 {
     /**
-     * Return all Softlinkia staff users (is_staff = true) with their staff role.
+     * Return a page of Softlinkia staff users (is_staff = true) with their staff role.
      *
-     * @return array<StaffPersonnelListItem>
+     * @return array{
+     *     items: array<StaffPersonnelListItem>,
+     *     total: int,
+     *     per_page: int,
+     *     current_page: int,
+     *     last_page: int,
+     * }
      */
-    public function list(): array;
+    public function list(int $page, int $perPage): array;
 
     /**
      * Return the full detail of a staff member by UUID, or null when not found.

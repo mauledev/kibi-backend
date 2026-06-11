@@ -12,10 +12,16 @@ class ListPersonnelUseCase
     ) {}
 
     /**
-     * @return array<StaffPersonnelListItem>
+     * @return array{
+     *     items: array<StaffPersonnelListItem>,
+     *     total: int,
+     *     per_page: int,
+     *     current_page: int,
+     *     last_page: int,
+     * }
      */
-    public function execute(): array
+    public function execute(int $page = 1, int $perPage = 20): array
     {
-        return $this->personnel->list();
+        return $this->personnel->list($page, $perPage);
     }
 }

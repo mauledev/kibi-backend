@@ -19,21 +19,38 @@ use App\Modules\Staff\Domain\Exceptions\PersonnelNotFoundException;
 use App\Modules\Staff\Domain\Exceptions\StaffEmailAlreadyTakenException;
 use App\Modules\Staff\Domain\Exceptions\StaffRoleNotFoundException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PersonnelController extends Controller
 {
     /**
-     * List all Backoffice staff members.
+     * List Backoffice staff members (paginated).
      * GET /staff/personnel
+     *
+     * Query params:
+     *   page     — page number (default 1)
+     *   per_page — items per page (default 20, max 100)
+     *
+     * Responds 200 with a paginated list (pagination under `meta.pagination`).
      */
-    public function index(ListPersonnelUseCase $useCase): JsonResponse
+    public function index(Request $request, ListPersonnelUseCase $useCase): JsonResponse
     {
+        $perPage = min(100, max(1, (int) $request->query('per_page', '20')));
+        $page = max(1, (int) $request->query('page', '1'));
+
+        $result = $useCase->execute($page, $perPage);
+
         $items = array_map(
             fn ($item) => (new StaffPersonnelListResource($item))->resolve(),
-            $useCase->execute(),
+            $result['items'],
         );
 
-        return ApiResponse::success($items);
+        return ApiResponse::paginated($items, [
+            'total' => $result['total'],
+            'per_page' => $result['per_page'],
+            'current_page' => $result['current_page'],
+            'last_page' => $result['last_page'],
+        ]);
     }
 
     /**
