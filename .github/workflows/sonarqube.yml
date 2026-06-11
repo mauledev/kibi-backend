@@ -1,0 +1,120 @@
+name: SonarQube
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  sonar:
+    name: Analyze
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: kibi_db_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      sonarqube:
+        image: sonarqube:community
+        ports:
+          - 9000:9000
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:J7xK3hN8mP2qL5rT9vW1yZ4aB6cD9eF2gH5iJ8kL1nO4pQ7sT0uV3wX6yZ9aC2bD5e
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: kibi_db_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for blame data
+
+      - name: Set up PHP 8.2 with PCOV
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, mbstring, bcmath, pcov
+          coverage: pcov
+
+      - name: Cache vendor
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare Laravel cache directory
+        run: mkdir -p bootstrap/cache
+
+      - name: Run tests with coverage
+        run: php vendor/bin/pest --coverage-clover coverage.xml
+
+      - name: Wait for SonarQube
+        run: |
+          echo "Waiting for SonarQube to be ready..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sf http://localhost:9000/api/system/status \
+              | jq -r '.status' 2>/dev/null || echo "DOWN")
+            if [ "$STATUS" = "UP" ]; then
+              echo "SonarQube ready (${i}0s elapsed)"
+              exit 0
+            fi
+            echo "  attempt $i/30: $STATUS"
+            sleep 10
+          done
+          echo "SonarQube did not start within 5 minutes"
+          exit 1
+
+      - name: Setup SonarQube project and token
+        run: |
+          curl -sf -u admin:admin -X POST \
+            "http://localhost:9000/api/projects/create?project=kibi-backend&name=Kibi+Backend" \
+            > /dev/null || true
+
+          TOKEN=$(curl -sf -u admin:admin -X POST \
+            "http://localhost:9000/api/user_tokens/generate?name=ci-${{ github.run_id }}" \
+            | jq -r '.token')
+
+          echo "SONAR_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+          SONAR_HOST_URL: http://localhost:9000
+
+      - name: Quality Gate check
+        run: |
+          sleep 10
+          RESULT=$(curl -sf -u "$SONAR_TOKEN:" \
+            "http://localhost:9000/api/qualitygates/project_status?projectKey=kibi-backend")
+          STATUS=$(echo "$RESULT" | jq -r '.projectStatus.status')
+          echo "Quality Gate: $STATUS"
+
+          if [ "$STATUS" = "ERROR" ]; then
+            echo ""
+            echo "Failing conditions:"
+            echo "$RESULT" | jq -r '.projectStatus.conditions[] | select(.status=="ERROR") | "  \(.metricKey): \(.actualValue) (threshold: \(.errorThreshold))"'
+            exit 1
+          fi
