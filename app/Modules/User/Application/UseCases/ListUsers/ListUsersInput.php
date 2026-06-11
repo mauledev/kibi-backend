@@ -15,6 +15,8 @@ namespace App\Modules\User\Application\UseCases\ListUsers;
  * @param  string|null  $search  Free-text search across name and email fields.
  * @param  array<int, string>  $roleSlugs  Filter to users who hold at least one of these role slugs.
  * @param  string|null  $status  Filter by lifecycle status (e.g. 'active', 'inactive').
+ * @param  bool  $unassigned  When true, return only users with no active role assignment.
+ *                            Mutually exclusive with $roleSlugs (which is empty in that case).
  * @param  bool  $isOwner  True when the actor is the tenant owner (tenant-wide visibility).
  * @param  array<int, int>  $accessibleSchoolIds  School IDs the actor holds an active assignment in.
  *                                                Ignored when $isOwner is true.
@@ -34,6 +36,7 @@ final readonly class ListUsersInput
         public ?string $search = null,
         public array $roleSlugs = [],
         public ?string $status = null,
+        public bool $unassigned = false,
         public bool $isOwner = false,
         public array $accessibleSchoolIds = [],
         public ?int $requestedSchoolId = null,
