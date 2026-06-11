@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Application\UseCases\Login;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\Support\DummyPasswordHash;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
@@ -30,7 +31,13 @@ class LoginUseCase
 
         $hash = $user?->getPasswordHash();
 
-        if (! $user || $hash === null || ! Hash::check($input->password, $hash)) {
+        // Always run exactly one bcrypt verification — even when the user does not exist
+        // or has no password (OAuth-only) — so response timing does not reveal whether
+        // the email is registered (anti-enumeration). Keep this hoisted outside the if:
+        // inlining it in the || chain would let short-circuiting skip it and reopen the oracle.
+        $passwordMatches = Hash::check($input->password, $hash ?? DummyPasswordHash::BCRYPT);
+
+        if ($user === null || $hash === null || ! $passwordMatches) {
             $this->logFailed($input, $user?->getId());
 
             throw new InvalidCredentialsException;
@@ -50,6 +57,7 @@ class LoginUseCase
             action: 'auth.login',
             userId: $user->getId(),
             tenantId: $input->tenantId,
+            structAfter: ['ip' => $input->ip],
         );
 
         return new LoginOutput(
@@ -67,11 +75,12 @@ class LoginUseCase
     }
 
     /**
-     * The attempted email is stored in struct_after for correlation (brute force).
+     * The attempted email and client IP are stored in struct_after for
+     * brute-force correlation (attackers rotate emails more easily than IPs).
      */
     private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
     {
-        $struct = ['email' => $input->email];
+        $struct = ['email' => $input->email, 'ip' => $input->ip];
 
         if ($reason !== null) {
             $struct['reason'] = $reason;

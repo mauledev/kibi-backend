@@ -111,7 +111,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('plain-text-token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, ['ip' => null], null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $output = $this->useCase->execute($input);
@@ -214,9 +214,9 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, ['ip' => '203.0.113.7'], null);
 
-        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+        $input = new LoginInput(email: 'user@test.com', password: 'secret', ip: '203.0.113.7');
         $this->useCase->execute($input);
     });
 
@@ -230,13 +230,41 @@ describe('LoginUseCase', function () {
             return $args[0] === 'auth.login_failed';
         });
 
-        $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw');
+        $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw', ip: '203.0.113.7');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(InvalidCredentialsException::class);
 
-        // The attempted email is stored in struct_after for brute-force correlation...
-        expect($captured[5])->toBe(['email' => 'attacker@test.com']);
+        // The attempted email and IP are stored in struct_after for brute-force correlation...
+        expect($captured[5])->toBe(['email' => 'attacker@test.com', 'ip' => '203.0.113.7']);
         expect(json_encode($captured))->not->toContain('super-secret-pw');
+    });
+
+    it('runs a dummy hash check when the user is not found (anti timing-oracle)', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+        // Pin the mitigation: bcrypt must run exactly once even without a user,
+        // so response timing cannot reveal whether the email is registered.
+        Hash::shouldReceive('check')->once()->andReturnFalse();
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('rejects a null-password-hash user even if the dummy hash check passes', function () {
+        $user = loginMakeUser(['passwordHash' => null]);
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        // The dummy hash runs for timing equalization, but its result must never
+        // authenticate an OAuth-only account: the null-hash guard wins.
+        Hash::shouldReceive('check')->once()->andReturnTrue();
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
     });
 });

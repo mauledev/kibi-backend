@@ -45,6 +45,7 @@ class AuthController extends Controller
                 email: $request->validated('email'),
                 password: $request->validated('password'),
                 tenantId: $tenantContext->tenantId,
+                ip: $request->ip(),
             ));
 
             return ApiResponse::success(new LoginResource($output), 'Login successful');
@@ -65,6 +66,7 @@ class AuthController extends Controller
                 email: $request->validated('email'),
                 password: $request->validated('password'),
                 // Staff does not belong to a tenant: tenantId stays null.
+                ip: $request->ip(),
             ));
 
             return ApiResponse::success(new LoginResource($output), 'Login successful');
@@ -187,6 +189,7 @@ class AuthController extends Controller
             tokenId: (int) $user->currentAccessToken()->id,
             userId: $user->id,
             tenantId: $user->tenant_id,
+            ip: $request->ip(),
         ));
 
         return ApiResponse::success(null, 'Logged out successfully');

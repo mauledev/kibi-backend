@@ -21,7 +21,7 @@ class LogoutUseCase
             action: 'auth.logout',
             userId: $input->userId,
             tenantId: $input->tenantId,
-            structAfter: ['token_id' => $input->tokenId],
+            structAfter: ['token_id' => $input->tokenId, 'ip' => $input->ip],
         );
     }
 }

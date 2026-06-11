@@ -145,6 +145,14 @@ describe('AuthController', function () {
                 'user_id' => $user->id,
                 'tenant_id' => $tenant->id,
             ]);
+
+            // The client IP is stored in struct_after (security events log user, tenant, ip, timestamp).
+            $row = DB::table('audit_logs')
+                ->where('action', 'auth.login')
+                ->latest('id')
+                ->first();
+
+            expect($row->struct_after)->toContain('127.0.0.1');
         });
 
         it('writes an auth.login_failed audit log with the email but never the password', function () {
@@ -172,6 +180,7 @@ describe('AuthController', function () {
                 ->first();
 
             expect($row->struct_after)->toContain('audit-fail@test.com');
+            expect($row->struct_after)->toContain('127.0.0.1');
             expect($row->struct_after)->not->toContain('super-secret-wrong');
         });
 

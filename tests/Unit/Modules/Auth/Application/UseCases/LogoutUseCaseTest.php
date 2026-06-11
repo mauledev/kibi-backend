@@ -37,10 +37,11 @@ describe('LogoutUseCase', function () {
             tokenId: 7,
             userId: 99,
             tenantId: 3,
+            ip: '203.0.113.7',
         ));
 
-        expect($captured[1])->toBe(99);                // userId
-        expect($captured[5])->toBe(['token_id' => 7]); // struct_after
-        expect($captured[6])->toBe(3);                 // tenantId
+        expect($captured[1])->toBe(99);                                     // userId
+        expect($captured[5])->toBe(['token_id' => 7, 'ip' => '203.0.113.7']); // struct_after
+        expect($captured[6])->toBe(3);                                      // tenantId
     });
 });
