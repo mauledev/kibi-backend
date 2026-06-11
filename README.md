@@ -103,17 +103,6 @@ docker-compose down                   # Detener
 
 Claude Code lee el vault de Obsidian del proyecto via el MCP filesystem server. Esto permite usar las notas como contexto en prompts sin copiar información manualmente.
 
-### Causa raíz del problema (versiones antiguas)
-
-| Versión | Problema |
-|---|---|
-| `0.6.2`, `2025.7.1` | Schemas rotos por incompatibilidad con zod v4 — los tools no aparecen |
-| `2025.7.29+` | Schemas correctos, pero bug `oninitialized` reemplaza el vault path con las raíces del cliente |
-
-**Solución:** instalar `2025.11.25` globalmente + parche de una línea que desactiva el hook problemático.
-
----
-
 ### Instalación en macOS
 
 **1. Instalar globalmente**
