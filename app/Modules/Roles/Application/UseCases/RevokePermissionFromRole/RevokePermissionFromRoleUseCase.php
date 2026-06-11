@@ -12,7 +12,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 class RevokePermissionFromRoleUseCase
 {
-    private const PROTECTED_SLUGS = ['superadmin', 'owner', 'gestor_escuelas'];
+    private const PROTECTED_SLUGS = ['superadmin', 'owner', 'school_manager'];
 
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
@@ -22,7 +22,7 @@ class RevokePermissionFromRoleUseCase
 
     /**
      * Revoke a permission from a role.
-     * Actor slug must be owner, gestor_escuelas, or director.
+     * Actor slug must be owner, school_manager, or director.
      * Cannot revoke from system-protected roles.
      *
      * @throws RoleNotFoundException
@@ -32,9 +32,9 @@ class RevokePermissionFromRoleUseCase
      */
     public function execute(RevokePermissionFromRoleInput $input): void
     {
-        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, gestor_escuelas, or director can manage role permissions.'
+                'Only owner, school_manager, or director can manage role permissions.'
             );
         }
 
@@ -49,9 +49,9 @@ class RevokePermissionFromRoleUseCase
         }
 
         // Director cannot manage gestor or owner roles
-        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'gestor_escuelas'], true)) {
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'Director cannot manage permissions on owner or gestor_escuelas roles.'
+                'Director cannot manage permissions on owner or school_manager roles.'
             );
         }
 

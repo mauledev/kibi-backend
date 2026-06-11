@@ -157,7 +157,7 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     {
         return (int) RoleModel::where('tenant_id', $tenantId)
             ->whereNull('category_id')
-            ->whereNotIn('slug', ['owner', 'gestor_escuelas'])
+            ->whereNotIn('slug', ['owner', 'school_manager'])
             ->count();
     }
 

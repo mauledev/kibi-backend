@@ -199,12 +199,30 @@ class User extends Authenticatable
     }
 
     /**
-     * Return true if the user has an active gestor_escuelas assignment for the given school.
+     * Return true if the user has an active school_manager assignment for the given school.
      */
     public function isGestorOfSchool(int $schoolId): bool
     {
         return $this->activeAssignments($schoolId)->contains(
-            fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'gestor_escuelas'
+            fn (UserRoleAssignment $a) => $a->role !== null && $a->role->slug === 'school_manager'
         );
+    }
+
+    /**
+     * Return the distinct school IDs this user can operate in, derived from their
+     * active, school-scoped assignments. Tenant-level assignments (school_id IS NULL)
+     * are excluded — they grant no specific school. Used to scope listings for
+     * non-owner actors (gestor sees all managed schools, director sees their school).
+     *
+     * @return array<int, int>
+     */
+    public function accessibleSchoolIds(): array
+    {
+        return $this->activeAssignments()
+            ->pluck('school_id')
+            ->reject(fn (?int $id) => $id === null)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

@@ -12,7 +12,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 /**
  * Tests for scope/category enforcement in the roles redesign.
- * Owner, gestor_escuelas, and superadmin are protected roles.
+ * Owner, school_manager, and superadmin are protected roles.
  * Custom roles (no category, not reserved slug) accept permissions from any scope.
  */
 describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesign)', function () {
@@ -65,7 +65,7 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
     it('throws SystemRoleViolationException when trying to manage permissions on owner role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             roleUuid: 'owner-uuid',
             permissionUuid: 'perm-uuid',
         );
@@ -80,7 +80,7 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws SystemRoleViolationException when trying to manage permissions on gestor_escuelas role', function () {
+    it('throws SystemRoleViolationException when trying to manage permissions on school_manager role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'owner',
@@ -88,7 +88,7 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             permissionUuid: 'perm-uuid',
         );
 
-        $gestorRole = v2PermRole(['slug' => 'gestor_escuelas', 'categoryId' => null]);
+        $gestorRole = v2PermRole(['slug' => 'school_manager', 'categoryId' => null]);
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->with('gestor-uuid')

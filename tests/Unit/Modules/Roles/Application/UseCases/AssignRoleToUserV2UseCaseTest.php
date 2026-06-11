@@ -98,7 +98,7 @@ describe('AssignRoleToUserUseCase — redesigned actor rules and exclusions', fu
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorSlug: 'docente',
+            actorSlug: 'teacher',
             targetUserUuid: 'target-uuid',
             roleUuid: 'some-role-uuid',
             schoolUuid: 'school-uuid',
@@ -127,7 +127,7 @@ describe('AssignRoleToUserUseCase — redesigned actor rules and exclusions', fu
             ->toThrow(OwnerRoleAssignmentException::class);
     });
 
-    it('throws HierarchyViolationException when director tries to assign gestor_escuelas role', function () {
+    it('throws HierarchyViolationException when director tries to assign school_manager role', function () {
         v2MockUsers($this);
 
         $input = new AssignRoleToUserInput(
@@ -141,44 +141,44 @@ describe('AssignRoleToUserUseCase — redesigned actor rules and exclusions', fu
         $this->schoolRepo->shouldReceive('findIdByUuid')->with('school-uuid')->andReturn(5);
         $this->roleRepo->shouldReceive('findByUuid')
             ->with('gestor-uuid')
-            ->andReturn(v2Role(3, 'gestor_escuelas', 3));
+            ->andReturn(v2Role(3, 'school_manager', 3));
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    it('throws RoleExclusionException when assigning docente to a user who already has alumno in the same school', function () {
+    it('throws RoleExclusionException when assigning teacher to a user who already has student in the same school', function () {
         v2MockUsers($this);
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
             actorSlug: 'owner',
             targetUserUuid: 'target-uuid',
-            roleUuid: 'docente-uuid',
+            roleUuid: 'teacher-uuid',
             schoolUuid: 'school-uuid',
         );
 
         $this->roleRepo->shouldReceive('findByUuid')
-            ->with('docente-uuid')
-            ->andReturn(v2Role(10, 'docente', 5));
+            ->with('teacher-uuid')
+            ->andReturn(v2Role(10, 'teacher', 5));
 
         $this->schoolRepo->shouldReceive('findIdByUuid')->with('school-uuid')->andReturn(5);
 
-        // User already has 'alumno' in school 5
+        // User already has 'student' in school 5
         $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')
             ->with(20, 5)
-            ->andReturn(['alumno']);
+            ->andReturn(['student']);
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleExclusionException::class);
     });
 
-    it('throws RoleExclusionException when assigning tutor to a user who already has docente in the same school', function () {
+    it('throws RoleExclusionException when assigning tutor to a user who already has teacher in the same school', function () {
         v2MockUsers($this);
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             targetUserUuid: 'target-uuid',
             roleUuid: 'tutor-uuid',
             schoolUuid: 'school-uuid',
@@ -190,16 +190,16 @@ describe('AssignRoleToUserUseCase — redesigned actor rules and exclusions', fu
 
         $this->schoolRepo->shouldReceive('findIdByUuid')->with('school-uuid')->andReturn(5);
 
-        // User already has docente in school 5
+        // User already has teacher in school 5
         $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')
             ->with(20, 5)
-            ->andReturn(['docente']);
+            ->andReturn(['teacher']);
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleExclusionException::class);
     });
 
-    it('succeeds when the same user has docente in school A and tutor in school B (different schools)', function () {
+    it('succeeds when the same user has teacher in school A and tutor in school B (different schools)', function () {
         v2MockUsers($this);
 
         $input = new AssignRoleToUserInput(
@@ -221,7 +221,7 @@ describe('AssignRoleToUserUseCase — redesigned actor rules and exclusions', fu
         // No conflicting role in school B
         $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')
             ->with(20, 2)
-            ->andReturn(['finanzas']); // no docente/alumno in school B
+            ->andReturn(['finance']); // no teacher/student in school B
 
         $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')
             ->with(20, 12, 2)

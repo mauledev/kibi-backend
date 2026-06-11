@@ -20,7 +20,7 @@ class CreateRoleUseCase
 
     /**
      * Create a new custom role for the tenant.
-     * Only owner and gestor_escuelas actors may create custom roles.
+     * Only owner and school_manager actors may create custom roles.
      * The tenant must have custom_roles_limit configured and have capacity remaining.
      *
      * @throws HierarchyViolationException
@@ -28,9 +28,9 @@ class CreateRoleUseCase
      */
     public function execute(CreateRoleInput $input): Role
     {
-        if (! in_array($input->actorSlug, ['owner', 'gestor_escuelas'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'Only owner or gestor_escuelas can create custom roles.'
+                'Only owner or school_manager can create custom roles.'
             );
         }
 

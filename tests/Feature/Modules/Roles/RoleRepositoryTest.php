@@ -118,14 +118,14 @@ describe('EloquentRoleRepository', function () {
             bindTenantContext($this->tenantA);
 
             $user = User::factory()->create();
-            $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(5)->create(['slug' => 'docente']);
+            $role = RoleModel::factory()->forTenant($this->tenantA)->atLevel(5)->create(['slug' => 'teacher']);
 
             UserRoleAssignment::factory()->forUser($user)->forRole($role)->active()->create();
 
             $roles = makeRepo()->findActiveRolesForUser($user->id);
 
             $slugs = array_map(fn (Role $r) => $r->getSlug(), $roles);
-            expect($slugs)->toContain('docente');
+            expect($slugs)->toContain('teacher');
         });
 
         it('does not return revoked assignments', function () {

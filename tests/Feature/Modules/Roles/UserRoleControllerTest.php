@@ -74,7 +74,7 @@ describe('UserRoleController', function () {
 
         it('assigns role to user and writes audit log when valid', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
@@ -106,7 +106,7 @@ describe('UserRoleController', function () {
 
         it('returns 403 when actor is not owner/gestor/director (slug-based check)', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'coordinador_academico']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'academic_coordinator']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
@@ -132,7 +132,7 @@ describe('UserRoleController', function () {
 
         it('returns 404 when role does not exist', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
@@ -150,7 +150,7 @@ describe('UserRoleController', function () {
 
         it('returns existing assignment when same role already assigned (idempotent)', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.assign');
 
@@ -232,7 +232,7 @@ describe('UserRoleController', function () {
     describe('DELETE /api/users/{uuid}/roles/{role_uuid}', function () {
         it('revokes role assignment and sets revoked_at', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
@@ -257,7 +257,7 @@ describe('UserRoleController', function () {
 
         it('creates audit log with action role.revoke', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 
@@ -278,7 +278,7 @@ describe('UserRoleController', function () {
 
         it('returns 404 when no active assignment exists (already revoked)', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             urAssignRole($actor, $actorRole);
             urGrantPermission($actorRole, 'role.revoke');
 

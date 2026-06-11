@@ -147,7 +147,7 @@ describe('RoleController', function () {
             expect($response->json('data.slug'))->toBe('new_director_cr');
         });
 
-        it('returns 403 when actor is not owner or gestor_escuelas', function () {
+        it('returns 403 when actor is not owner or school_manager', function () {
             $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'director_actor']);
             assignRole($user, $actorRole);
@@ -229,10 +229,10 @@ describe('RoleController', function () {
     });
 
     describe('PUT /api/roles/{uuid}', function () {
-        it('updates role name and writes audit log when actor is gestor_escuelas', function () {
+        it('updates role name and writes audit log when actor is school_manager', function () {
             $user = User::factory()->create();
-            // Use the reserved 'gestor_escuelas' slug so the controller resolves it as an authorised actor.
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            // Use the reserved 'school_manager' slug so the controller resolves it as an authorised actor.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
 
@@ -253,7 +253,7 @@ describe('RoleController', function () {
 
         it('returns 403 when actor is not an authorised role manager', function () {
             $user = User::factory()->create();
-            // Unknown slug — not owner/gestor_escuelas/director → HierarchyViolationException → 403.
+            // Unknown slug — not owner/school_manager/director → HierarchyViolationException → 403.
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'unknown_actor_role']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
@@ -268,10 +268,10 @@ describe('RoleController', function () {
     });
 
     describe('DELETE /api/roles/{uuid}', function () {
-        it('soft-deletes role and writes audit log when actor is gestor_escuelas', function () {
+        it('soft-deletes role and writes audit log when actor is school_manager', function () {
             $user = User::factory()->create();
-            // Use the reserved 'gestor_escuelas' slug so the controller resolves it as an authorised actor.
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            // Use the reserved 'school_manager' slug so the controller resolves it as an authorised actor.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             assignRole($user, $actorRole);
             grantPermission($actorRole, 'manage.permissions');
 
