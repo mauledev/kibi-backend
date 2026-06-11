@@ -81,7 +81,7 @@ describe('POST /api/users (invite)', function () {
         expect($hasRole)->toBeTrue();
     });
 
-    it('returns 409 when the email already exists', function () {
+    it('returns 422 when the email already exists', function () {
         $this->mock(MailerInterface::class)->shouldReceive('sendActivation')->never();
 
         User::factory()->create(['email' => 'nuevo@example.com']);
@@ -89,7 +89,8 @@ describe('POST /api/users (invite)', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->postJson('/api/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
-            ->assertStatus(409);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email' => 'validation.unique']);
     });
 
     it('returns 422 when assignments are missing', function () {
