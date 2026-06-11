@@ -11,7 +11,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 class DeleteRoleUseCase
 {
     /** Actors authorised to delete roles, in descending authority order. */
-    private const ALLOWED_ACTORS = ['owner', 'gestor_escuelas', 'director'];
+    private const ALLOWED_ACTORS = ['owner', 'school_manager', 'director'];
 
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
@@ -21,7 +21,7 @@ class DeleteRoleUseCase
     /**
      * Soft-delete a role.
      * System roles cannot be deleted.
-     * Only owner, gestor_escuelas, and director may delete roles.
+     * Only owner, school_manager, and director may delete roles.
      * Director cannot delete gestor or owner roles.
      *
      * @throws RoleNotFoundException
@@ -32,7 +32,7 @@ class DeleteRoleUseCase
     {
         if (! in_array($input->actorSlug, self::ALLOWED_ACTORS, true)) {
             throw new HierarchyViolationException(
-                'Only owner, gestor_escuelas, or director can delete roles.'
+                'Only owner, school_manager, or director can delete roles.'
             );
         }
 
@@ -47,9 +47,9 @@ class DeleteRoleUseCase
         }
 
         // Director cannot delete gestor or owner roles.
-        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'gestor_escuelas'], true)) {
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'Director cannot delete owner or gestor_escuelas roles.'
+                'Director cannot delete owner or school_manager roles.'
             );
         }
 

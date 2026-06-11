@@ -54,6 +54,112 @@ Impersonation requires audit trail design, session expiry enforcement, and caref
 
 ---
 
+## PM-005 — Guest As: staff temporary access to tenant environments
+
+> **Note:** This solution is open to discussion. The design below is a starting point, not a final decision.
+
+**Current behavior (MVP)**
+
+Staff users (`is_staff = true`, `tenant_id = NULL`) have no mechanism to access tenant environments. A staff user who sends a valid token to a tenant route passes `auth:sanctum` but gets 403 on every permission-guarded endpoint because they hold no roles in any tenant. There is no explicit middleware rejection at the tenant boundary — protection depends entirely on `authorize()` calls being present in every controller.
+
+**Problem at scale**
+
+The Softlinkia support team needs to enter tenant environments to reproduce bugs reported by specific users. Indirect methods (raw DB queries, asking the tenant owner to share credentials) are insecure, unaudited, and slow.
+
+**Proposed solution**
+
+A **Guest As** session system, separate from the impersonation approach in PM-004:
+
+```
+POST /staff/tenants/{uuid}/debug-sessions
+DELETE /staff/tenants/{uuid}/debug-sessions/{session_uuid}
+```
+
+A new `staff_tenant_sessions` table tracks active sessions:
+
+```sql
+Table staff_tenant_sessions {
+  id              bigint [pk, increment]
+  staff_user_id   bigint [not null, ref: > users.id]
+  tenant_id       bigint [not null, ref: > tenants.id]
+  role_id         bigint [nullable, ref: > roles.id]   -- null = owner-level read-only
+  school_id       bigint [nullable, ref: > schools.id] -- required when role is school-scoped
+  expires_at      timestamptz [not null]               -- default: now + 24h
+  revoked_at      timestamptz [nullable]
+  created_by      bigint [not null, ref: > users.id]
+  indexes {
+    (staff_user_id, tenant_id)
+  }
+}
+```
+
+A new `StaffDebugSessionMiddleware` sits inside the tenant middleware group. When a staff user's token is detected on a tenant route, the middleware looks up an active (non-expired, non-revoked) session for that `(staff_user_id, tenant_id)` pair. If found, it marks the request with the session context so the Gate can act accordingly.
+
+**Role selection**
+
+The staff member chooses the role to assume based on the bug being debugged:
+
+- **Specific role** (e.g. `director` at Prepa Central) — reproduces exactly what the affected user sees. The `role_id` and `school_id` columns hold this assignment; no actual row is created in `user_role_assignments`.
+- **No role (`role_id = null`)** — grants owner-level read access (GET requests only) for inspecting system configuration. All mutations remain blocked.
+
+This distinction means staff can both reproduce user-facing bugs (specific role) and inspect tenant configuration (owner-level read) without polluting the tenant's user or role assignment tables.
+
+**Audit trail**
+
+All requests made during a Guest As session must record `staff_user_id` as the actor in `audit_logs`, alongside the assumed `tenant_id` and `role_id`. This preserves a clear trace of what was accessed and who authorized the session.
+
+**Why deferred**
+
+Requires designing the session lifecycle (creation, expiry enforcement, manual revocation), the Gate integration for role spoofing without real DB assignments, and the audit log schema changes. Not needed for initial tenant onboarding.
+
+---
+
+## PM-006 — Per-request context objects (TenantContext, SchoolContext) via Service Locator
+
+**Current behavior (MVP)**
+
+`TenantContext` and `SchoolContext` are bound to the IoC container as per-request instances inside their respective middleware:
+
+```php
+app()->instance(TenantContext::class, new TenantContext(...));
+app()->instance(SchoolContext::class, new SchoolContext(...));
+```
+
+Controllers and use cases that need these objects resolve them via `app(TenantContext::class)` or `app(SchoolContext::class)` — the Service Locator pattern. The dependency is hidden inside the method body instead of being declared in the signature.
+
+`SchoolContext` is additionally optional: `SchoolMiddleware` only binds it when the `X-School-Uuid` header is present. This makes constructor or method injection unsafe — attempting to inject it when it is not bound throws `BindingResolutionException`.
+
+**Problem at scale**
+
+- Dependencies are invisible at the call site, making controllers harder to read and test without bootstrapping the full container.
+- Any code path that forgets to check `app()->bound(SchoolContext::class)` before calling `app(SchoolContext::class)` will throw at runtime.
+- Unit tests must manually call `app()->instance(...)` to set up context instead of passing it as a constructor argument.
+
+**Recommended solution**
+
+Move per-request context out of the IoC container and into **request attributes**, set by the middleware:
+
+```php
+// TenantMiddleware / SchoolMiddleware
+$request->attributes->set('tenant_context', new TenantContext(...));
+$request->attributes->set('school_context', new SchoolContext(...));  // optional
+```
+
+Controllers receive the context through the already-injected `$request` object:
+
+```php
+$tenantContext = $request->attributes->get('tenant_context');
+$schoolContext = $request->attributes->get('school_context'); // null if header absent
+```
+
+This makes optionality explicit, removes the `app()` calls, and keeps context scoped to the HTTP layer where it belongs. Use cases in the Application layer receive only scalar IDs (as they do today), so the change is contained to middleware and controllers.
+
+**Why deferred**
+
+Requires touching both middleware classes and every controller that consumes a context object. The current approach works correctly for MVP and the risk of the refactor outweighs the benefit at this stage.
+
+---
+
 ## PM-002 — Role mutual exclusions — table-driven enforcement
 
 **Current behavior (MVP)**

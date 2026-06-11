@@ -166,7 +166,7 @@ describe('AssignRoleToUserUseCase', function () {
             ->toThrow(OwnerRoleAssignmentException::class);
     });
 
-    it('throws HierarchyViolationException when director tries to assign gestor_escuelas', function () {
+    it('throws HierarchyViolationException when director tries to assign school_manager', function () {
         assignMockUsers($this);
 
         $input = new AssignRoleToUserInput(
@@ -183,7 +183,7 @@ describe('AssignRoleToUserUseCase', function () {
             tenantId: null,
             categoryId: null,
             name: 'Gestor',
-            slug: 'gestor_escuelas',
+            slug: 'school_manager',
             hierarchyLevel: 3,
             isSystemRole: false,
             permissions: [],
@@ -227,7 +227,7 @@ describe('AssignRoleToUserUseCase', function () {
 
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: null,
@@ -246,23 +246,23 @@ describe('AssignRoleToUserUseCase', function () {
     it('resolves schoolUuid to schoolId and passes it through to assignment creation', function () {
         assignMockUsers($this);
 
-        // Use docente role to trigger the exclusion check (docente has exclusions)
+        // Use teacher role to trigger the exclusion check (teacher has exclusions)
         $input = new AssignRoleToUserInput(
             actorUuid: 'actor-uuid',
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: 'school-uuid',
         );
 
-        $docenteRole = new Role(
+        $teacherRole = new Role(
             id: 10, uuid: 'role-public-uuid', tenantId: 1, categoryId: 1,
-            name: 'Docente', slug: 'docente', hierarchyLevel: 7, isSystemRole: false,
+            name: 'Teacher', slug: 'teacher', hierarchyLevel: 7, isSystemRole: false,
             permissions: [], createdAt: new DateTimeImmutable,
         );
 
         $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(5);
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($docenteRole);
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($teacherRole);
         $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')->once()->with(20, 5)->andReturn([]);
         $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, 5)->andReturn(null);
         $this->assignmentRepo->shouldReceive('create')->once()->with(20, 10, 5, 1)->andReturn(assignBuildAssignment());
@@ -278,17 +278,17 @@ describe('AssignRoleToUserUseCase', function () {
             actorUuid: 'actor-uuid',
             actorSlug: 'director',
             targetUserUuid: 'target-uuid',
-            roleUuid: 'docente-uuid',
+            roleUuid: 'teacher-uuid',
             schoolUuid: 'school-uuid',
         );
 
-        $docenteRole = new Role(
+        $teacherRole = new Role(
             id: 20,
-            uuid: 'docente-uuid',
+            uuid: 'teacher-uuid',
             tenantId: null,
             categoryId: 1,
-            name: 'Docente',
-            slug: 'docente',
+            name: 'Teacher',
+            slug: 'teacher',
             hierarchyLevel: 7,
             isSystemRole: false,
             permissions: [],
@@ -297,8 +297,8 @@ describe('AssignRoleToUserUseCase', function () {
         );
 
         $this->schoolRepo->shouldReceive('findIdByUuid')->once()->with('school-uuid')->andReturn(5);
-        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($docenteRole);
-        $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')->once()->with(20, 5)->andReturn(['alumno']);
+        $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($teacherRole);
+        $this->assignmentRepo->shouldReceive('findActiveRoleSlugsForUserInSchool')->once()->with(20, 5)->andReturn(['student']);
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(RoleExclusionException::class);

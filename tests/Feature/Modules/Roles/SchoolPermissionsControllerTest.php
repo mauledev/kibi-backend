@@ -68,7 +68,7 @@ describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
         $perm1 = PermissionModel::factory()->withSlug('grade.create')->create(['category_id' => $cat1->id]);
         $perm2 = PermissionModel::factory()->withSlug('payment.approve')->create(['category_id' => $cat2->id]);
 
-        // Custom role: category_id IS NULL, slug is not owner or gestor_escuelas
+        // Custom role: category_id IS NULL, slug is not owner or school_manager
         $customRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create([
             'slug' => 'my_custom_sp_role',
             'category_id' => null,

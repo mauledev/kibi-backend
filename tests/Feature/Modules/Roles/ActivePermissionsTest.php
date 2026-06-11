@@ -144,7 +144,7 @@ describe('Gestor Gate bypass', function () {
 
     it('gestor passes Gate check for any permission in their assigned school', function () {
         $gestor = User::factory()->create();
-        $gestorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+        $gestorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
         apAssignRole($gestor, $gestorRole, $this->school->id);
 
         $gestor->refresh();

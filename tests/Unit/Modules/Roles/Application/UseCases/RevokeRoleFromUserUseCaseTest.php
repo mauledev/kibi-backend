@@ -185,7 +185,7 @@ describe('RevokeRoleFromUserUseCase', function () {
 
         $input = new RevokeRoleFromUserInput(
             actorUuid: 'actor-uuid',
-            actorSlug: 'gestor_escuelas',
+            actorSlug: 'school_manager',
             targetUserUuid: 'target-uuid',
             roleUuid: 'role-public-uuid',
             schoolUuid: 'school-uuid',

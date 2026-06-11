@@ -3,25 +3,25 @@
 use App\Modules\Roles\Domain\Enums\RoleExclusionEnum;
 
 describe('RoleExclusionEnum', function () {
-    it('returns alumno and tutor as incompatible slugs for docente', function () {
-        $incompatible = RoleExclusionEnum::getIncompatible('docente');
+    it('returns student and tutor as incompatible slugs for teacher', function () {
+        $incompatible = RoleExclusionEnum::getIncompatible('teacher');
 
-        expect($incompatible)->toContain('alumno');
+        expect($incompatible)->toContain('student');
         expect($incompatible)->toContain('tutor');
     });
 
-    it('returns docente and tutor as incompatible slugs for alumno', function () {
-        $incompatible = RoleExclusionEnum::getIncompatible('alumno');
+    it('returns teacher and tutor as incompatible slugs for student', function () {
+        $incompatible = RoleExclusionEnum::getIncompatible('student');
 
-        expect($incompatible)->toContain('docente');
+        expect($incompatible)->toContain('teacher');
         expect($incompatible)->toContain('tutor');
     });
 
-    it('returns docente and alumno as incompatible slugs for tutor', function () {
+    it('returns teacher and student as incompatible slugs for tutor', function () {
         $incompatible = RoleExclusionEnum::getIncompatible('tutor');
 
-        expect($incompatible)->toContain('docente');
-        expect($incompatible)->toContain('alumno');
+        expect($incompatible)->toContain('teacher');
+        expect($incompatible)->toContain('student');
     });
 
     it('returns an empty array for an unknown slug', function () {

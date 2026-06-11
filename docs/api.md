@@ -289,6 +289,74 @@ Each list/detail item carries both `company_name` (tenant name) and `school_name
 
 Payment documents (attached receipts) are **not** exposed in MVP — there is no upload endpoint for the Owner to submit them, so the detail response intentionally omits the `documents` field. The upload + download flow is tracked in `docs/post-mvp.md` PM-004 and will be reintroduced when the Owner-side payment submission feature is built.
 
+---
+
+### Users
+
+```
+GET    /users                   List users in the current tenant (paginated, filterable)
+GET    /users/{uuid}            Get a single user with full detail
+POST   /users                   Create a user (not yet implemented — returns 501)
+PUT    /users/{uuid}            Update a user (not yet implemented — returns 501)
+DELETE /users/{uuid}            Delete a user (not yet implemented — returns 501)
+```
+
+`GET /users` returns 200 with a paginated list of tenant users. Authorization requires the `user.view` permission. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string (max 255) | Free-text search across `first_name`, `last_name_paternal`, `last_name_maternal`, `email` (Postgres ILIKE, case-insensitive) |
+| `filter[role]` | string or string[] | Filter by role slug(s). Users must hold an active assignment with at least one of the provided slugs. |
+| `filter[status]` | string | Filter by lifecycle status. Allowed: `active`, `inactive`, `suspended`. |
+| `page` | integer (min 1) | Page number. Default: 1. |
+| `per_page` | integer (1–100) | Items per page. Default: 20. |
+
+**School visibility is authority-driven, not header-driven.** The set of schools a caller can list is derived on the server from the actor, so omitting `X-School-Uuid` can never widen visibility beyond what the actor is entitled to:
+
+| Actor | Without `X-School-Uuid` | With `X-School-Uuid` |
+|---|---|---|
+| Owner (`tenants.owner_id`) | All users in the tenant (every school) | Narrowed to that one school |
+| Non-owner (gestor, director, …) | Union of all schools where they hold an active assignment | That school, only if it is within their accessible set — otherwise `403` |
+
+A non-owner who requests a school they have no active assignment in receives `403` (`SchoolAccessDeniedException`). A non-owner with no school-scoped assignments (tenant-level role only) sees an empty list unless they are the owner. The `X-School-Uuid` header therefore only ever *narrows* the scope an actor already has.
+
+Response shape:
+```json
+{
+  "success": true,
+  "status": 200,
+  "data": [
+    {
+      "uuid": "...",
+      "full_name": "Mauricio Ledesma García",
+      "email": "mauricio@example.com",
+      "phone": "+52 55 1234 5678",
+      "status": "active",
+      "roles": [
+        { "slug": "teacher", "name": "Teacher", "school_uuid": "..." }
+      ],
+      "created_at": "2025-01-15T10:00:00+00:00"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 42,
+      "per_page": 20,
+      "current_page": 1,
+      "last_page": 3
+    }
+  }
+}
+```
+
+`GET /users/{uuid}` returns 200 with the full user detail. Authorization requires `user.view`. Returns 404 when the UUID does not exist within the current tenant.
+
+Detail response includes the list fields plus: `first_name`, `last_name_paternal`, `last_name_maternal`.
+
+Permission slug used: `user.view` (seeded under `school/director` category — also held by `school_registrar`, `prefect`, `finance`, `hr`, and `academic_coordinator` via their respective category slugs).
+
+---
+
 ### Roles and permissions
 
 ```

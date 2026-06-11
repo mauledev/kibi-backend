@@ -139,6 +139,12 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
         );
 
+        // --- User module ---
+        $this->app->bind(
+            \App\Modules\User\Domain\Contracts\UserRepositoryInterface::class,
+            \App\Modules\User\Infrastructure\Repositories\EloquentUserRepository::class
+        );
+
         // --- Treasury module ---
         $this->app->bind(
             PaymentRepositoryInterface::class,
