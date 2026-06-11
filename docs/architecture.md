@@ -75,6 +75,28 @@ Use an output DTO only for results that are not domain objects — e.g. aggregat
 
 ---
 
+## Same record, multiple module entities
+
+The same physical row can be modeled by more than one Domain Entity when more than one bounded context uses it. This is intentional, not duplication to be eliminated: each module shapes the entity to what its context needs, and they stay decoupled because they share only the Eloquent model (`App\Models\*`), never each other's entities.
+
+The canonical case is the `users` table, modeled by two entities:
+
+| Entity | Context | Carries | Nature |
+|---|---|---|---|
+| `App\Modules\Auth\Domain\Entities\User` | Authentication | `passwordHash`, `googleId`, `microsoftId`, `isStaff`, `tenantId`; `changePassword()`, `activate()`, `deactivate()`, `isActive()` | Write/lifecycle aggregate |
+| `App\Modules\User\Domain\Entities\User` | User directory | identity fields + `roles[]` (RoleAssignment); `getFullName()` | Read model (listing/detail) |
+
+Ownership rule for this split:
+- **Auth owns credentials and session lifecycle** — anything about how a user authenticates.
+- **The User module owns the person/directory** — listing today, and user create/update/delete when those land. Write behavior for *people* (not credentials) belongs in the User module's entity, not Auth's.
+
+Rules to keep the split safe:
+1. A module must never import another module's entity. The only shared point is the Eloquent model each repository maps from.
+2. Behavior duplicated across both entities (e.g. `getFullName()`) must stay identical — change it in both, or it is a bug.
+3. Both classes are named `User`; when both appear in one file, alias them (`User as UserEntity`, `UserModel`). Prefer not to add a third `User` entity — extend an existing context's entity instead.
+
+---
+
 ## UseCase vs Service (Application layer)
 
 Use a **UseCase** when the operation has any logic beyond persistence:

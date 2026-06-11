@@ -115,6 +115,12 @@ Owner, school_manager (in their schools), and director (in their school) can add
 
 Gestores and directors can only operate within schools they have an active assignment for. Every UseCase that performs a school-level action verifies this before proceeding. The owner skips this check — they have access to all schools in their tenant.
 
+This applies to **read/listing** actions too, not just mutations. School scope for a listing is resolved from the actor on the server, never from the mere presence of `X-School-Uuid`:
+- Owner → all schools in the tenant; the header optionally narrows to one.
+- Non-owner → the union of schools where they hold an active assignment; the header may only narrow within that set, and requesting a school outside it is denied (`403`).
+
+See `ListUsersUseCase` for the reference implementation (`GET /users`). The pattern prevents a director from omitting the header to obtain a tenant-wide listing.
+
 ---
 
 ## Worked example
