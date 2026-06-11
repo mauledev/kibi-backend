@@ -350,6 +350,34 @@ PUT    /tenant/custom-roles-limit                                    Configure m
 
 ---
 
+### Onboarding
+
+```
+GET    /onboarding/progress               Return current onboarding progress (auto-bootstraps)
+POST   /onboarding/steps/company          Complete step 1 — company data
+POST   /onboarding/steps/branding         Complete step 2 — branding
+POST   /onboarding/steps/first-school     Complete step 3 — link first school
+POST   /onboarding/steps/skip             501 — not implemented (MVP stub)
+POST   /onboarding/steps/academic-template 501 — not implemented (MVP stub)
+POST   /onboarding/steps/fiscal           501 — not implemented (MVP stub)
+POST   /onboarding/steps/payment          501 — not implemented (MVP stub)
+POST   /onboarding/steps/director         501 — not implemented (MVP stub)
+```
+
+All onboarding endpoints require `auth:sanctum` + `tenant` + `owner` middleware. The `owner` middleware (`EnsureUserIsTenantOwner`) checks `request.user.id === TenantContext::ownerId` — only the tenant owner can perform onboarding.
+
+`GET /onboarding/progress` auto-bootstraps a missing record (handles legacy tenants). Returns an `OnboardingProgressResource` with `uuid`, `current_step`, `status` (effective — may be `suspended` when grace period expired), `steps[]`, `grace_period_ends_at`, `is_grace_period_expired`, `can_access_full_panel`, `created_at`, `updated_at`.
+
+`POST /onboarding/steps/company` body: `business_name`, `rfc` (auto-uppercased), `fiscal_address` (nested object), `primary_contact_name`, `primary_contact_email`, `primary_contact_phone`. Returns 200 with updated progress. Idempotent.
+
+`POST /onboarding/steps/branding` body: `logo_url`, `primary_color` (hex), `secondary_color` (hex). Requires step 1 completed (422 if not). Returns 200 with updated progress. Idempotent.
+
+`POST /onboarding/steps/first-school` body: `school_id` (school UUID). Requires step 2 completed (422 if not). Returns 403 if school UUID does not belong to the tenant. Returns 200 with updated progress. Idempotent.
+
+`BootstrapOnboardingUseCase` is called inside the `CreateTenantUseCase` transaction after tenant creation, so every new tenant gets an onboarding record immediately.
+
+---
+
 ## Tenant lifecycle
 
 ```
