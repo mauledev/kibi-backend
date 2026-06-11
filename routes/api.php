@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Me\MeOnboardingController;
 use App\Http\Controllers\Roles\AssignmentDenialController;
 use App\Http\Controllers\Roles\CustomRoleLimitController;
 use App\Http\Controllers\Roles\PermissionController;
@@ -62,6 +63,9 @@ Route::middleware('tenant')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me'])->name('auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+
+        // Onboarding progress of the current user (derived %, no storage).
+        Route::get('/me/onboarding', [MeOnboardingController::class, 'show'])->name('me.onboarding.show');
 
         Route::apiResource('users', UserController::class);
 
