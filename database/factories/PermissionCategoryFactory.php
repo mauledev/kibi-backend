@@ -18,14 +18,37 @@ class PermissionCategoryFactory extends Factory
     {
         return [
             'uuid' => (string) Str::uuid(),
-            'school_id' => null, // system category by default
-            'name' => fake()->randomElement(['academic', 'financial', 'hr', 'communication', 'configuration']),
+            'scope' => fake()->randomElement(['school', 'tenant', 'staff']),
+            // Use a unique suffix to avoid violating the (scope, name) unique index
+            // across multiple factory calls in the same test.
+            'name' => fake()->unique()->word().'_'.fake()->numerify('###'),
         ];
     }
 
-    /** System-level category (school_id IS NULL). */
+    /** School-scoped category. */
+    public function school(): static
+    {
+        return $this->state(fn () => ['scope' => 'school']);
+    }
+
+    /**
+     * Alias for school() — kept for backward compatibility with existing tests.
+     * Previously meant "category without school_id"; now defaults to school scope.
+     */
     public function system(): static
     {
-        return $this->state(fn () => ['school_id' => null]);
+        return $this->state(fn () => ['scope' => 'school']);
+    }
+
+    /** Staff-scoped category. */
+    public function staff(): static
+    {
+        return $this->state(fn () => ['scope' => 'staff']);
+    }
+
+    /** Tenant-scoped category. */
+    public function tenant(): static
+    {
+        return $this->state(fn () => ['scope' => 'tenant']);
     }
 }

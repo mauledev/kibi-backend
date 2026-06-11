@@ -3,6 +3,7 @@
 namespace App\Modules\Roles\Infrastructure\Repositories;
 
 use App\Models\Permission as PermissionModel;
+use App\Models\PermissionCategory;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Permission;
 use DateTimeImmutable;
@@ -12,9 +13,7 @@ class EloquentPermissionRepository implements PermissionRepositoryInterface
     /** {@inheritDoc} */
     public function findAll(): array
     {
-        // System permissions have a category with school_id IS NULL
         $models = PermissionModel::join('permission_categories', 'permission_categories.id', '=', 'permissions.category_id')
-            ->whereNull('permission_categories.school_id')
             ->whereNull('permission_categories.deleted_at')
             ->select('permissions.*')
             ->get();
@@ -58,6 +57,22 @@ class EloquentPermissionRepository implements PermissionRepositoryInterface
             ->select('permissions.*')
             ->distinct()
             ->get();
+
+        return $models->map(fn (PermissionModel $m) => $this->toDomain($m))->all();
+    }
+
+    /** {@inheritDoc} */
+    public function findCategoryScope(int $categoryId): ?string
+    {
+        $scope = PermissionCategory::find($categoryId)?->scope;
+
+        return $scope ?? null;
+    }
+
+    /** {@inheritDoc} */
+    public function findByCategoryId(int $categoryId): array
+    {
+        $models = PermissionModel::where('category_id', $categoryId)->get();
 
         return $models->map(fn (PermissionModel $m) => $this->toDomain($m))->all();
     }

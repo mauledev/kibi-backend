@@ -2,12 +2,14 @@
 
 use App\Modules\Roles\Application\UseCases\ListPermissions\ListPermissionsUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
+use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Permission;
 
 describe('ListPermissionsUseCase', function () {
     beforeEach(function () {
         $this->permissionRepo = Mockery::mock(PermissionRepositoryInterface::class);
-        $this->useCase = new ListPermissionsUseCase($this->permissionRepo);
+        $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
+        $this->useCase = new ListPermissionsUseCase($this->permissionRepo, $this->roleRepo);
     });
 
     afterEach(function () {

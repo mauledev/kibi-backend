@@ -79,9 +79,19 @@ When a user holds multiple roles, the frontend sends the currently selected role
 X-Active-Role: {role_uuid}
 ```
 
-This header is **UI context only**. The frontend uses it to decide which dashboard to render. It does **not** participate in permission checks on the backend.
+**UI context only.** The frontend uses it to decide which dashboard to render. The backend never reads it — permission checks are always evaluated against all active assignments for the current school.
 
-Permission checks always merge all active role assignments — no backend logic reads `X-Active-Role`. Reading an HTTP header inside a UseCase would couple the Application layer to HTTP, violating hexagonal architecture.
+### X-School-Uuid
+
+Identifies the school the user is currently operating in:
+
+```
+X-School-Uuid: {school_uuid}
+```
+
+Read by `SchoolMiddleware`, which resolves the UUID to a `school_id`, verifies it belongs to the current tenant, and binds `SchoolContext` into the container. The Gate uses this context to scope permission checks to the correct `user_role_assignments` rows and apply the corresponding `user_role_assignment_denials`.
+
+Required on all school-level endpoints. Absent on tenant-level endpoints (e.g. managing gestores, configuring custom role limits).
 
 ---
 
@@ -225,20 +235,118 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 
 `DELETE /staff/tenants/{uuid}` soft-deletes the tenant. Returns 200 with a success message. Returns 404 when not found.
 
+### Schools
+
+```
+GET    /schools                          List schools of the current tenant
+POST   /schools                          Create a school
+GET    /schools/{uuid}                   Get a single school
+PUT    /schools/{uuid}                   Update mutable fields (partial)
+POST   /schools/{uuid}/deactivate        Soft-delete a school
+```
+
+`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+
+| Value          | Meaning                                                                                |
+|----------------|----------------------------------------------------------------------------------------|
+| *(omitted)*    | Equivalent to `active` — the default. There is no separate "no-filter" mode.           |
+| `active`       | `status='active'` AND not soft-deleted.                                                |
+| `deactivated`  | Only soft-deleted rows.                                                                |
+| `all`          | Every row, including soft-deleted and any rows with a non-`active` status (suspended). |
+
+This is the canonical pattern for list endpoints that need to expose soft-deleted rows alongside lifecycle states. The filter values are a Domain enum (`SchoolListFilter`); the FormRequest validates via `Rule::enum(...)` and the controller never inlines strings. The repository contract accepts a **Criteria** object (`SchoolListCriteria`) rather than loose primitives, so adding pagination, search or sorting later does not break callers. The Criteria's `status` field is non-nullable with `Active` as its default — "include everything" is expressed exclusively as `All`, eliminating the previous `null`/`All` ambiguity. The repository maps `Deactivated` to `onlyTrashed()` and `All` to `withTrashed()`; the soft-delete column stays an Infrastructure concern. Resources expose `deleted_at` so the frontend can render deactivated rows distinctly.
+
+### Users
+
+```
+GET    /users                   List users in the current tenant (paginated, filterable)
+GET    /users/{uuid}            Get a single user with full detail
+POST   /users                   Create a user (not yet implemented — returns 501)
+PUT    /users/{uuid}            Update a user (not yet implemented — returns 501)
+DELETE /users/{uuid}            Delete a user (not yet implemented — returns 501)
+```
+
+`GET /users` returns 200 with a paginated list of tenant users. Authorization requires the `user.view` permission. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string (max 255) | Free-text search across `first_name`, `last_name_paternal`, `last_name_maternal`, `email` (Postgres ILIKE, case-insensitive) |
+| `filter[role]` | string or string[] | Filter by role slug(s). Users must hold an active assignment with at least one of the provided slugs. |
+| `filter[status]` | string | Filter by lifecycle status. Allowed: `active`, `inactive`, `suspended`. |
+| `page` | integer (min 1) | Page number. Default: 1. |
+| `per_page` | integer (1–100) | Items per page. Default: 20. |
+
+**School visibility is authority-driven, not header-driven.** The set of schools a caller can list is derived on the server from the actor, so omitting `X-School-Uuid` can never widen visibility beyond what the actor is entitled to:
+
+| Actor | Without `X-School-Uuid` | With `X-School-Uuid` |
+|---|---|---|
+| Owner (`tenants.owner_id`) | All users in the tenant (every school) | Narrowed to that one school |
+| Non-owner (gestor, director, …) | Union of all schools where they hold an active assignment | That school, only if it is within their accessible set — otherwise `403` |
+
+A non-owner who requests a school they have no active assignment in receives `403` (`SchoolAccessDeniedException`). A non-owner with no school-scoped assignments (tenant-level role only) sees an empty list unless they are the owner. The `X-School-Uuid` header therefore only ever *narrows* the scope an actor already has.
+
+Response shape:
+```json
+{
+  "success": true,
+  "status": 200,
+  "data": [
+    {
+      "uuid": "...",
+      "full_name": "Mauricio Ledesma García",
+      "email": "mauricio@example.com",
+      "phone": "+52 55 1234 5678",
+      "status": "active",
+      "roles": [
+        { "slug": "teacher", "name": "Teacher", "school_uuid": "..." }
+      ],
+      "created_at": "2025-01-15T10:00:00+00:00"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 42,
+      "per_page": 20,
+      "current_page": 1,
+      "last_page": 3
+    }
+  }
+}
+```
+
+`GET /users/{uuid}` returns 200 with the full user detail. Authorization requires `user.view`. Returns 404 when the UUID does not exist within the current tenant.
+
+Detail response includes the list fields plus: `first_name`, `last_name_paternal`, `last_name_maternal`.
+
+Permission slug used: `user.view` (seeded under `school/director` category — also held by `school_registrar`, `prefect`, `finance`, `hr`, and `academic_coordinator` via their respective category slugs).
+
+---
+
 ### Roles and permissions
 
 ```
-GET    /roles                                              List roles for current tenant
-POST   /roles                                             Create role (requires manage.permissions)
-GET    /roles/{uuid}                                 Get role with its permissions
-PUT    /roles/{uuid}                                 Update role
-DELETE /roles/{uuid}                                 Delete role
-GET    /permissions                                       List permissions grouped by category
-POST   /roles/{uuid}/permissions                     Assign permission to role
-DELETE /roles/{uuid}/permissions/{permission_uuid}   Revoke permission from role
-POST   /users/{uuid}/roles                           Assign role to user
-DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
+GET    /roles                                                        List roles for current tenant
+POST   /roles/custom                                                 Create a custom role (owner and gestor only)
+GET    /roles/{uuid}                                                 Get role with its effective permissions
+PUT    /roles/{uuid}                                                 Update role name (custom roles only)
+DELETE /roles/{uuid}                                                 Delete role (custom roles only)
+GET    /permissions                                                  List permissions (filtered by role category if role_uuid provided)
+POST   /roles/{uuid}/permissions                                     Assign permission to role (category-bound)
+DELETE /roles/{uuid}/permissions/{permission_uuid}                   Revoke permission from role
+POST   /users/{uuid}/roles                                           Assign role to user (owner, gestor, director only)
+DELETE /users/{uuid}/roles/{role_uuid}                               Revoke role from user
+POST   /users/{uuid}/assignments/{assignment_uuid}/denials            Deny a permission for a specific assignment
+DELETE /users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
+PUT    /tenant/custom-roles-limit                                    Configure max custom roles (owner only)
 ```
+
+`POST /roles/custom` creates a custom role (`category_id = NULL`) and assigns it to one or more schools. Requires the tenant's `custom_roles_limit` to be set and not exceeded. Body: `{ "name": "...", "school_uuids": ["..."] }`.
+
+`GET /permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+
+`POST /users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
+
+`PUT /tenant/custom-roles-limit` sets `tenants.custom_roles_limit` for the authenticated owner's tenant. Body: `{ "limit": 10 }` (1–50).
 
 ---
 

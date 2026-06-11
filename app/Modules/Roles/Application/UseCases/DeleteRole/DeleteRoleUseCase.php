@@ -10,6 +10,9 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 class DeleteRoleUseCase
 {
+    /** Actors authorised to delete roles, in descending authority order. */
+    private const ALLOWED_ACTORS = ['owner', 'school_manager', 'director'];
+
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly AuditLoggerInterface $audit,
@@ -18,7 +21,8 @@ class DeleteRoleUseCase
     /**
      * Soft-delete a role.
      * System roles cannot be deleted.
-     * The actor must have a strictly lower hierarchy_level than the target role.
+     * Only owner, school_manager, and director may delete roles.
+     * Director cannot delete gestor or owner roles.
      *
      * @throws RoleNotFoundException
      * @throws SystemRoleViolationException
@@ -26,6 +30,12 @@ class DeleteRoleUseCase
      */
     public function execute(DeleteRoleInput $input): void
     {
+        if (! in_array($input->actorSlug, self::ALLOWED_ACTORS, true)) {
+            throw new HierarchyViolationException(
+                'Only owner, school_manager, or director can delete roles.'
+            );
+        }
+
         $role = $this->roles->findByUuid($input->uuid);
 
         if ($role === null || $role->isDeleted()) {
@@ -36,9 +46,10 @@ class DeleteRoleUseCase
             throw new SystemRoleViolationException('System roles cannot be deleted.');
         }
 
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
+        // Director cannot delete gestor or owner roles.
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'You can only delete roles with a hierarchy level strictly greater than your own.'
+                'Director cannot delete owner or school_manager roles.'
             );
         }
 

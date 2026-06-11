@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Schools;
 
+use App\Common\School\SchoolContext;
 use App\Http\Controller;
 use App\Http\Requests\Schools\CreateSchoolRequest;
+use App\Http\Requests\Schools\ListSchoolsRequest;
 use App\Http\Requests\Schools\UpdateSchoolRequest;
 use App\Http\Resources\Schools\SchoolResource;
 use App\Http\Response\ApiResponse;
@@ -11,6 +13,8 @@ use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolInput;
 use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\DeactivateSchool\DeactivateSchoolInput;
 use App\Modules\Schools\Application\UseCases\DeactivateSchool\DeactivateSchoolUseCase;
+use App\Modules\Schools\Application\UseCases\GetCurrentSchool\GetCurrentSchoolInput;
+use App\Modules\Schools\Application\UseCases\GetCurrentSchool\GetCurrentSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolInput;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
@@ -25,13 +29,20 @@ use Illuminate\Http\Request;
 class SchoolController extends Controller
 {
     /**
-     * GET /schools — List all schools of the authenticated tenant.
+     * GET /schools — List schools of the authenticated tenant.
+     *
+     * Optional `?status` query param narrows the result set:
+     *   active | deactivated | all
+     * When omitted, the legacy behaviour is preserved (non-deleted only,
+     * no filtering by the `status` column).
      */
-    public function index(Request $request, ListSchoolsUseCase $useCase): JsonResponse
+    public function index(ListSchoolsRequest $request, ListSchoolsUseCase $useCase): JsonResponse
     {
         $this->authorize('school.view');
 
-        $schools = $useCase->execute(new ListSchoolsInput);
+        $schools = $useCase->execute(new ListSchoolsInput(
+            statusFilter: $request->statusFilter(),
+        ));
 
         return ApiResponse::success(SchoolResource::collection($schools)->resolve());
     }
@@ -45,6 +56,23 @@ class SchoolController extends Controller
 
         try {
             $school = $useCase->execute(new GetSchoolInput($uuid));
+
+            return ApiResponse::success((new SchoolResource($school))->resolve());
+        } catch (SchoolNotFoundException $e) {
+            return ApiResponse::notFound($e->getMessage());
+        }
+    }
+
+    /**
+     * GET /school — Return the school the user is currently operating in,
+     * identified by the X-School-Uuid header resolved by SchoolMiddleware.
+     */
+    public function currentSchool(Request $request, GetCurrentSchoolUseCase $useCase): JsonResponse
+    {
+        try {
+            $school = $useCase->execute(new GetCurrentSchoolInput(
+                schoolId: app(SchoolContext::class)->schoolId,
+            ));
 
             return ApiResponse::success((new SchoolResource($school))->resolve());
         } catch (SchoolNotFoundException $e) {

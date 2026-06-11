@@ -5,6 +5,7 @@ use App\Models\School as SchoolModel;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -23,6 +24,7 @@ describe('SchoolController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create(['slug' => 'kibi-test']);
         $this->otherTenant = Tenant::factory()->create(['slug' => 'other-test']);
+        $this->owner = User::find($this->tenant->owner_id);
     });
 
     describe('GET /api/schools', function () {
@@ -43,22 +45,14 @@ describe('SchoolController', function () {
         });
 
         it('owner bypasses permission check and receives 200', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools')
                 ->assertStatus(Response::HTTP_OK);
         });
 
         it('returns 200 with the expected API envelope', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
@@ -67,14 +61,10 @@ describe('SchoolController', function () {
         });
 
         it('returns schools for the current tenant only', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             SchoolModel::factory()->for($this->tenant)->create(['name' => 'My School']);
             SchoolModel::factory()->for($this->otherTenant)->create(['name' => 'Other School']);
 
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
@@ -87,13 +77,9 @@ describe('SchoolController', function () {
         });
 
         it('returns response objects with uuid and never internal id', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             SchoolModel::factory()->for($this->tenant)->create();
 
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
@@ -109,13 +95,9 @@ describe('SchoolController', function () {
         });
 
         it('returns the expected response shape per school object', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             SchoolModel::factory()->for($this->tenant)->create();
 
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
@@ -137,17 +119,114 @@ describe('SchoolController', function () {
         });
 
         it('returns an empty data array when the tenant has no schools', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
             $response->assertStatus(Response::HTTP_OK);
 
             expect($response->json('data'))->toBeArray()->toBeEmpty();
+        });
+
+        describe('?status filter', function () {
+            beforeEach(function () {
+                $this->user = $this->owner;
+            });
+
+            it('without status param it defaults to Active (excludes suspended and soft-deleted)', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools');
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(1);
+                expect($response->json('data.0.status'))->toBe('active');
+                expect($response->json('data.0.deleted_at'))->toBeNull();
+            });
+
+            it('returns 200 and only active schools when status=active', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Active->value);
+
+                $response->assertStatus(200);
+                $statuses = array_column($response->json('data'), 'status');
+                expect($statuses)->each->toBe('active');
+            });
+
+            it('returns 200 and only soft-deleted schools when status=deactivated', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(1);
+                expect($response->json('data.0.deleted_at'))->not->toBeNull();
+            });
+
+            it('returns 200 with all schools (including soft-deleted) when status=all', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+                SchoolModel::factory()->for($this->tenant)->suspended()->create();
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::All->value);
+
+                $response->assertStatus(200);
+                expect($response->json('data'))->toHaveCount(3);
+            });
+
+            it('returns 422 with a validation error when status=suspended (no longer in filter)', function () {
+                $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status=suspended')
+                    ->assertStatus(422)
+                    ->assertJsonValidationErrors(['status']);
+            });
+
+            it('returns 422 with a validation error on status field when an invalid value is passed', function () {
+                $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status=foo')
+                    ->assertStatus(422)
+                    ->assertJsonValidationErrors(['status']);
+            });
+
+            it('includes deleted_at as null for non-deleted schools in the resource', function () {
+                SchoolModel::factory()->for($this->tenant)->create(['status' => 'active']);
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools');
+
+                $response->assertStatus(200);
+                expect($response->json('data.0.deleted_at'))->toBeNull();
+            });
+
+            it('includes deleted_at as an ISO 8601 string for deactivated schools in the resource', function () {
+                SchoolModel::factory()->for($this->tenant)->deactivated()->create();
+
+                $response = $this->actingAs($this->user)
+                    ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+
+                $response->assertStatus(200);
+                $deletedAt = $response->json('data.0.deleted_at');
+                expect($deletedAt)->toBeString()->not->toBeEmpty();
+                // ISO 8601 basic check: contains a T separator
+                expect(str_contains($deletedAt, 'T'))->toBeTrue();
+            });
         });
     });
 
@@ -171,13 +250,9 @@ describe('SchoolController', function () {
         });
 
         it('returns 200 with the school for the current tenant', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create(['name' => 'Target']);
 
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/schools/{$school->uuid}");
 
@@ -190,37 +265,25 @@ describe('SchoolController', function () {
         });
 
         it('returns 404 when uuid does not exist', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools/00000000-0000-0000-0000-000000000000')
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when uuid belongs to another tenant', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $foreign = SchoolModel::factory()->for($this->otherTenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/schools/{$foreign->uuid}")
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('does not expose internal id', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/schools/{$school->uuid}");
 
@@ -263,11 +326,7 @@ describe('SchoolController', function () {
         });
 
         it('returns 201 with the created school for owner', function () use ($validPayload) {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $response = $this->actingAs($user)
+            $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', $validPayload());
 
@@ -282,11 +341,7 @@ describe('SchoolController', function () {
         });
 
         it('persists the school under the current tenant', function () use ($validPayload) {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', $validPayload())
                 ->assertStatus(Response::HTTP_CREATED);
@@ -299,38 +354,26 @@ describe('SchoolController', function () {
         });
 
         it('returns 409 when slug already exists within the tenant', function () use ($validPayload) {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             SchoolModel::factory()->for($this->tenant)->create(['slug' => 'colegio-nuevo']);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', $validPayload())
                 ->assertStatus(Response::HTTP_CONFLICT);
         });
 
         it('allows the same slug across different tenants', function () use ($validPayload) {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             // Same slug already taken in another tenant — must not conflict.
             SchoolModel::factory()->for($this->otherTenant)->create(['slug' => 'colegio-nuevo']);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', $validPayload())
                 ->assertStatus(Response::HTTP_CREATED);
         });
 
         it('returns 422 on missing required fields', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', ['phone' => '+52'])
                 ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -338,11 +381,7 @@ describe('SchoolController', function () {
         });
 
         it('returns 422 on invalid slug format', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools', ['name' => 'X', 'slug' => 'NOT VALID SLUG'])
                 ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -370,16 +409,12 @@ describe('SchoolController', function () {
         });
 
         it('returns 200 and persists changes for owner', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create([
                 'name' => 'Before',
                 'phone' => '+52 00 00',
             ]);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$school->uuid}", [
                     'name' => 'After',
@@ -397,16 +432,12 @@ describe('SchoolController', function () {
         });
 
         it('leaves omitted fields untouched (partial update)', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create([
                 'name' => 'Untouched',
                 'phone' => '+52 00 00',
             ]);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$school->uuid}", ['phone' => '+52 55 1111 1111'])
                 ->assertStatus(Response::HTTP_OK)
@@ -415,13 +446,9 @@ describe('SchoolController', function () {
         });
 
         it('allows clearing phone to null', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create(['phone' => '+52 00 00']);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$school->uuid}", ['phone' => null])
                 ->assertStatus(Response::HTTP_OK)
@@ -429,13 +456,9 @@ describe('SchoolController', function () {
         });
 
         it('ignores slug when present in the payload', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create(['slug' => 'original']);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$school->uuid}", ['slug' => 'hacked'])
                 ->assertStatus(Response::HTTP_OK)
@@ -443,37 +466,25 @@ describe('SchoolController', function () {
         });
 
         it('returns 404 when uuid does not exist', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson('/api/schools/00000000-0000-0000-0000-000000000000', ['name' => 'X'])
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when uuid belongs to another tenant', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $foreign = SchoolModel::factory()->for($this->otherTenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$foreign->uuid}", ['name' => 'X'])
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 422 when name is empty string', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/schools/{$school->uuid}", ['name' => ''])
                 ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -501,13 +512,9 @@ describe('SchoolController', function () {
         });
 
         it('returns 200 and soft-deletes the school', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$school->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_OK)
@@ -517,13 +524,9 @@ describe('SchoolController', function () {
         });
 
         it('soft-deletes a suspended school the same way', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create(['status' => 'suspended']);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$school->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_OK);
@@ -532,18 +535,14 @@ describe('SchoolController', function () {
         });
 
         it('makes the school disappear from GET /schools', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$school->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_OK);
 
-            $listResponse = $this->actingAs($user)
+            $listResponse = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/schools');
 
@@ -552,55 +551,39 @@ describe('SchoolController', function () {
         });
 
         it('returns 404 on subsequent GET of the deactivated school', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$school->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_OK);
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/schools/{$school->uuid}")
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when deactivating an already-deactivated school', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $school = SchoolModel::factory()->for($this->tenant)->deactivated()->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$school->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when uuid does not exist', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/schools/00000000-0000-0000-0000-000000000000/deactivate')
                 ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns 404 when uuid belongs to another tenant', function () {
-            $user = User::factory()->for($this->tenant)->create();
-            $ownerRole = RoleModel::factory()->forTenant($this->tenant)->owner()->create();
-            assignSchoolRole($user, $ownerRole);
-
             $foreign = SchoolModel::factory()->for($this->otherTenant)->create();
 
-            $this->actingAs($user)
+            $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson("/api/schools/{$foreign->uuid}/deactivate")
                 ->assertStatus(Response::HTTP_NOT_FOUND);

@@ -6,7 +6,7 @@ class RevokeRoleFromUserInput
 {
     public function __construct(
         public readonly string $actorUuid,
-        public readonly int $actorHierarchyLevel,
+        public readonly string $actorSlug,
         public readonly string $targetUserUuid,
         public readonly string $roleUuid,
         public readonly ?string $schoolUuid,

@@ -34,11 +34,35 @@ interface RoleRepositoryInterface
      */
     public function create(
         ?int $tenantId,
+        ?int $categoryId,
         string $name,
         string $slug,
         int $hierarchyLevel,
         bool $isSystemRole,
     ): Role;
+
+    /**
+     * Count existing custom roles for a tenant.
+     * Custom roles: tenant_id = X, category_id IS NULL, slug NOT IN ('owner', 'school_manager').
+     */
+    public function countCustomRoles(int $tenantId): int;
+
+    /**
+     * Associate a role with the given school IDs (custom_role_schools).
+     *
+     * @param  array<int>  $schoolIds
+     */
+    public function attachSchools(int $roleId, array $schoolIds): void;
+
+    /**
+     * Return the tenant's custom_roles_limit, or null if not configured.
+     */
+    public function getCustomRolesLimit(int $tenantId): ?int;
+
+    /**
+     * Update the tenant's custom_roles_limit.
+     */
+    public function setCustomRolesLimit(int $tenantId, int $limit): void;
 
     /**
      * Update mutable fields of an existing role.

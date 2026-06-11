@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('user_role_assignments', function (Blueprint $table) {
             $table->bigIncrements('id');
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('role_id')->constrained('roles');
             $table->foreignId('school_id')->nullable()->constrained('schools');

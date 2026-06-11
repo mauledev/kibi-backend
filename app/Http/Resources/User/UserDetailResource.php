@@ -2,33 +2,50 @@
 
 namespace App\Http\Resources\User;
 
-use App\Models\User;
+use App\Modules\User\Domain\Entities\RoleAssignment;
+use App\Modules\User\Domain\Entities\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * UserDetailResource
- * Serializes User with full details.
+ * Serializes a Domain User entity for the single-user detail response.
+ *
+ * Includes all fields from UserListResource plus the individual name components
+ * (first_name, last_name_paternal, last_name_maternal) required by official
+ * school documents (boletas, CFDI).
+ *
+ * @mixin User
  */
 class UserDetailResource extends JsonResource
 {
-    /** @return array<string, mixed> */
+    /**
+     * Transform the Domain User entity into the full detail API response shape.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         /** @var User $user */
         $user = $this->resource;
 
         return [
-            'uuid' => $user->uuid,
-            'email' => $user->email,
-            'first_name' => $user->first_name,
-            'last_name_paternal' => $user->last_name_paternal,
-            'last_name_maternal' => $user->last_name_maternal,
-            'full_name' => $user->first_name.' '.$user->last_name_paternal.($user->last_name_maternal !== null ? ' '.$user->last_name_maternal : ''),
-            'phone' => $user->phone,
-            'status' => $user->status,
-            'created_at' => $user->created_at?->toIso8601String(),
-            'updated_at' => $user->updated_at?->toIso8601String(),
+            'uuid' => $user->getUuid(),
+            'first_name' => $user->getFirstName(),
+            'last_name_paternal' => $user->getLastNamePaternal(),
+            'last_name_maternal' => $user->getLastNameMaternal(),
+            'full_name' => $user->getFullName(),
+            'email' => $user->getEmail(),
+            'phone' => $user->getPhone(),
+            'status' => $user->getStatus(),
+            'roles' => array_map(
+                fn (RoleAssignment $role): array => [
+                    'slug' => $role->slug,
+                    'name' => $role->name,
+                    'school_uuid' => $role->schoolUuid,
+                ],
+                $user->getRoles()
+            ),
+            'created_at' => $user->getCreatedAt()->format('c'),
         ];
     }
 }

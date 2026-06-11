@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property string $uuid
  * @property int|null $tenant_id
+ * @property int|null $category_id
  * @property string $name
  * @property string $slug
  * @property int $hierarchy_level
@@ -38,6 +39,7 @@ class Role extends Model
     protected $fillable = [
         'uuid',
         'tenant_id',
+        'category_id',
         'name',
         'slug',
         'hierarchy_level',
@@ -46,6 +48,7 @@ class Role extends Model
 
     protected $casts = [
         'tenant_id' => 'integer',
+        'category_id' => 'integer',
         'hierarchy_level' => 'integer',
         'is_system_role' => 'boolean',
         'created_at' => 'datetime',

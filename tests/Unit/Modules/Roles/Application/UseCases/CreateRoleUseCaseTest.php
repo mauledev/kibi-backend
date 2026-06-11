@@ -4,166 +4,138 @@ use App\Common\Audit\AuditLogger;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleInput;
 use App\Modules\Roles\Application\UseCases\CreateRole\CreateRoleUseCase;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
+use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
+use App\Modules\Roles\Domain\Exceptions\CustomRoleLimitExceededException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 
 describe('CreateRoleUseCase', function () {
     beforeEach(function () {
         $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
+        $this->schoolRepo = Mockery::mock(SchoolRepositoryInterface::class);
         $this->audit = Mockery::mock(AuditLogger::class);
-        $this->useCase = new CreateRoleUseCase($this->roleRepo, $this->audit);
+        $this->useCase = new CreateRoleUseCase($this->roleRepo, $this->schoolRepo, $this->audit);
     });
 
     afterEach(function () {
         Mockery::close();
     });
 
-    it('creates a role when hierarchy_level is strictly greater than actor level', function () {
-        $input = new CreateRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 3,
-            tenantId: 10,
-            name: 'Director',
-            slug: 'director',
-            hierarchyLevel: 4,
-        );
-
-        $role = new Role(
+    function createBuildRole(string $name = 'My Role'): Role
+    {
+        return new Role(
             id: 99,
-            uuid: 'public-uuid',
-            tenantId: 10,
-            name: 'Director',
-            slug: 'director',
-            hierarchyLevel: 4,
+            uuid: 'custom-uuid',
+            tenantId: 1,
+            categoryId: null,
+            name: $name,
+            slug: 'my_role',
+            hierarchyLevel: 99,
             isSystemRole: false,
             permissions: [],
             createdAt: new DateTimeImmutable,
         );
+    }
+
+    it('throws HierarchyViolationException when actor slug is not owner or school_manager', function () {
+        $input = new CreateRoleInput(
+            actorUserId: 1,
+            actorSlug: 'director',
+            tenantId: 10,
+            name: 'My Custom Role',
+            schoolUuids: [],
+        );
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(HierarchyViolationException::class);
+    });
+
+    it('throws CustomRoleLimitExceededException when custom_roles_limit is null', function () {
+        $input = new CreateRoleInput(
+            actorUserId: 1,
+            actorSlug: 'owner',
+            tenantId: 1,
+            name: 'Custom Role',
+            schoolUuids: [],
+        );
+
+        $this->roleRepo->shouldReceive('getCustomRolesLimit')->with(1)->andReturn(null);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(CustomRoleLimitExceededException::class);
+    });
+
+    it('throws CustomRoleLimitExceededException when limit is reached', function () {
+        $input = new CreateRoleInput(
+            actorUserId: 1,
+            actorSlug: 'owner',
+            tenantId: 1,
+            name: 'Custom Role',
+            schoolUuids: [],
+        );
+
+        $this->roleRepo->shouldReceive('getCustomRolesLimit')->with(1)->andReturn(3);
+        $this->roleRepo->shouldReceive('countCustomRoles')->with(1)->andReturn(3);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(CustomRoleLimitExceededException::class);
+    });
+
+    it('creates a custom role with category_id null when limit not exceeded', function () {
+        $input = new CreateRoleInput(
+            actorUserId: 1,
+            actorSlug: 'owner',
+            tenantId: 1,
+            name: 'My Custom Role',
+            schoolUuids: [],
+        );
+
+        $this->roleRepo->shouldReceive('getCustomRolesLimit')->with(1)->andReturn(5);
+        $this->roleRepo->shouldReceive('countCustomRoles')->with(1)->andReturn(2);
+
+        $createdRole = createBuildRole('My Custom Role');
 
         $this->roleRepo->shouldReceive('create')
             ->once()
-            ->with(10, 'Director', 'director', 4, false)
-            ->andReturn($role);
+            ->with(1, null, 'My Custom Role', Mockery::type('string'), 99, false)
+            ->andReturn($createdRole);
 
-        $this->audit->shouldReceive('log')
-            ->once()
-            ->with('role.create', 1, 99, null, null, Mockery::type('array'));
+        $this->audit->shouldReceive('log')->once();
 
         $result = $this->useCase->execute($input);
 
         expect($result)->toBeInstanceOf(Role::class);
-        expect($result->getSlug())->toBe('director');
+        expect($result->getCategoryId())->toBeNull();
+        expect($result->isCustomRole())->toBeTrue();
     });
 
-    it('throws HierarchyViolationException when hierarchy_level equals actor level', function () {
+    it('associates schools when schoolUuids are provided', function () {
         $input = new CreateRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 4,
-            tenantId: 10,
-            name: 'Director',
-            slug: 'director',
-            hierarchyLevel: 4,
+            actorSlug: 'school_manager',
+            tenantId: 1,
+            name: 'Multi School Role',
+            schoolUuids: ['school-uuid-1', 'school-uuid-2'],
         );
 
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
-    });
+        $this->roleRepo->shouldReceive('getCustomRolesLimit')->with(1)->andReturn(10);
+        $this->roleRepo->shouldReceive('countCustomRoles')->with(1)->andReturn(0);
 
-    it('throws HierarchyViolationException when hierarchy_level is less than actor level', function () {
-        $input = new CreateRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 4,
-            tenantId: 10,
-            name: 'Gestor',
-            slug: 'gestor',
-            hierarchyLevel: 3, // lower level = more privileged = violation
-        );
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
-    });
-
-    it('never calls repo when hierarchy check fails', function () {
-        $input = new CreateRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 4,
-            tenantId: 10,
-            name: 'Director',
-            slug: 'director',
-            hierarchyLevel: 4,
-        );
-
-        $this->roleRepo->shouldNotReceive('create');
-        $this->audit->shouldNotReceive('log');
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
-    });
-
-    it('level 1 actor can create a role at level 2', function () {
-        $input = new CreateRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 1,
-            tenantId: null,
-            name: 'Owner',
-            slug: 'owner',
-            hierarchyLevel: 2,
-        );
-
-        $role = new Role(
-            id: 1,
-            uuid: 'owner-uuid',
-            tenantId: null,
-            name: 'Owner',
-            slug: 'owner',
-            hierarchyLevel: 2,
-            isSystemRole: false,
-            permissions: [],
-            createdAt: new DateTimeImmutable,
-        );
+        $createdRole = createBuildRole('Multi School Role');
 
         $this->roleRepo->shouldReceive('create')
             ->once()
-            ->andReturn($role);
+            ->andReturn($createdRole);
 
-        $this->audit->shouldReceive('log')->once();
+        $this->schoolRepo->shouldReceive('findIdByUuid')->with('school-uuid-1')->andReturn(10);
+        $this->schoolRepo->shouldReceive('findIdByUuid')->with('school-uuid-2')->andReturn(20);
 
-        $result = $this->useCase->execute($input);
-
-        expect($result->getHierarchyLevel())->toBe(2);
-    });
-
-    it('always creates role with isSystemRole false', function () {
-        $input = new CreateRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 3,
-            tenantId: 10,
-            name: 'Custom Role',
-            slug: 'custom_role',
-            hierarchyLevel: 5,
-        );
-
-        $role = new Role(
-            id: 7,
-            uuid: 'custom-uuid',
-            tenantId: 10,
-            name: 'Custom Role',
-            slug: 'custom_role',
-            hierarchyLevel: 5,
-            isSystemRole: false,
-            permissions: [],
-            createdAt: new DateTimeImmutable,
-        );
-
-        $this->roleRepo->shouldReceive('create')
+        $this->roleRepo->shouldReceive('attachSchools')
             ->once()
-            ->with(10, 'Custom Role', 'custom_role', 5, false)
-            ->andReturn($role);
+            ->with(99, Mockery::type('array'));
 
         $this->audit->shouldReceive('log')->once();
 
-        $result = $this->useCase->execute($input);
-
-        expect($result->isSystemRole())->toBeFalse();
+        $this->useCase->execute($input);
     });
 });

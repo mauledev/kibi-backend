@@ -5,7 +5,9 @@ namespace App\Modules\Schools\Infrastructure\Repositories;
 use App\Common\Tenant\TenantContext;
 use App\Models\School as SchoolModel;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use DateTimeImmutable;
 
 class EloquentSchoolRepository implements SchoolRepositoryInterface
@@ -15,12 +17,29 @@ class EloquentSchoolRepository implements SchoolRepositoryInterface
     ) {}
 
     /** {@inheritDoc} */
-    public function findAll(): array
+    public function findAll(SchoolListCriteria $criteria): array
     {
-        $models = SchoolModel::where('tenant_id', $this->context->tenantId)
-            ->get();
+        $query = SchoolModel::where('tenant_id', $this->context->tenantId);
 
-        return $models->map(fn (SchoolModel $m) => $this->toDomain($m))->all();
+        match ($criteria->status) {
+            SchoolListFilter::Active => $query->where('status', SchoolListFilter::Active->value),
+            SchoolListFilter::Deactivated => $query->onlyTrashed(),
+            SchoolListFilter::All => $query->withTrashed(),
+        };
+
+        return $query->get()
+            ->map(fn (SchoolModel $m) => $this->toDomain($m))
+            ->all();
+    }
+
+    /** {@inheritDoc} */
+    public function findById(int $id): ?School
+    {
+        $model = SchoolModel::where('tenant_id', $this->context->tenantId)
+            ->where('id', $id)
+            ->first();
+
+        return $model ? $this->toDomain($model) : null;
     }
 
     /** {@inheritDoc} */

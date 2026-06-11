@@ -3,7 +3,9 @@
 use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsInput;
 use App\Modules\Schools\Application\UseCases\ListSchools\ListSchoolsUseCase;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
+use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 
 describe('ListSchoolsUseCase', function () {
     beforeEach(function () {
@@ -76,4 +78,31 @@ describe('ListSchoolsUseCase', function () {
 
         expect($result[0])->toBe($school);
     });
+
+    it('defaults the Criteria status to Active when the input has no explicit filter', function () {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with(Mockery::on(fn (SchoolListCriteria $c) => $c->status === SchoolListFilter::Active))
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput);
+    });
+
+    it('wraps the statusFilter enum case into a SchoolListCriteria when provided', function () {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with(Mockery::on(fn (SchoolListCriteria $c) => $c->status === SchoolListFilter::Active))
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput(statusFilter: SchoolListFilter::Active));
+    });
+
+    it('forwards each allowed filter case unchanged through the criteria', function (SchoolListFilter $filter) {
+        $this->repo->shouldReceive('findAll')
+            ->once()
+            ->with(Mockery::on(fn (SchoolListCriteria $c) => $c->status === $filter))
+            ->andReturn([]);
+
+        $this->useCase->execute(new ListSchoolsInput(statusFilter: $filter));
+    })->with(SchoolListFilter::cases());
 });

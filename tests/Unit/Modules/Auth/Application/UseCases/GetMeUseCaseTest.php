@@ -64,7 +64,7 @@ describe('GetMeUseCase', function () {
 
         $perm = new Permission(id: 1, uuid: 'perm-uuid', categoryId: 1, name: 'View Role', slug: 'role.view');
         $role = new Role(
-            id: 10, uuid: 'role-uuid', tenantId: 10, name: 'Director', slug: 'director',
+            id: 10, uuid: 'role-uuid', tenantId: 10, categoryId: null, name: 'Director', slug: 'director',
             hierarchyLevel: 4, isSystemRole: false, permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );

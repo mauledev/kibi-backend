@@ -31,6 +31,7 @@ class TenantMiddleware
 
         app()->instance(TenantContext::class, new TenantContext(
             tenantId: $tenant->id,
+            ownerId: $tenant->ownerId,
         ));
 
         return $next($request);
