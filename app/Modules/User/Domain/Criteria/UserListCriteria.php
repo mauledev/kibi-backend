@@ -25,6 +25,9 @@ final readonly class UserListCriteria
      *                                         no role filter is applied.
      * @param  string|null  $status  Filter by the users.status column value (e.g. 'active',
      *                               'inactive'). Null means no status filter is applied.
+     * @param  bool  $unassigned  When true, return only users that have NO active role
+     *                            assignment. Takes precedence over $roleSlugs and the school
+     *                            scope (a role-less user belongs to no school).
      * @param  array<int, int>|null  $schoolIds  School scope for the query. Three states:
      *                                           - null  → no school restriction (tenant-wide; owner context).
      *                                           - []    → no accessible school → the query returns no users.
@@ -40,6 +43,7 @@ final readonly class UserListCriteria
         public ?string $search = null,
         public array $roleSlugs = [],
         public ?string $status = null,
+        public bool $unassigned = false,
         public ?array $schoolIds = null,
         public int $perPage = 20,
         public int $page = 1,

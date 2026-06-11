@@ -214,6 +214,46 @@ describe('User endpoints', function () {
             expect($emails)->not->toContain('other_ep@example.com');
         });
 
+        it('returns only users without an active role when filter[role]=none', function () {
+            $role = RoleModel::factory()->forTenant($this->tenant)->create(['slug' => 'assigned_none_role']);
+
+            $withRole = userEndpointCreateTenantUser($this->tenant, ['email' => 'with_role_none@example.com']);
+            $withoutRole = userEndpointCreateTenantUser($this->tenant, ['email' => 'without_role_none@example.com']);
+
+            userEndpointAssignRole($withRole, $role);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->getJson('/api/users?filter[role]=none');
+
+            $response->assertStatus(200);
+
+            $emails = array_column($response->json('data'), 'email');
+            expect($emails)->toContain('without_role_none@example.com');
+            expect($emails)->not->toContain('with_role_none@example.com');
+            expect($withoutRole->fresh())->not->toBeNull();
+        });
+
+        it('treats a user whose only assignment is revoked as unassigned (filter[role]=none)', function () {
+            $role = RoleModel::factory()->forTenant($this->tenant)->create(['slug' => 'revoked_none_role']);
+
+            $revoked = userEndpointCreateTenantUser($this->tenant, ['email' => 'revoked_none@example.com']);
+
+            UserRoleAssignment::factory()
+                ->forUser($revoked)
+                ->forRole($role)
+                ->create(['school_id' => null, 'revoked_at' => now()]);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->getJson('/api/users?filter[role]=none');
+
+            $response->assertStatus(200);
+
+            $emails = array_column($response->json('data'), 'email');
+            expect($emails)->toContain('revoked_none@example.com');
+        });
+
         it('filters by filter[status] parameter', function () {
             userEndpointCreateTenantUser($this->tenant, [
                 'email' => 'active_status@example.com',
@@ -481,7 +521,8 @@ describe('User endpoints', function () {
 
             $roles = $response->json('data.roles');
             expect($roles)->toHaveCount(1);
-            expect($roles[0])->toHaveKeys(['slug', 'name', 'school_uuid']);
+            expect($roles[0])->toHaveKeys(['role_uuid', 'slug', 'name', 'school_uuid']);
+            expect($roles[0]['role_uuid'])->toBe($role->uuid);
             expect($roles[0]['slug'])->toBe('detail_role_ep');
             expect($roles[0]['name'])->toBe('Detail Role');
             expect($roles[0]['school_uuid'])->toBe($school->uuid);
