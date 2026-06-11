@@ -27,7 +27,7 @@ jobs:
 
     env:
       APP_ENV: testing
-      APP_KEY: base64:J7xK3hN8mP2qL5rT9vW1yZ4aB6cD9eF2gH5iJ8kL1nO4pQ7sT0uV3wX6yZ9aC2bD5e
+      APP_KEY: base64:KRb59GrXV6fr3Eau9Hl6QsEz9//yBmvTUiyryYZd1tk=
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
