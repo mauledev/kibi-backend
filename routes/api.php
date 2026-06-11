@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Me\MeOnboardingController;
 use App\Http\Controllers\Me\MeSchoolsController;
+use App\Http\Controllers\Onboarding\OnboardingController;
 use App\Http\Controllers\Roles\AssignmentDenialController;
 use App\Http\Controllers\Roles\CustomRoleLimitController;
 use App\Http\Controllers\Roles\PermissionController;
@@ -118,5 +119,17 @@ Route::middleware('tenant')->group(function () {
         // Permissions scoped to a school and role category
         Route::get('/schools/{uuid}/permissions', [PermissionController::class, 'schoolIndex'])
             ->name('schools.permissions.index');
+
+        // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
+        Route::prefix('onboarding')->group(function () {
+            Route::get('/progress', [OnboardingController::class, 'getProgress'])
+                ->name('onboarding.progress');
+            Route::post('/steps/company', [OnboardingController::class, 'completeCompanyData'])
+                ->name('onboarding.steps.company');
+            Route::post('/steps/branding', [OnboardingController::class, 'completeBranding'])
+                ->name('onboarding.steps.branding');
+            Route::post('/steps/first-school', [OnboardingController::class, 'completeFirstSchool'])
+                ->name('onboarding.steps.first-school');
+        });
     });
 });
