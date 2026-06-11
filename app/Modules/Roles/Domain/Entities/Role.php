@@ -55,7 +55,7 @@ class Role
     {
         return $this->tenantId !== null
             && $this->categoryId === null
-            && ! in_array($this->slug, ['owner', 'gestor_escuelas'], true);
+            && ! in_array($this->slug, ['owner', 'school_manager'], true);
     }
 
     /** Return the human-readable role name. */
@@ -64,7 +64,7 @@ class Role
         return $this->name;
     }
 
-    /** Return the role slug used for programmatic identification (e.g. 'gestor_escuelas'). */
+    /** Return the role slug used for programmatic identification (e.g. 'school_manager'). */
     public function getSlug(): string
     {
         return $this->slug;

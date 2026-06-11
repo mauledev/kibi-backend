@@ -93,8 +93,8 @@ describe('RolePermissionController', function () {
 
         it('assigns permission to role and writes audit log when valid', function () {
             $user = User::factory()->create();
-            // Use the reserved gestor_escuelas slug so the controller resolves it as an authorised actor.
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            // Use the reserved school_manager slug so the controller resolves it as an authorised actor.
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
 
@@ -121,7 +121,7 @@ describe('RolePermissionController', function () {
         });
 
         it('returns 403 when actor is not an authorised permission manager', function () {
-            // An actor with an unrecognised slug (not owner/gestor_escuelas/director)
+            // An actor with an unrecognised slug (not owner/school_manager/director)
             // triggers HierarchyViolationException → 403.
             $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'unknown_coord_actor']);
@@ -141,7 +141,7 @@ describe('RolePermissionController', function () {
 
         it('returns 403 when target role is a system role', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
 
@@ -158,7 +158,7 @@ describe('RolePermissionController', function () {
 
         it('returns 404 when permission does not exist', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
 
@@ -186,7 +186,7 @@ describe('RolePermissionController', function () {
 
         it('is idempotent — assigning already-present permission does not create duplicate audit log', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
 
@@ -214,7 +214,7 @@ describe('RolePermissionController', function () {
     describe('DELETE /api/roles/{uuid}/permissions/{permission_uuid}', function () {
         it('revokes permission from role and writes audit log', function () {
             $user = User::factory()->create();
-            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'gestor_escuelas']);
+            $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
             rpAssignRole($user, $actorRole);
             rpGrantPermission($actorRole, 'manage.permissions');
 

@@ -43,7 +43,7 @@ interface RoleRepositoryInterface
 
     /**
      * Count existing custom roles for a tenant.
-     * Custom roles: tenant_id = X, category_id IS NULL, slug NOT IN ('owner', 'gestor_escuelas').
+     * Custom roles: tenant_id = X, category_id IS NULL, slug NOT IN ('owner', 'school_manager').
      */
     public function countCustomRoles(int $tenantId): int;
 

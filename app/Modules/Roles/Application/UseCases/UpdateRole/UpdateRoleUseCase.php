@@ -12,7 +12,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 class UpdateRoleUseCase
 {
     /** Actors authorised to update roles, in descending authority order. */
-    private const ALLOWED_ACTORS = ['owner', 'gestor_escuelas', 'director'];
+    private const ALLOWED_ACTORS = ['owner', 'school_manager', 'director'];
 
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
@@ -21,7 +21,7 @@ class UpdateRoleUseCase
 
     /**
      * Update mutable fields on a role.
-     * Only owner, gestor_escuelas, and director may update roles.
+     * Only owner, school_manager, and director may update roles.
      * System roles cannot be renamed.
      *
      * @throws RoleNotFoundException
@@ -32,7 +32,7 @@ class UpdateRoleUseCase
     {
         if (! in_array($input->actorSlug, self::ALLOWED_ACTORS, true)) {
             throw new HierarchyViolationException(
-                'Only owner, gestor_escuelas, or director can update roles.'
+                'Only owner, school_manager, or director can update roles.'
             );
         }
 
@@ -47,9 +47,9 @@ class UpdateRoleUseCase
         }
 
         // Director cannot update gestor or owner roles.
-        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'gestor_escuelas'], true)) {
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'Director cannot update owner or gestor_escuelas roles.'
+                'Director cannot update owner or school_manager roles.'
             );
         }
 
