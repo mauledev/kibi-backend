@@ -10,7 +10,10 @@ class RejectPaymentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Gate authorization happens in the controller via $this->authorize()
+        // Authorization is enforced by PaymentController::ensureStaff() —
+        // the route lives under the staff prefix and rejects non-staff
+        // tokens before the use case runs.
+        return true;
     }
 
     /** @return array<string, mixed> */

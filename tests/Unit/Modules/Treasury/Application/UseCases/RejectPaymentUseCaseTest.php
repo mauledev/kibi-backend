@@ -20,6 +20,7 @@ function makeRejectPaymentEntity(PaymentStatus $status = PaymentStatus::Pending)
         companyName: 'Colegio Demo S.A.',
         schoolId: 100,
         schoolName: 'Escuela Demo',
+        createdBy: null,
         status: $status,
         payerName: 'Juan',
         reference: 'REF',

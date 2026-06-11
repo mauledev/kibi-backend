@@ -28,6 +28,7 @@ class Payment extends Model
         'uuid',
         'tenant_id',
         'school_id',
+        'created_by',
         'status',
         'payer_name',
         'reference',
@@ -40,6 +41,7 @@ class Payment extends Model
     protected $casts = [
         'tenant_id' => 'integer',
         'school_id' => 'integer',
+        'created_by' => 'integer',
         'amount_cents' => 'integer',
         'received_amount_cents' => 'integer',
         'paid_at' => 'datetime',

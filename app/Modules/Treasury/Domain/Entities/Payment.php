@@ -27,6 +27,7 @@ final class Payment
         private readonly string $companyName,
         private readonly int $schoolId,
         private readonly string $schoolName,
+        private readonly ?int $createdBy,
         private PaymentStatus $status,
         private readonly string $payerName,
         private readonly ?string $reference,
@@ -80,6 +81,19 @@ final class Payment
     public function getSchoolName(): string
     {
         return $this->schoolName;
+    }
+
+    /**
+     * Returns the id of the user who originally uploaded this payment, or
+     * null when no creator is recorded (legacy rows or fixtures). For MVP
+     * there is no Owner upload endpoint so this is typically null — the
+     * column exists to preserve the data once that endpoint lands and to
+     * enable a later segregation-of-duties check (creator !== approver).
+     * See post-mvp.md PM-004.
+     */
+    public function getCreatedBy(): ?int
+    {
+        return $this->createdBy;
     }
 
     /** Returns the current lifecycle status. */

@@ -46,6 +46,7 @@ final class ApprovePaymentUseCase
             action: 'payment.approve',
             userId: $input->actorUserId,
             entityId: $updated->getId(),
+            schoolId: $updated->getSchoolId(),
             structBefore: ['status' => PaymentStatus::Pending->value, 'received_amount_cents' => null],
             structAfter: [
                 'status' => PaymentStatus::Approved->value,

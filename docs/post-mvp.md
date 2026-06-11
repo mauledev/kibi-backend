@@ -217,6 +217,7 @@ The following pieces of the requirement set (mostly RF-160..189i) are deferred:
 | Item | RF reference | Notes |
 |---|---|---|
 | Líder / Operador role separation + manual ticket assignment (push model) | RF-160..167 | Single Superadmin in MVP |
+| Segregation of duties (creator ≠ approver) | (req doc §11.2) | `payments.created_by` is captured at insert time so the data is preserved, but no UseCase blocks the same Superadmin from approving a payment they uploaded. Acceptable because in MVP a single Superadmin handles the whole flow; enforce once the Líder / Operador split lands. |
 | `request-evidence` flow → `with_observation` state | (frontend spec §5.1.7) | Enum case exists but the transition has no UseCase or endpoint |
 | Remittance batch generation (`payments → remesado`) | (ticket §Backend) | `remittances` and `payment_concepts` tables not created |
 | Mercado Pago webhook + idempotency | RF-PAY-01, 02 | Owner uploads receipts manually in MVP |

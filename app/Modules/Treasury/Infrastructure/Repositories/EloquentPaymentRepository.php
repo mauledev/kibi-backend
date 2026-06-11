@@ -218,6 +218,7 @@ class EloquentPaymentRepository implements PaymentRepositoryInterface
             companyName: (string) ($model->getAttribute('company_name_join') ?? ''),
             schoolId: $model->school_id,
             schoolName: (string) ($model->getAttribute('school_name_join') ?? ''),
+            createdBy: $model->created_by !== null ? (int) $model->created_by : null,
             status: PaymentStatus::from($model->status),
             payerName: $model->payer_name,
             reference: $model->reference,

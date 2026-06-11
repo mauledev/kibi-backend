@@ -14,6 +14,8 @@ return new class extends Migration
 
             $table->foreignId('tenant_id')->constrained('tenants');
             $table->foreignId('school_id')->constrained('schools');
+            $table->foreignId('created_by')->nullable()
+                ->constrained('users')->nullOnDelete();
 
             $table->string('status', 30)->default('pending');
             $table->string('payer_name', 255);

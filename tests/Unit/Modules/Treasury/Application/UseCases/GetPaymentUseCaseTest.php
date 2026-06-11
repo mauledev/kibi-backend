@@ -16,6 +16,7 @@ function makeGetPaymentEntity(int $id = 1): Payment
         companyName: 'Colegio Demo S.A.',
         schoolId: 100,
         schoolName: 'Escuela Demo',
+        createdBy: null,
         status: PaymentStatus::Pending,
         payerName: 'Juan',
         reference: 'REF',

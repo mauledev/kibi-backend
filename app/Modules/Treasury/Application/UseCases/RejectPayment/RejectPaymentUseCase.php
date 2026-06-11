@@ -46,6 +46,7 @@ final class RejectPaymentUseCase
             action: 'payment.reject',
             userId: $input->actorUserId,
             entityId: $updated->getId(),
+            schoolId: $updated->getSchoolId(),
             structBefore: ['status' => PaymentStatus::Pending->value],
             structAfter: [
                 'status' => PaymentStatus::Rejected->value,

@@ -13,6 +13,7 @@ function makePayment(PaymentStatus $status = PaymentStatus::Pending, ?int $recei
         companyName: 'Colegio Demo S.A.',
         schoolId: 100,
         schoolName: 'Escuela Demo',
+        createdBy: null,
         status: $status,
         payerName: 'Juan Pérez',
         reference: 'REF-001',

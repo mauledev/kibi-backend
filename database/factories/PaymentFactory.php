@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Payment;
 use App\Models\School;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -22,6 +23,7 @@ class PaymentFactory extends Factory
             'uuid' => (string) Str::uuid(),
             'tenant_id' => Tenant::factory(),
             'school_id' => School::factory(),
+            'created_by' => null,
             'status' => 'pending',
             'payer_name' => fake()->name(),
             'reference' => strtoupper(fake()->bothify('REF-####-????')),
@@ -36,6 +38,12 @@ class PaymentFactory extends Factory
     public function forTenant(Tenant $tenant): static
     {
         return $this->state(fn () => ['tenant_id' => $tenant->id]);
+    }
+
+    /** Records the user who uploaded the receipt. */
+    public function createdBy(User $user): static
+    {
+        return $this->state(fn () => ['created_by' => $user->id]);
     }
 
     /** Scopes the payment to an existing school. */
