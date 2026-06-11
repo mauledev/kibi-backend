@@ -342,11 +342,21 @@ Activation note: `POST /auth/activate` promotes a tenant from `pending → activ
 
 ---
 
-### Me (onboarding)
+### Me
 
 ```
 GET    /me/onboarding          Onboarding progress of the authenticated user
+GET    /me/schools             Schools the authenticated user can operate in
 ```
+
+`GET /me/schools` returns the schools the authenticated user can operate in, consumed by the client `SchoolGate` to decide the pre-dashboard flow (no schools / one school / pick a school). Access is **strictly role-based**: a school is returned **only if the user holds an active role assignment in it** (`User::accessibleSchoolIds()` — active `user_role_assignments` with a non-null `school_id`). No role in a school = no access. A user with no school-scoped assignment gets `[]` (this includes the owner, whose tenant-wide access is handled by the client gate's owner short-circuit, not by this endpoint). Compact shape:
+
+```json
+[ { "id": "school-uuid", "slug": "primaria-centro", "name": "Escuela Primaria Central", "logo_url": null } ]
+```
+
+`id` is the school **uuid**. The percentage/onboarding endpoint above and this one are read-only.
+
 
 `GET /me/onboarding` returns the invited member's registration progress as a **percentage derived on the fly** from their existing data — required fields filled vs. missing. **Nothing is stored** (no table). Response:
 

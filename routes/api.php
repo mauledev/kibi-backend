@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Me\MeOnboardingController;
+use App\Http\Controllers\Me\MeSchoolsController;
 use App\Http\Controllers\Roles\AssignmentDenialController;
 use App\Http\Controllers\Roles\CustomRoleLimitController;
 use App\Http\Controllers\Roles\PermissionController;
@@ -66,6 +67,7 @@ Route::middleware('tenant')->group(function () {
 
         // Onboarding progress of the current user (derived %, no storage).
         Route::get('/me/onboarding', [MeOnboardingController::class, 'show'])->name('me.onboarding.show');
+        Route::get('/me/schools', [MeSchoolsController::class, 'show'])->name('me.schools.show');
 
         Route::apiResource('users', UserController::class);
 
