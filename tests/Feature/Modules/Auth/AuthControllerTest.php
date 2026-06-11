@@ -127,7 +127,7 @@ describe('AuthController', function () {
             expect($response->json('data.is_staff'))->toBeFalse();
         });
 
-        it('writes an auth.login.success audit log with the tenant', function () {
+        it('writes an auth.login audit log with the tenant', function () {
             $tenant = Tenant::factory()->create(['slug' => 'audit-tenant']);
             $user = authCreateTenantUser($tenant, [
                 'email' => 'audit@test.com',
@@ -141,13 +141,13 @@ describe('AuthController', function () {
                 ]);
 
             $this->assertDatabaseHas('audit_logs', [
-                'action' => 'auth.login.success',
+                'action' => 'auth.login',
                 'user_id' => $user->id,
                 'tenant_id' => $tenant->id,
             ]);
         });
 
-        it('writes an auth.login.failed audit log with the email but never the password', function () {
+        it('writes an auth.login_failed audit log with the email but never the password', function () {
             $tenant = Tenant::factory()->create(['slug' => 'audit-fail']);
             authCreateTenantUser($tenant, [
                 'email' => 'audit-fail@test.com',
@@ -162,12 +162,12 @@ describe('AuthController', function () {
                 ->assertStatus(Response::HTTP_UNAUTHORIZED);
 
             $this->assertDatabaseHas('audit_logs', [
-                'action' => 'auth.login.failed',
+                'action' => 'auth.login_failed',
                 'tenant_id' => $tenant->id,
             ]);
 
             $row = DB::table('audit_logs')
-                ->where('action', 'auth.login.failed')
+                ->where('action', 'auth.login_failed')
                 ->latest('id')
                 ->first();
 

@@ -111,7 +111,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('plain-text-token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $output = $this->useCase->execute($input);
@@ -208,26 +208,26 @@ describe('LoginUseCase', function () {
         expect(array_count_values($output->permissions)['role.view'])->toBe(1);
     });
 
-    it('writes an auth.login.success audit entry on successful login', function () {
+    it('writes an auth.login audit entry on successful login', function () {
         $user = loginMakeUser();
 
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $this->useCase->execute($input);
     });
 
-    it('logs auth.login.failed with the attempted email and never the password', function () {
+    it('logs auth.login_failed with the attempted email and never the password', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
 
         $captured = null;
         $this->audit->shouldReceive('log')->once()->withArgs(function (...$args) use (&$captured) {
             $captured = $args;
 
-            return $args[0] === 'auth.login.failed';
+            return $args[0] === 'auth.login_failed';
         });
 
         $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw');

@@ -51,7 +51,7 @@ class StaffLoginUseCase
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
         $this->audit->log(
-            action: 'auth.login.success',
+            action: 'auth.login',
             userId: $user->getId(),
             tenantId: $input->tenantId,
         );
@@ -79,7 +79,7 @@ class StaffLoginUseCase
         }
 
         $this->audit->log(
-            action: 'auth.login.failed',
+            action: 'auth.login_failed',
             userId: $userId,
             tenantId: $input->tenantId,
             structAfter: $struct,

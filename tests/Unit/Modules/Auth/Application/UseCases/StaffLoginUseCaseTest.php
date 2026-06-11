@@ -113,7 +113,7 @@ describe('StaffLoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('staff-token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'staff@kibi.com', password: 'secret');
         $output = $this->useCase->execute($input);
@@ -124,19 +124,19 @@ describe('StaffLoginUseCase', function () {
         expect($output->email)->toBe('staff@kibi.com');
     });
 
-    it('writes an auth.login.success audit entry on successful staff login', function () {
+    it('writes an auth.login audit entry on successful staff login', function () {
         $user = staffMakeUser();
 
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login.success', 1, null, null, null, null, null);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, null, null);
 
         $input = new LoginInput(email: 'staff@kibi.com', password: 'secret');
         $this->useCase->execute($input);
     });
 
-    it('logs auth.login.failed with reason not_staff and never the password', function () {
+    it('logs auth.login_failed with reason not_staff and never the password', function () {
         $user = staffMakeUser([
             'isStaff' => false,
             'passwordHash' => Hash::make('super-secret-pw'),
@@ -148,7 +148,7 @@ describe('StaffLoginUseCase', function () {
         $this->audit->shouldReceive('log')->once()->withArgs(function (...$args) use (&$captured) {
             $captured = $args;
 
-            return $args[0] === 'auth.login.failed';
+            return $args[0] === 'auth.login_failed';
         });
 
         $input = new LoginInput(email: 'tenant_user@kibi.com', password: 'super-secret-pw');
