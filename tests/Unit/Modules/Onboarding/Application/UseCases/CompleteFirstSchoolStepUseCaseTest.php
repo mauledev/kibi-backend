@@ -9,6 +9,7 @@ use App\Modules\Onboarding\Domain\Entities\OnboardingStepStatus;
 use App\Modules\Onboarding\Domain\Enums\OnboardingProgressStatus;
 use App\Modules\Onboarding\Domain\Enums\OnboardingStepName;
 use App\Modules\Onboarding\Domain\Enums\OnboardingStepStatusEnum;
+use App\Modules\Onboarding\Domain\Exceptions\OnboardingAlreadyCompletedException;
 use App\Modules\Onboarding\Domain\Exceptions\SchoolNotInTenantException;
 use App\Modules\Onboarding\Domain\Exceptions\StepOutOfOrderException;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
@@ -132,5 +133,37 @@ describe('CompleteFirstSchoolStepUseCase', function () {
             actorUserId: 1,
             schoolUuid: 'uuid-school-5',
         )))->toThrow(StepOutOfOrderException::class);
+    });
+
+    it('throws OnboardingAlreadyCompletedException when progress.status is Completed', function () {
+        $completedAt = new DateTimeImmutable('2024-01-01');
+
+        $steps = [
+            new OnboardingStepStatus(1, OnboardingStepName::CompanyData, OnboardingStepStatusEnum::Completed, $completedAt),
+            new OnboardingStepStatus(2, OnboardingStepName::Branding, OnboardingStepStatusEnum::Completed, $completedAt),
+            new OnboardingStepStatus(3, OnboardingStepName::CreateSchool, OnboardingStepStatusEnum::Completed, $completedAt),
+        ];
+
+        $progress = new OnboardingProgress(
+            id: 1,
+            uuid: 'uuid-progress',
+            tenantId: 10,
+            currentStep: 3,
+            status: OnboardingProgressStatus::Completed,
+            steps: $steps,
+            gracePeriodEndsAt: new DateTimeImmutable('+15 days'),
+            createdAt: new DateTimeImmutable('2024-01-01'),
+            updatedAt: new DateTimeImmutable('2024-01-01'),
+        );
+
+        $this->onboardingRepo->shouldReceive('findByTenantId')->once()->with(10)->andReturn($progress);
+        $this->schoolRepo->shouldNotReceive('findByUuid');
+        $this->audit->shouldNotReceive('log');
+
+        expect(fn () => $this->useCase->execute(new CompleteFirstSchoolStepInput(
+            tenantId: 10,
+            actorUserId: 1,
+            schoolUuid: 'uuid-school-5',
+        )))->toThrow(OnboardingAlreadyCompletedException::class);
     });
 });

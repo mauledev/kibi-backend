@@ -17,6 +17,7 @@ use App\Modules\Onboarding\Application\UseCases\CompleteFirstSchoolStep\Complete
 use App\Modules\Onboarding\Application\UseCases\CompleteFirstSchoolStep\CompleteFirstSchoolStepUseCase;
 use App\Modules\Onboarding\Application\UseCases\GetOnboardingProgress\GetOnboardingProgressInput;
 use App\Modules\Onboarding\Application\UseCases\GetOnboardingProgress\GetOnboardingProgressUseCase;
+use App\Modules\Onboarding\Domain\Exceptions\OnboardingAlreadyCompletedException;
 use App\Modules\Onboarding\Domain\Exceptions\SchoolNotInTenantException;
 use App\Modules\Onboarding\Domain\Exceptions\StepOutOfOrderException;
 use Illuminate\Http\JsonResponse;
@@ -57,18 +58,22 @@ class OnboardingController extends Controller
 
         $tenantId = app(TenantContext::class)->tenantId;
 
-        $progress = $useCase->execute(new CompleteCompanyDataStepInput(
-            tenantId: $tenantId,
-            actorUserId: $request->user()->id,
-            businessName: $request->validated('business_name'),
-            rfc: $request->validated('rfc'),
-            fiscalAddress: $request->validated('fiscal_address'),
-            primaryContactName: $request->validated('primary_contact_name'),
-            primaryContactEmail: $request->validated('primary_contact_email'),
-            primaryContactPhone: $request->validated('primary_contact_phone'),
-        ));
+        try {
+            $progress = $useCase->execute(new CompleteCompanyDataStepInput(
+                tenantId: $tenantId,
+                actorUserId: $request->user()->id,
+                businessName: $request->validated('business_name'),
+                rfc: $request->validated('rfc'),
+                fiscalAddress: $request->validated('fiscal_address'),
+                primaryContactName: $request->validated('primary_contact_name'),
+                primaryContactEmail: $request->validated('primary_contact_email'),
+                primaryContactPhone: $request->validated('primary_contact_phone'),
+            ));
 
-        return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+            return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+        } catch (OnboardingAlreadyCompletedException $e) {
+            return ApiResponse::conflict($e->getMessage());
+        }
     }
 
     /**
@@ -94,6 +99,8 @@ class OnboardingController extends Controller
             ));
 
             return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+        } catch (OnboardingAlreadyCompletedException $e) {
+            return ApiResponse::conflict($e->getMessage());
         } catch (StepOutOfOrderException $e) {
             return ApiResponse::error($e->getMessage(), 422);
         }
@@ -120,6 +127,8 @@ class OnboardingController extends Controller
             ));
 
             return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+        } catch (OnboardingAlreadyCompletedException $e) {
+            return ApiResponse::conflict($e->getMessage());
         } catch (StepOutOfOrderException $e) {
             return ApiResponse::error($e->getMessage(), 422);
         } catch (SchoolNotInTenantException $e) {

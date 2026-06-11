@@ -53,6 +53,18 @@ function completeBrandingStep(TestCase $test, array $overrides = []): void
         ], $overrides));
 }
 
+/**
+ * Complete step 3 (first school) for the current tenant owner.
+ * Tenant must already have one school for the request to succeed.
+ */
+function completeFirstSchoolStep(TestCase $test, string $schoolUuid): void
+{
+    $test->actingAs($test->owner)
+        ->postJson('/api/onboarding/steps/first-school', [
+            'school_id' => $schoolUuid,
+        ]);
+}
+
 describe('OnboardingController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
@@ -596,6 +608,79 @@ describe('OnboardingController', function () {
                 ])
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['school_id']);
+        });
+    });
+
+    // ---------------------------------------------------------------------------
+    // Onboarding closed — wizard cannot be reopened
+    // ---------------------------------------------------------------------------
+
+    describe('when onboarding is already completed', function () {
+        beforeEach(function () {
+            // Drive the wizard to status = completed
+            completeCompanyStep($this);
+            completeBrandingStep($this);
+            $school = SchoolModel::factory()->for($this->tenant)->create();
+            completeFirstSchoolStep($this, $school->uuid);
+
+            $this->assertDatabaseHas('onboarding_progress', [
+                'tenant_id' => $this->tenant->id,
+                'status' => 'completed',
+            ]);
+        });
+
+        it('returns 409 on step 1 and does not overwrite tenants.rfc / legal_name', function () {
+            $before = DB::table('tenants')->where('id', $this->tenant->id)->first();
+
+            $this->actingAs($this->owner)
+                ->postJson('/api/onboarding/steps/company', [
+                    'business_name' => 'Attempted Override',
+                    'rfc' => 'ZZZ999999XYZ',
+                    'fiscal_address' => [
+                        'street' => 'Hacked Street',
+                        'exterior_number' => '0',
+                        'interior_number' => null,
+                        'neighborhood' => 'Nowhere',
+                        'municipality' => 'CDMX',
+                        'state' => 'CDMX',
+                        'postal_code' => '06000',
+                        'country' => 'MX',
+                    ],
+                    'primary_contact_name' => 'Hacker',
+                    'primary_contact_email' => 'hacker@demo.mx',
+                    'primary_contact_phone' => '5550000000',
+                ])
+                ->assertStatus(409);
+
+            $after = DB::table('tenants')->where('id', $this->tenant->id)->first();
+            expect($after->legal_name)->toBe($before->legal_name);
+            expect($after->rfc)->toBe($before->rfc);
+            expect($after->contact_name)->toBe($before->contact_name);
+        });
+
+        it('returns 409 on step 2 and does not overwrite tenants.branding', function () {
+            $before = DB::table('tenants')->where('id', $this->tenant->id)->value('branding');
+
+            $this->actingAs($this->owner)
+                ->postJson('/api/onboarding/steps/branding', [
+                    'logo_url' => 'https://attacker.example.com/logo.png',
+                    'primary_color' => '#000000',
+                    'secondary_color' => '#FFFFFF',
+                ])
+                ->assertStatus(409);
+
+            $after = DB::table('tenants')->where('id', $this->tenant->id)->value('branding');
+            expect($after)->toBe($before);
+        });
+
+        it('returns 409 on step 3 instead of silently re-linking the first school', function () {
+            $newSchool = SchoolModel::factory()->for($this->tenant)->create();
+
+            $this->actingAs($this->owner)
+                ->postJson('/api/onboarding/steps/first-school', [
+                    'school_id' => $newSchool->uuid,
+                ])
+                ->assertStatus(409);
         });
     });
 

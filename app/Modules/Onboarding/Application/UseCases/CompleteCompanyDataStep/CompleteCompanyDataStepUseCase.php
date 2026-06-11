@@ -6,6 +6,8 @@ use App\Common\Audit\AuditLoggerInterface;
 use App\Models\Tenant;
 use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Onboarding\Domain\Entities\OnboardingProgress;
+use App\Modules\Onboarding\Domain\Enums\OnboardingProgressStatus;
+use App\Modules\Onboarding\Domain\Exceptions\OnboardingAlreadyCompletedException;
 use Illuminate\Support\Facades\DB;
 
 final class CompleteCompanyDataStepUseCase
@@ -20,17 +22,26 @@ final class CompleteCompanyDataStepUseCase
      *
      * Business rules:
      * - Auto-bootstraps the onboarding record if missing (legacy tenants).
+     * - Throws OnboardingAlreadyCompletedException when the wizard is closed
+     *   (progress.status === Completed). Post-wizard edits go through Settings.
      * - Updates tenant legal_name, rfc, fiscal_address, contact_name,
      *   contact_email and contact_phone.
-     * - Idempotent: if step 1 is already completed, updates tenant data and
-     *   returns the current progress without transitioning steps or logging.
+     * - Idempotent within the wizard: if step 1 is already completed but the
+     *   wizard is still open, updates tenant data and returns the current
+     *   progress without re-transitioning steps or logging.
      * - On first completion: marks step 1 completed, step 2 in_progress,
      *   advances current_step to 2 and writes an audit log entry.
+     *
+     * @throws OnboardingAlreadyCompletedException When progress.status is Completed.
      */
     public function execute(CompleteCompanyDataStepInput $input): OnboardingProgress
     {
         $progress = $this->onboarding->findByTenantId($input->tenantId)
             ?? $this->onboarding->bootstrap($input->tenantId);
+
+        if ($progress->getStatus() === OnboardingProgressStatus::Completed) {
+            throw new OnboardingAlreadyCompletedException;
+        }
 
         DB::transaction(function () use ($input, $progress): void {
             Tenant::findOrFail($input->tenantId)->update([
@@ -42,7 +53,8 @@ final class CompleteCompanyDataStepUseCase
                 'contact_phone' => $input->primaryContactPhone,
             ]);
 
-            // Idempotent: skip transition and audit log when already completed
+            // Idempotent within the wizard: skip transition and audit log
+            // when this step was already completed in a previous request.
             if ($progress->isStepCompleted(1)) {
                 return;
             }

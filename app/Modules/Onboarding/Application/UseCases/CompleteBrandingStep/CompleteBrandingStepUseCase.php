@@ -6,6 +6,8 @@ use App\Common\Audit\AuditLoggerInterface;
 use App\Models\Tenant;
 use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Onboarding\Domain\Entities\OnboardingProgress;
+use App\Modules\Onboarding\Domain\Enums\OnboardingProgressStatus;
+use App\Modules\Onboarding\Domain\Exceptions\OnboardingAlreadyCompletedException;
 use App\Modules\Onboarding\Domain\Exceptions\StepOutOfOrderException;
 use Illuminate\Support\Facades\DB;
 
@@ -28,12 +30,17 @@ final class CompleteBrandingStepUseCase
      * - On first completion: marks step 2 completed, step 3 in_progress,
      *   advances current_step to 3 and writes an audit log entry.
      *
+     * @throws OnboardingAlreadyCompletedException When progress.status is Completed.
      * @throws StepOutOfOrderException When step 1 has not been completed yet.
      */
     public function execute(CompleteBrandingStepInput $input): OnboardingProgress
     {
         $progress = $this->onboarding->findByTenantId($input->tenantId)
             ?? $this->onboarding->bootstrap($input->tenantId);
+
+        if ($progress->getStatus() === OnboardingProgressStatus::Completed) {
+            throw new OnboardingAlreadyCompletedException;
+        }
 
         if ($progress->getCurrentStep() < 2) {
             throw new StepOutOfOrderException;

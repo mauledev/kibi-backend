@@ -114,7 +114,7 @@ Route::middleware('tenant')->group(function () {
         Route::get('/schools/{uuid}/permissions', [PermissionController::class, 'schoolIndex'])
             ->name('schools.permissions.index');
 
-        // Onboarding — owner-only enforcement lives inline in the controller
+        // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
         Route::prefix('onboarding')->group(function () {
             Route::get('/progress', [OnboardingController::class, 'getProgress'])
                 ->name('onboarding.progress');

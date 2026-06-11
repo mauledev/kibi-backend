@@ -5,6 +5,8 @@ namespace App\Modules\Onboarding\Application\UseCases\CompleteFirstSchoolStep;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Onboarding\Domain\Entities\OnboardingProgress;
+use App\Modules\Onboarding\Domain\Enums\OnboardingProgressStatus;
+use App\Modules\Onboarding\Domain\Exceptions\OnboardingAlreadyCompletedException;
 use App\Modules\Onboarding\Domain\Exceptions\SchoolNotInTenantException;
 use App\Modules\Onboarding\Domain\Exceptions\StepOutOfOrderException;
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
@@ -23,13 +25,16 @@ final class CompleteFirstSchoolStepUseCase
      *
      * Business rules:
      * - Auto-bootstraps the onboarding record if missing (legacy tenants).
+     * - Throws OnboardingAlreadyCompletedException when the wizard is closed
+     *   (progress.status === Completed). Re-running step 3 after the wizard
+     *   finished would re-link the first school silently.
      * - Throws StepOutOfOrderException if current_step < 3.
      * - Resolves the school by UUID via Schools repo (tenant-scoped).
      *   If null or school belongs to a different tenant → SchoolNotInTenantException.
-     * - Idempotent: if step 3 is already completed, returns current progress.
      * - On first completion: marks step 3 completed and sets overall status to 'completed'.
      *   Writes an audit log entry.
      *
+     * @throws OnboardingAlreadyCompletedException When progress.status is Completed.
      * @throws StepOutOfOrderException When current_step < 3.
      * @throws SchoolNotInTenantException When the school UUID is not found in the tenant.
      */
@@ -37,6 +42,10 @@ final class CompleteFirstSchoolStepUseCase
     {
         $progress = $this->onboarding->findByTenantId($input->tenantId)
             ?? $this->onboarding->bootstrap($input->tenantId);
+
+        if ($progress->getStatus() === OnboardingProgressStatus::Completed) {
+            throw new OnboardingAlreadyCompletedException;
+        }
 
         if ($progress->getCurrentStep() < 3) {
             throw new StepOutOfOrderException;
@@ -47,11 +56,6 @@ final class CompleteFirstSchoolStepUseCase
 
         if ($school === null || $school->getTenantId() !== $input->tenantId) {
             throw new SchoolNotInTenantException;
-        }
-
-        // Idempotent: if already completed, return current progress
-        if ($progress->isStepCompleted(3)) {
-            return $progress;
         }
 
         DB::transaction(function () use ($progress, $input): void {
