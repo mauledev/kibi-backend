@@ -252,6 +252,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // from RF-160..189i lands.
             [
                 'tenant_id' => null,
+                'category_id' => null,
                 'name' => 'Operador de Tesorería',
                 'slug' => 'treasury_operator',
                 'hierarchy_level' => 2,
