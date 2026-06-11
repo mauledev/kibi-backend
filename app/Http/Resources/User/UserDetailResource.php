@@ -39,6 +39,7 @@ class UserDetailResource extends JsonResource
             'status' => $user->getStatus(),
             'roles' => array_map(
                 fn (RoleAssignment $role): array => [
+                    'role_uuid' => $role->roleUuid,
                     'slug' => $role->slug,
                     'name' => $role->name,
                     'school_uuid' => $role->schoolUuid,

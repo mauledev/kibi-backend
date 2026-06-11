@@ -48,7 +48,12 @@ class EloquentUserRepository implements UserRepositoryInterface
 
         $this->applySearch($query, $criteria->search);
         $this->applyStatusFilter($query, $criteria->status);
-        $this->applyRoleAndSchoolFilter($query, $criteria->roleSlugs, $criteria->schoolIds);
+
+        if ($criteria->unassigned) {
+            $this->applyUnassignedFilter($query);
+        } else {
+            $this->applyRoleAndSchoolFilter($query, $criteria->roleSlugs, $criteria->schoolIds);
+        }
 
         $this->applyEagerLoad($query, $criteria->schoolIds);
 
@@ -174,6 +179,23 @@ class EloquentUserRepository implements UserRepositoryInterface
     }
 
     /**
+     * Restrict to users that have NO active role assignment.
+     *
+     * "Active" mirrors the rest of the module: revoked_at IS NULL. School scope is
+     * intentionally ignored — a role-less user belongs to no school, so applying a
+     * school filter would always exclude them. Tenant + is_staff scoping from the
+     * base query still applies.
+     *
+     * @param  Builder<UserModel>  $query
+     */
+    private function applyUnassignedFilter(Builder $query): void
+    {
+        $query->whereDoesntHave('roleAssignments', function (Builder $q): void {
+            $q->whereNull('revoked_at');
+        });
+    }
+
+    /**
      * Constrained eager load for role assignments — active only, with role and school.
      *
      * @param  Builder<UserModel>  $query
@@ -234,6 +256,7 @@ class EloquentUserRepository implements UserRepositoryInterface
             }
 
             $roles[] = new RoleAssignment(
+                roleUuid: $assignment->role->uuid,
                 slug: $assignment->role->slug,
                 name: $assignment->role->name,
                 schoolUuid: $assignment->school?->uuid,

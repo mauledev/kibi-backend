@@ -4,6 +4,7 @@ namespace App\Modules\Tenant\Application\UseCases\CreateTenant;
 
 use App\Common\Mail\MailerInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
+use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface;
 use App\Modules\Tenant\Domain\Entities\Tenant;
@@ -21,6 +22,7 @@ class CreateTenantUseCase
         private readonly GlobalUserRepositoryInterface $users,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
         private readonly MailerInterface $mailer,
+        private readonly OnboardingRepositoryInterface $onboarding,
     ) {}
 
     /**
@@ -67,6 +69,8 @@ class CreateTenantUseCase
             $this->assignments->createOwnerAssignment(
                 userId: $owner->getId(),
             );
+
+            $this->onboarding->bootstrap($tenant->getId());
 
             return $this->tenants->findBySlugWithOwner($input->tenantSlug);
         });

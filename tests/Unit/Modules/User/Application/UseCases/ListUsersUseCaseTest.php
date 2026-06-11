@@ -104,6 +104,24 @@ describe('ListUsersUseCase', function () {
         $this->useCase->execute(new ListUsersInput(status: 'inactive', isOwner: true));
     });
 
+    it('passes the unassigned flag from the input to the criteria', function () {
+        $this->repo->shouldReceive('findAllPaginated')
+            ->once()
+            ->with(Mockery::on(fn (UserListCriteria $c) => $c->unassigned === true))
+            ->andReturn(paginatedResult());
+
+        $this->useCase->execute(new ListUsersInput(unassigned: true, isOwner: true));
+    });
+
+    it('defaults the unassigned flag to false', function () {
+        $this->repo->shouldReceive('findAllPaginated')
+            ->once()
+            ->with(Mockery::on(fn (UserListCriteria $c) => $c->unassigned === false))
+            ->andReturn(paginatedResult());
+
+        $this->useCase->execute(new ListUsersInput(isOwner: true));
+    });
+
     it('passes perPage and page from the input to the criteria', function () {
         $this->repo->shouldReceive('findAllPaginated')
             ->once()

@@ -66,8 +66,10 @@ Table tenants {
   legal_name varchar(255)
   rfc varchar(13)
   fiscal_address jsonb
+  contact_name varchar(255)
   contact_email varchar(255)
   contact_phone varchar(30)
+  branding jsonb [note: '{ logo_url, primary_color, secondary_color }. Set during onboarding step 2.']
   status varchar(20) [not null, default: 'active',
     note: 'pending, active, suspended, grace_period, offboarding']
   custom_roles_limit smallint [note: '1–50. Set by the owner. Controls the maximum number of custom roles the tenant can create in total. NULL = not configured, custom role creation is blocked.']
@@ -415,6 +417,39 @@ Table staff_work_schedules {
 Working schedule of a Backoffice staff member, captured during personnel creation
 (`POST /staff/personnel`). Independent table from `users` (no columns added there);
 one schedule per staff user enforced by the unique `user_id`.
+
+### onboarding_progress
+```sql
+Table onboarding_progress {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null]
+  tenant_id bigint [unique, not null, ref: > tenants.id, note: '1:1 with tenant. cascadeOnDelete.']
+  current_step smallint [not null, default: 1]
+  status varchar(20) [not null, default: 'in_progress', note: 'in_progress | completed. "suspended" is a read-time computation, never persisted.']
+  grace_period_ends_at timestamptz [not null]
+  created_at timestamptz
+  updated_at timestamptz
+}
+```
+
+The `suspended` status is a read-time computation on the Domain entity (`getEffectiveStatus()`) — when `grace_period_ends_at` has passed and status is still `in_progress`. It is never stored.
+
+### onboarding_step_status
+```sql
+Table onboarding_step_status {
+  progress_id bigint [not null, ref: > onboarding_progress.id, note: 'cascadeOnDelete']
+  step smallint [not null, note: '1, 2, or 3']
+  name varchar(40) [not null, note: 'company-data | branding | create-school']
+  status varchar(20) [not null, default: 'pending', note: 'pending | in_progress | completed | skipped']
+  completed_at timestamptz [null]
+
+  indexes {
+    (progress_id, step) [pk]
+  }
+}
+```
+
+No `timestamps` columns — this is a pivot-like table tracking step state within a progress record.
 
 ### audit_logs
 ```sql
