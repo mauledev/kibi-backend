@@ -15,6 +15,7 @@ namespace App\Modules\User\Domain\Entities;
 final class RoleAssignment
 {
     public function __construct(
+        public readonly string $roleUuid,
         public readonly string $slug,
         public readonly string $name,
         public readonly ?string $schoolUuid,
