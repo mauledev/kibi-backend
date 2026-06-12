@@ -35,6 +35,8 @@ $this->audit->log(AuthAuditEvent::LOGIN, userId: $user->getId());
 
 > Enforced by `tests/Unit/Common/Audit/AuditEventRegistryTest`: every catalog value must match the convention, be globally unique, and each critical module must define a minimum number of events.
 
+> **Provisional scope.** Today only the Roles UseCases emit audit events in production. The other module enums (Treasury, Payments, Academic, Dunning, Hardware, Students, Impersonation, Reports) are declared up-front so the LFPDPPP catalog exists from day one, but their exact case names are **provisional** and will be refined when each module is built (Treasury lands in #16; Hardware/NFC has not started). Don't treat them as a frozen contract yet.
+
 ---
 
 ## What IS audited
@@ -45,7 +47,8 @@ Any action that mutates a domain entity or carries compliance/security weight:
 - **Tenant / Schools** — create, suspend/deactivate, reactivate, branding change
 - **Roles** — role create/update/delete, role assign/revoke, permission grant/revoke
 - **Academic** — grade capture/update, term close, report card generation, attendance
-- **Treasury / Payments** — charge create/update, payment reconcile, refund, checkout outcomes
+- **Treasury** — charge create/update, reconciliation, refund
+- **Payments (Mercado Pago)** — checkout outcomes (initiate, approve, reject)
 - **Dunning** — reminder dispatch, escalation, service suspension
 - **Hardware** — device register/deactivate, biometric enroll, access denial
 - **Students** — enrollment, deactivation, reactivation
