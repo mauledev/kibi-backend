@@ -80,11 +80,58 @@ docker-compose exec app php artisan migrate
 ## 🧪 Testing
 
 ```bash
-# Unit tests
-docker-compose exec app php artisan test --filter=Unit
+# All tests
+docker-compose exec app php vendor/bin/pest
 
-# Feature tests
-docker-compose exec app php artisan test --filter=Feature
+# Unit tests only
+docker-compose exec app php vendor/bin/pest --filter=Unit
+
+# Feature tests only
+docker-compose exec app php vendor/bin/pest --filter=Feature
+
+# With coverage report (requires PCOV)
+docker-compose exec app php vendor/bin/pest --coverage-text
+```
+
+## 🔍 Code Quality — SonarQube
+
+El análisis de SonarQube corre automáticamente en GitHub Actions en cada push a `main`/`develop` y en PRs. Levanta una instancia efímera de SonarQube Community Edition dentro del propio runner: sin servidor externo, sin secrets, sin costo.
+
+### Ejecución local
+
+```bash
+./scripts/sonar-local.sh
+```
+
+El script:
+1. Levanta `sonarqube:community` vía `docker-compose.sonar.yml`
+2. Espera a que SonarQube esté listo (~60-90s la primera vez)
+3. Corre los tests y genera el reporte de cobertura
+4. Crea el proyecto y un token temporal vía API
+5. Ejecuta el scanner apuntando a `localhost:9000`
+6. Verifica el Quality Gate y muestra el resultado
+
+### Consultar resultados
+
+Una vez que el script termina (o tras el primer run del CI local):
+
+```
+http://localhost:9000/dashboard?id=kibi-backend
+```
+
+Credenciales: `admin` / `admin`
+
+| Sección | Qué muestra |
+|---|---|
+| **Overview** | Quality Gate, resumen de bugs, vulnerabilidades, code smells y cobertura |
+| **Issues** | Lista detallada de cada hallazgo con archivo y línea |
+| **Measures** | Métricas desglosadas por categoría |
+| **Code** | Navegador de código con issues marcados inline |
+
+### Detener SonarQube cuando no lo necesites
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.sonar.yml stop sonarqube
 ```
 
 ## 📝 Comandos útiles
