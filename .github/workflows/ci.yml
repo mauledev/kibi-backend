@@ -42,8 +42,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_pgsql, mbstring, bcmath
-          coverage: none
+          extensions: pdo, pdo_pgsql, mbstring, bcmath, pcov
+          coverage: pcov
 
       - name: Cache vendor
         id: cache-vendor
@@ -65,5 +65,13 @@ jobs:
       - name: Static analysis (Larastan)
         run: composer analyse
 
-      - name: Tests (Pest)
-        run: php artisan test
+      - name: Tests with coverage (Pest)
+        run: php vendor/bin/pest --coverage-text --coverage-clover coverage.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
