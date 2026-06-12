@@ -46,6 +46,14 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
         UserModel::where('id', $userId)->update(['tenant_id' => $tenantId]);
     }
 
+    /** {@inheritDoc} */
+    public function findByUuid(string $uuid): ?User
+    {
+        $model = UserModel::where('uuid', $uuid)->first();
+
+        return $model !== null ? $this->toDomain($model) : null;
+    }
+
     private function toDomain(UserModel $model): User
     {
         return new User(
@@ -58,6 +66,7 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
             passwordHash: $model->password_hash,
             status: $model->status,
             isStaff: (bool) $model->is_staff,
+            emailVerifiedAt: $model->email_verified_at?->toDateTime(),
         );
     }
 }

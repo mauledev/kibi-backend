@@ -426,6 +426,42 @@ Table onboarding_step_status {
 
 No `timestamps` columns — this is a pivot-like table tracking step state within a progress record.
 
+### tutor_profiles
+```sql
+Table tutor_profiles {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null]
+  user_id bigint [unique, not null, ref: > users.id]
+  occupation varchar(100) [null]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz
+  deleted_at timestamptz
+}
+```
+
+One profile per tutor user. `user_id` is unique — a user can only have one tutor profile. Tutor identity (name, email, phone) is stored in `users` and joined in queries. Business logic lives in `App\Modules\Tutor\Domain\Entities\Tutor`.
+
+### student_tutors
+```sql
+Table student_tutors {
+  id bigserial [pk, increment]
+  tutor_user_id bigint [not null, ref: > users.id]
+  student_user_id bigint [not null, ref: > users.id]
+  relationship varchar(50) [null, note: 'mother | father | guardian | other']
+  linked_at timestamptz [not null, default: `now()`]
+  unlinked_at timestamptz [null]
+
+  indexes {
+    (tutor_user_id, student_user_id) [unique, note: 'WHERE unlinked_at IS NULL — partial index via DB::statement in migration']
+    student_user_id
+  }
+}
+```
+
+Junction table linking tutors to students. References `users.id` on both sides — kept decoupled from `tutor_profiles` and `student_profiles` to avoid cross-module FK dependencies. A link is active when `unlinked_at IS NULL`. The partial unique index prevents duplicate active links between the same tutor+student pair. No soft deletes — rows are logically deactivated by setting `unlinked_at`.
+
+Magic link behaviour: when the first active link for a student is created (`hasActiveLink(studentUserId)` returns false before insert) and the student's email is unverified (`email_verified_at IS NULL`), a magic link is sent. Subsequent tutors linking to the same student do not resend.
+
 ### audit_logs
 ```sql
 Table audit_logs {
