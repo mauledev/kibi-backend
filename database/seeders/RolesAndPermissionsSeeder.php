@@ -186,6 +186,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => 'superadmin',
                 'hierarchy_level' => 1,
                 'is_system_role' => true,
+                'requires_2fa' => true,
             ],
 
             // Softlinkia staff operational roles — is_system_role = true, tenant_id = null,

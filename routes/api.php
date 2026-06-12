@@ -12,6 +12,7 @@ use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\Staff\PersonnelController;
+use App\Http\Controllers\Staff\SuperadminApprovalController;
 use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
@@ -51,6 +52,13 @@ Route::prefix('staff')->group(function () {
             Route::get('/personnel', [PersonnelController::class, 'index'])->name('staff.personnel.index');
             Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
             Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
+
+            // Superadmin dual-control creation ceremony (SCRUM-520)
+            Route::get('/superadmin/approvals', [SuperadminApprovalController::class, 'index'])->name('staff.superadmin.approvals.index');
+            Route::post('/superadmin/approvals', [SuperadminApprovalController::class, 'store'])->name('staff.superadmin.approvals.store');
+            Route::get('/superadmin/approvals/{uuid}', [SuperadminApprovalController::class, 'show'])->name('staff.superadmin.approvals.show');
+            Route::post('/superadmin/approvals/{uuid}/approve', [SuperadminApprovalController::class, 'approve'])->name('staff.superadmin.approvals.approve');
+            Route::post('/superadmin/approvals/{uuid}/reject', [SuperadminApprovalController::class, 'reject'])->name('staff.superadmin.approvals.reject');
         });
     });
 });
