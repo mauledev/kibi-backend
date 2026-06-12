@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Common\Audit\Events;
 
 /**
@@ -9,6 +11,6 @@ enum TreasuryAuditEvent: string implements AuditEvent
 {
     case CHARGE_CREATE = 'charge.create';
     case CHARGE_UPDATE = 'charge.update';
-    case PAYMENT_RECONCILE = 'payment.reconcile';
+    case RECONCILIATION_EXECUTE = 'reconciliation.execute';
     case REFUND_ISSUE = 'refund.issue';
 }

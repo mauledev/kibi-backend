@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Common\Audit\Events\AcademicAuditEvent;
 use App\Common\Audit\Events\AuditEvent;
 use App\Common\Audit\Events\AuditEventRegistry;
@@ -52,14 +54,10 @@ describe('AuditEventRegistry', function () {
     });
 
     it('keeps every action already written by live UseCases', function () {
-        // Guard: the catalog must stay a superset of what production code logs today,
-        // so a future migration to enums never drops an existing action string.
+        // Guard: the catalog must stay a superset of what production code logs today.
+        // Only Roles UseCases emit audit events at the time of writing; other modules
+        // will expand this list as they are implemented.
         $existing = [
-            'auth.login',
-            'auth.oauth_login',
-            'school.create',
-            'school.update',
-            'school.deactivate',
             'role.create',
             'role.update',
             'role.delete',

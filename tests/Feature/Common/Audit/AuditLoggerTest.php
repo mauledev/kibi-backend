@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Common\Audit\AuditLogger;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Common\Audit\Events\AuthAuditEvent;
