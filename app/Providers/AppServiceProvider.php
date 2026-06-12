@@ -7,9 +7,12 @@ use App\Common\Audit\AuditLoggerInterface;
 use App\Common\Mail\LaravelMailer;
 use App\Common\Mail\MailerInterface;
 use App\Common\School\SchoolContext;
+use App\Common\Staff\StaffContext;
 use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
+use App\Http\Controllers\Staff\RoleController;
+use App\Http\Controllers\Staff\RolePermissionController;
 use App\Models\User;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
@@ -28,7 +31,11 @@ use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
+use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
+use App\Modules\Roles\Application\UseCases\GetRole\GetRoleUseCase;
+use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
+use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -136,6 +143,47 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface::class,
             \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
         );
+
+        // --- Staff role controllers — use EloquentStaffRoleRepository ---
+        // The contextual binding on the controller does not propagate to UseCases resolved
+        // inside it, so we use factory closures to wire the correct repository explicitly.
+
+        $this->app->when(RoleController::class)
+            ->needs(ListRolesUseCase::class)
+            ->give(function ($app) {
+                return new ListRolesUseCase(
+                    $app->make(EloquentStaffRoleRepository::class)
+                );
+            });
+
+        $this->app->when(RoleController::class)
+            ->needs(GetRoleUseCase::class)
+            ->give(function ($app) {
+                return new GetRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class)
+                );
+            });
+
+        $this->app->when(RolePermissionController::class)
+            ->needs(AssignPermissionToRoleUseCase::class)
+            ->give(function ($app) {
+                return new AssignPermissionToRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class),
+                    $app->make(AuditLoggerInterface::class)
+                );
+            });
+
+        $this->app->when(RolePermissionController::class)
+            ->needs(RevokePermissionFromRoleUseCase::class)
+            ->give(function ($app) {
+                return new RevokePermissionFromRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class),
+                    $app->make(AuditLoggerInterface::class)
+                );
+            });
     }
 
     /**
@@ -151,9 +199,13 @@ class AppServiceProvider extends ServiceProvider
      *
      * Two mechanisms work in tandem:
      *
-     * 1. Gate::before — Owner bypass: the user whose id matches TenantContext::ownerId
-     *    is granted every ability unconditionally. Staff routes do not bind TenantContext,
-     *    so this bypass is skipped entirely for staff requests.
+     * 1. Gate::before — Two explicit bypasses, mutually exclusive by context:
+     *    a) Owner bypass (tenant routes): the user whose id matches TenantContext::ownerId
+     *       is granted every ability unconditionally.
+     *    b) Superadmin bypass (staff routes): a staff user holding any is_system_role = true
+     *       role is granted every ability unconditionally.
+     *    Context is detected via container bindings: TenantContext on tenant routes,
+     *    StaffContext on staff routes.
      *
      * 2. Gate::after — Dynamic permission gate: for every other user we load the merged
      *    set of permission slugs from all active role assignments and check whether the
@@ -162,17 +214,18 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerGates(): void
     {
-        // Owner bypass — runs before any ability check.
-        // Skipped on staff routes where TenantContext is never bound.
-        // The owner identity comes from tenants.owner_id, not from role assignments.
         Gate::before(function (User $user, string $ability): ?bool {
-            if (! app()->bound(TenantContext::class)) {
-                return null;
+            // Owner bypass — tenant routes only (TenantContext is bound by TenantMiddleware).
+            // Owner identity comes from tenants.owner_id, not from role assignments.
+            if (app()->bound(TenantContext::class)) {
+                $context = app(TenantContext::class);
+
+                return $context->ownerId === $user->id ? true : null;
             }
 
-            $context = app(TenantContext::class);
-
-            if ($context->ownerId === $user->id) {
+            // Superadmin bypass — staff routes only (StaffContext is bound by StaffMiddleware).
+            // Any staff user holding a role with is_system_role = true gets full access.
+            if (app()->bound(StaffContext::class) && $user->is_staff && $user->hasActiveSystemRole()) {
                 return true;
             }
 

@@ -19,10 +19,9 @@ class DeleteRoleUseCase
     ) {}
 
     /**
-     * Soft-delete a role.
-     * System roles cannot be deleted.
+     * Soft-delete a custom role.
+     * Only custom roles (tenant-scoped, no category, not owner/school_manager) can be deleted.
      * Only owner, school_manager, and director may delete roles.
-     * Director cannot delete gestor or owner roles.
      *
      * @throws RoleNotFoundException
      * @throws SystemRoleViolationException
@@ -42,15 +41,8 @@ class DeleteRoleUseCase
             throw new RoleNotFoundException;
         }
 
-        if ($role->isSystemRole()) {
-            throw new SystemRoleViolationException('System roles cannot be deleted.');
-        }
-
-        // Director cannot delete gestor or owner roles.
-        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
-            throw new HierarchyViolationException(
-                'Director cannot delete owner or school_manager roles.'
-            );
+        if (! $role->isCustomRole()) {
+            throw new SystemRoleViolationException('Only custom roles can be deleted.');
         }
 
         $this->roles->delete($input->uuid);

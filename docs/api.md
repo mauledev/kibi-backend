@@ -171,21 +171,39 @@ The Application and Domain layers only ever see integer ids for internal referen
 
 ## Route structure
 
-Routes are split into two groups in `routes/api.php`:
+Routes are split into three groups in `routes/api.php`:
+
+```
+/staff/*         — Staff routes (app.kibi.com). No tenant middleware.
+/auth/*          — Auth flows (both domains). No auth:sanctum on login.
+/tenant/*        — All tenant resources ({tenant_slug}.kibi.com).
+```
 
 ```php
-// Staff routes — app.kibi.com, no tenant middleware
-Route::prefix('staff')->middleware(['auth:sanctum'])->group(function () {
-    // staff-only endpoints
-});
+// Staff routes — no tenant middleware
+Route::prefix('staff')->group(function () { ... });
 
-// Tenant routes — {tenant_slug}.kibi.com
-Route::middleware(['tenant', 'auth:sanctum'])->group(function () {
-    // all school-facing endpoints
+// Public — no tenant middleware, no auth
+Route::get('/auth/tenant-info', ...);
+Route::post('/auth/activate', ...);
+
+// Tenant domain
+Route::middleware('tenant')->group(function () {
+    // Auth flows (no prefix)
+    Route::post('/auth/login', ...);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', ...);
+        Route::post('/auth/logout', ...);
+
+        // All tenant resources under /tenant prefix
+        Route::prefix('tenant')->group(function () {
+            // schools, roles, permissions, users, ...
+        });
+    });
 });
 ```
 
-Authentication endpoints (login, logout) sit outside both groups — no `auth:sanctum` required.
+The three top-level segments cleanly mirror the three user domains: `staff`, `auth`, and `tenant`.
 
 ---
 
@@ -215,14 +233,18 @@ POST   /auth/activate            Activate owner account via signed URL (public, 
 ### Staff
 
 ```
-POST   /staff/auth/login         Authenticate Softlinkia staff
-GET    /staff/auth/me            Return authenticated staff user data
-POST   /staff/auth/logout        Revoke staff token
-GET    /staff/tenants            List all tenants (paginated) with embedded owners
-POST   /staff/tenants            Create a new tenant + owner (requires auth:sanctum)
-GET    /staff/tenants/{uuid}     Get a single tenant with embedded owner
-PUT    /staff/tenants/{uuid}     Update a tenant's name, slug, and status
-DELETE /staff/tenants/{uuid}     Soft-delete a tenant
+POST   /staff/auth/login                                    Authenticate Softlinkia staff
+GET    /staff/auth/me                                       Return authenticated staff user data
+POST   /staff/auth/logout                                   Revoke staff token
+GET    /staff/tenants                                       List all tenants (paginated) with embedded owners
+POST   /staff/tenants                                       Create a new tenant + owner
+GET    /staff/tenants/{uuid}                                Get a single tenant with embedded owner
+PUT    /staff/tenants/{uuid}                                Update a tenant's name, slug, and status
+DELETE /staff/tenants/{uuid}                                Soft-delete a tenant
+GET    /staff/roles                                         List all staff roles with their permissions
+GET    /staff/roles/{uuid}                                  Get a single staff role with its permissions
+POST   /staff/roles/{uuid}/permissions                      Assign a permission to a staff role
+DELETE /staff/roles/{uuid}/permissions/{permission_uuid}    Revoke a permission from a staff role
 ```
 
 `GET /staff/tenants` returns 200 with a paginated list of tenants. Accepts a `page` query parameter (default: 1, page size: 20). Each item includes a compact owner shape (`uuid`, `email`, `full_name`) and a `created_at` ISO 8601 timestamp. The response envelope includes a `meta.pagination` object with `total`, `per_page`, `current_page`, and `last_page`.
@@ -238,14 +260,14 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 ### Schools
 
 ```
-GET    /schools                          List schools of the current tenant
-POST   /schools                          Create a school
-GET    /schools/{uuid}                   Get a single school
-PUT    /schools/{uuid}                   Update mutable fields (partial)
-POST   /schools/{uuid}/deactivate        Soft-delete a school
+GET    /tenant/schools                          List schools of the current tenant
+POST   /tenant/schools                          Create a school
+GET    /tenant/schools/{uuid}                   Get a single school
+PUT    /tenant/schools/{uuid}                   Update mutable fields (partial)
+POST   /tenant/schools/{uuid}/deactivate        Soft-delete a school
 ```
 
-`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+`GET /tenant/schools` accepts an optional `?status=` query param to narrow the result set:
 
 | Value          | Meaning                                                                                |
 |----------------|----------------------------------------------------------------------------------------|
@@ -256,29 +278,86 @@ POST   /schools/{uuid}/deactivate        Soft-delete a school
 
 This is the canonical pattern for list endpoints that need to expose soft-deleted rows alongside lifecycle states. The filter values are a Domain enum (`SchoolListFilter`); the FormRequest validates via `Rule::enum(...)` and the controller never inlines strings. The repository contract accepts a **Criteria** object (`SchoolListCriteria`) rather than loose primitives, so adding pagination, search or sorting later does not break callers. The Criteria's `status` field is non-nullable with `Active` as its default — "include everything" is expressed exclusively as `All`, eliminating the previous `null`/`All` ambiguity. The repository maps `Deactivated` to `onlyTrashed()` and `All` to `withTrashed()`; the soft-delete column stays an Infrastructure concern. Resources expose `deleted_at` so the frontend can render deactivated rows distinctly.
 
-### Roles and permissions
+### Roles and permissions — Tenant scope
 
 ```
-GET    /roles                                                        List roles for current tenant
-POST   /roles/custom                                                 Create a custom role (owner and gestor only)
-GET    /roles/{uuid}                                                 Get role with its effective permissions
-PUT    /roles/{uuid}                                                 Update role name (custom roles only)
-DELETE /roles/{uuid}                                                 Delete role (custom roles only)
-GET    /permissions                                                  List permissions (filtered by role category if role_uuid provided)
-POST   /roles/{uuid}/permissions                                     Assign permission to role (category-bound)
-DELETE /roles/{uuid}/permissions/{permission_uuid}                   Revoke permission from role
-POST   /users/{uuid}/roles                                           Assign role to user (owner, gestor, director only)
-DELETE /users/{uuid}/roles/{role_uuid}                               Revoke role from user
-POST   /users/{uuid}/assignments/{assignment_uuid}/denials            Deny a permission for a specific assignment
-DELETE /users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
-PUT    /tenant/custom-roles-limit                                    Configure max custom roles (owner only)
+GET    /tenant/roles                                                          List all roles for current tenant (system + custom)
+POST   /tenant/roles                                                          Create a custom role
+POST   /tenant/roles/custom                                                   Alias — same as POST /tenant/roles
+GET    /tenant/roles/{uuid}                                                   Get role with its permissions
+PUT    /tenant/roles/{uuid}                                                   Update role name (custom roles only)
+DELETE /tenant/roles/{uuid}                                                   Delete role (custom roles only)
+GET    /tenant/permissions                                                     List permissions (filtered by role category if role_uuid provided)
+POST   /tenant/roles/{uuid}/permissions                                       Assign permission to role (category-bound)
+DELETE /tenant/roles/{uuid}/permissions/{permission_uuid}                     Revoke permission from role
+POST   /tenant/users/{uuid}/roles                                             Assign role to user (owner, gestor, director only)
+DELETE /tenant/users/{uuid}/roles/{role_uuid}                                 Revoke role from user
+POST   /tenant/users/{uuid}/assignments/{assignment_uuid}/denials             Deny a permission for a specific assignment
+DELETE /tenant/users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
+PUT    /tenant/custom-roles-limit                                             Configure max custom roles (owner only)
 ```
 
-`POST /roles/custom` creates a custom role (`category_id = NULL`) and assigns it to one or more schools. Requires the tenant's `custom_roles_limit` to be set and not exceeded. Body: `{ "name": "...", "school_uuids": ["..."] }`.
+### Roles and permissions — School scope
 
-`GET /permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+```
+GET    /tenant/schools/{uuid}/roles                                           List roles available in this school
+POST   /tenant/schools/{uuid}/roles                                           Create a custom role scoped to this school
+GET    /tenant/schools/{uuid}/roles/{role_uuid}                               Get a role with its permissions
+PUT    /tenant/schools/{uuid}/roles/{role_uuid}                               Update role name (custom roles only; system roles cannot be updated)
+GET    /tenant/schools/{uuid}/permissions                                     List permissions available for this school
+POST   /tenant/schools/{uuid}/roles/{role_uuid}/permissions                   Assign permission to a role
+DELETE /tenant/schools/{uuid}/roles/{role_uuid}/permissions/{permission_uuid} Revoke permission from a role
+```
 
-`POST /users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
+**No DELETE for school-scoped roles.** Roles belong to the tenant, not to a specific school. To delete a custom role use `DELETE /tenant/roles/{uuid}` (tenant scope). System roles (director, teacher, etc.) can never be deleted.
+
+`POST /tenant/roles` and `POST /tenant/schools/{uuid}/roles` both create custom roles. The tenant-scope version requires `school_uuids` in the body. The school-scope version infers the school from the URL — body only needs `name` (and optional `slug`).
+
+`GET /tenant/permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+
+### Role shape — `bypasses_permissions` and `granted` flag
+
+Every role endpoint (list and detail) includes `bypasses_permissions: bool`.
+
+| Value | Meaning |
+|---|---|
+| `true` | Role has unrestricted access via a server-side bypass. The `permissions` array may be empty and should be ignored. |
+| `false` | Role operates exclusively by explicit grants. `permissions` is the source of truth. |
+
+Roles with `bypasses_permissions: true`: `superadmin` (staff), `owner` (tenant), `school_manager` (school gestor). These mirror the Gate bypasses registered in `AppServiceProvider`.
+
+```json
+{
+  "uuid": "...",
+  "name": "Superadministrador",
+  "slug": "superadmin",
+  "is_system_role": true,
+  "bypasses_permissions": true,
+  "permissions": []
+}
+```
+
+The detail endpoints (`GET .../roles/{uuid}`) additionally return ALL permissions applicable to the role's scope, each with a `granted` boolean. The list endpoints (`GET .../roles`) return only granted permissions, without the flag.
+
+```json
+{
+  "uuid": "...",
+  "name": "Director",
+  "bypasses_permissions": false,
+  "permissions": [
+    { "uuid": "...", "slug": "students.view",   "name": "Ver alumnos",   "granted": true  },
+    { "uuid": "...", "slug": "students.create", "name": "Crear alumnos", "granted": false }
+  ]
+}
+```
+
+**Scope rules for "applicable permissions":**
+- Role with `category_id` set → all permissions in that category.
+- Custom role (`category_id = null`) → all permissions in the system.
+
+This applies identically to the three detail endpoints: `GET /staff/roles/{uuid}`, `GET /tenant/roles/{uuid}`, and `GET /tenant/schools/{uuid}/roles/{role_uuid}`.
+
+`POST /tenant/users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
 
 `PUT /tenant/custom-roles-limit` sets `tenants.custom_roles_limit` for the authenticated owner's tenant. Body: `{ "limit": 10 }` (1–50).
 

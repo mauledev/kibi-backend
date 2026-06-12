@@ -259,7 +259,9 @@ The same role, the same user, different effective permissions per school.
 
 5. **The owner is above the permission system.** The owner's access is determined by `tenants.owner_id`, not by role assignments or permission checks. The Gate bypasses all checks for the owner.
 
-6. **Gestores have all permissions in their schools.** Their authority comes from their slug, not from `role_permissions` rows.
+6. **Superadmin is above the permission system on staff routes.** Any staff user with `is_system_role = true` on their active role gets full access via `Gate::before`. The bypass is active only when `StaffContext` is bound (staff routes). `is_system_role` is the runtime signal — not the slug.
+
+7. **Gestores have all permissions in their schools.** Their authority comes from their slug, not from `role_permissions` rows.
 
 7. **School context is always required for school-level operations.** Send `X-School-Uuid` on every request that operates within a school. Absent header = tenant-level context only.
 

@@ -36,9 +36,9 @@ class AssignPermissionToRoleUseCase
      */
     public function execute(AssignPermissionToRoleInput $input): void
     {
-        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director', 'superadmin'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, school_manager, or director can manage role permissions.'
+                'Only owner, school_manager, director, or superadmin can manage role permissions.'
             );
         }
 
@@ -52,7 +52,8 @@ class AssignPermissionToRoleUseCase
             throw new SystemRoleViolationException;
         }
 
-        if ($role->isSystemRole()) {
+        // Superadmin can manage system roles (staff context); other actors cannot.
+        if ($role->isSystemRole() && $input->actorSlug !== 'superadmin') {
             throw new SystemRoleViolationException;
         }
 

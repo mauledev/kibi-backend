@@ -28,8 +28,10 @@ class DevSeeder extends Seeder
             ['first_name' => 'Erick', 'last_name_paternal' => 'Erick', 'last_name_maternal' => null, 'email' => 'eriktrabajo24@gmail.com'],
         ];
 
+        $superadminRole = Role::where('slug', 'superadmin')->whereNull('tenant_id')->first();
+
         foreach ($staffAccounts as $account) {
-            User::firstOrCreate(
+            $staffUser = User::firstOrCreate(
                 ['email' => $account['email']],
                 [
                     'is_staff' => true,
@@ -40,6 +42,17 @@ class DevSeeder extends Seeder
                     'status' => 'active',
                 ]
             );
+
+            if ($superadminRole !== null) {
+                UserRoleAssignment::firstOrCreate(
+                    [
+                        'user_id' => $staffUser->id,
+                        'role_id' => $superadminRole->id,
+                        'school_id' => null,
+                        'revoked_at' => null,
+                    ],
+                );
+            }
         }
 
         // -------------------------------------------------------

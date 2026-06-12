@@ -31,7 +31,7 @@ describe('GET /school', function () {
     it('returns 401 when unauthenticated', function () {
         $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $this->school->uuid)
-            ->getJson('/api/school')
+            ->getJson('/api/tenant/school')
             ->assertStatus(401);
     });
 
@@ -42,7 +42,7 @@ describe('GET /school', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $foreignSchool->uuid)
-            ->getJson('/api/school')
+            ->getJson('/api/tenant/school')
             ->assertStatus(404);
     });
 
@@ -50,7 +50,7 @@ describe('GET /school', function () {
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $this->school->uuid)
-            ->getJson('/api/school');
+            ->getJson('/api/tenant/school');
 
         $response->assertStatus(200)
             ->assertJsonPath('data.uuid', $this->school->uuid)
@@ -68,7 +68,7 @@ describe('GET /school', function () {
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $this->school->uuid)
-            ->getJson('/api/school');
+            ->getJson('/api/tenant/school');
 
         $data = $response->assertStatus(200)->json('data');
 
@@ -92,7 +92,7 @@ describe('GET /school', function () {
         $response = $this->actingAs($regularUser)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $this->school->uuid)
-            ->getJson('/api/school');
+            ->getJson('/api/tenant/school');
 
         $response->assertStatus(200)
             ->assertJsonPath('data.uuid', $this->school->uuid);
@@ -104,7 +104,7 @@ describe('GET /school', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
             ->withHeader('X-School-Uuid', $deactivatedSchool->uuid)
-            ->getJson('/api/school')
+            ->getJson('/api/tenant/school')
             ->assertStatus(404);
     });
 });

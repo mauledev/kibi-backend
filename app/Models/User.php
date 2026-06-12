@@ -199,6 +199,18 @@ class User extends Authenticatable
     }
 
     /**
+     * Return true if the user holds any active role with is_system_role = true.
+     * Used by Gate::before to grant superadmin bypass on staff routes.
+     */
+    public function hasActiveSystemRole(): bool
+    {
+        return $this->activeAssignments()
+            ->map(fn (UserRoleAssignment $a) => $a->role)
+            ->filter()
+            ->contains(fn (Role $role) => $role->is_system_role);
+    }
+
+    /**
      * Return true if the user has an active school_manager assignment for the given school.
      */
     public function isGestorOfSchool(int $schoolId): bool

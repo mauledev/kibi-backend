@@ -90,4 +90,13 @@ interface RoleRepositoryInterface
      * Detach a permission from a role (role_permissions pivot).
      */
     public function detachPermission(int $roleId, int $permissionId): void;
+
+    /**
+     * Return all roles available in the given school.
+     * Includes system school-scoped roles (tenant_id IS NULL, category scope = 'school')
+     * and custom roles (tenant_id = tenantId) linked to this school via custom_role_schools.
+     *
+     * @return array<Role>
+     */
+    public function findBySchool(int $schoolId, int $tenantId): array;
 }

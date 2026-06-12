@@ -16,7 +16,7 @@ describe('PermissionController', function () {
         // The tenant owner is the user whose id matches TenantContext::ownerId.
         $this->owner = User::find($this->tenant->owner_id);
         // No level-1 role needed for PermissionController — no hierarchy checks
-        // are involved in GET /api/permissions.
+        // are involved in GET /api/tenant/permissions.
     });
 
     function pcAssignRole(User $user, RoleModel $role): UserRoleAssignment
@@ -37,10 +37,10 @@ describe('PermissionController', function () {
         return $permission;
     }
 
-    describe('GET /api/permissions', function () {
+    describe('GET /api/tenant/permissions', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(401);
         });
 
@@ -52,7 +52,7 @@ describe('PermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(403);
         });
 
@@ -68,7 +68,7 @@ describe('PermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions');
+                ->getJson('/api/tenant/permissions');
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -83,7 +83,7 @@ describe('PermissionController', function () {
         it('owner bypasses permission check and can list permissions', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(200);
         });
 
@@ -98,7 +98,7 @@ describe('PermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions');
+                ->getJson('/api/tenant/permissions');
 
             $response->assertStatus(200);
 
