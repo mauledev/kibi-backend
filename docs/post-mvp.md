@@ -217,7 +217,7 @@ The following pieces of the requirement set (mostly RF-160..189i) are deferred:
 | Item | RF reference | Notes |
 |---|---|---|
 | Líder / Operador role separation + manual ticket assignment (push model) | RF-160..167 | Single Superadmin in MVP |
-| Segregation of duties (creator ≠ approver) | (req doc §11.2) | `payments.created_by` is captured at insert time so the data is preserved, but no UseCase blocks the same Superadmin from approving a payment they uploaded. Acceptable because in MVP a single Superadmin handles the whole flow; enforce once the Líder / Operador split lands. |
+| Segregation of duties (creator ≠ approver) | (req doc §11.2) | `payments.created_by` exists in the schema but **no endpoint populates it** because this PR does not expose a create-payment HTTP path. See "Segregation of duties — explicit acceptance" below for the enforcement plan. |
 | `request-evidence` flow → `with_observation` state | (frontend spec §5.1.7) | Enum case exists but the transition has no UseCase or endpoint |
 | Remittance batch generation (`payments → remesado`) | (ticket §Backend) | `remittances` and `payment_concepts` tables not created |
 | Mercado Pago webhook + idempotency | RF-PAY-01, 02 | Owner uploads receipts manually in MVP |
@@ -228,6 +228,22 @@ The following pieces of the requirement set (mostly RF-160..189i) are deferred:
 | Granular permission slugs (`treasury.view` / `treasury.approve` / `treasury.reject`) | (ticket §Esc. 6) | `is_staff` gate suffices in MVP |
 | Owner-side endpoint to upload receipts | (req doc §11.2) | The Owner upload entrypoint is its own feature ticket |
 | Auto-suspension after 5 days past due | §12.12 | Lives in the Tenant module, not Treasury |
+
+**Segregation of duties — explicit acceptance**
+
+In MVP a single Superadmin handles the whole payment validation flow, and there is no HTTP endpoint that creates payments — pagos enter the system through other paths (seeders today; future integrations such as Mercado Pago webhooks or Owner-side receipt uploads). The `/staff/treasury/*` routes only expose `approve` and `reject`. As a consequence:
+
+- `payments.created_by` exists (`database/migrations/2024_01_05_000000_create_payments_table.php:17-18`, hydrated by `EloquentPaymentRepository::toDomain()`) but is **not populated by any endpoint** in this PR.
+- No UseCase blocks the same Superadmin from approving a payment they uploaded. This is acceptable while a single Superadmin owns the workflow but is **not** acceptable once the Líder / Operador split (RF-160..167) lands.
+
+When the create-payment endpoint and the Líder / Operador roles are introduced, the SoD guard must be added together with them:
+
+1. The create-payment UseCase must populate `payments.created_by` from the authenticated actor.
+2. `ApprovePaymentUseCase` must raise a new `SegregationOfDutiesViolationException` (mapped to `422 Unprocessable Entity`) when `actorUserId === payment.createdBy`. The check belongs in the UseCase, not the controller, so it survives any future entry point (HTTP, queued job, internal admin tool).
+3. The same guard belongs in `RejectPaymentUseCase` if the eventual flow treats rejection as a privileged decision rather than a deferral.
+4. Tests must cover the guard for both terminal transitions (positive and negative).
+
+This block is the gate that keeps the same person from carrying and approving a pago once the workflow has more than one actor.
 
 **Why deferred**
 
