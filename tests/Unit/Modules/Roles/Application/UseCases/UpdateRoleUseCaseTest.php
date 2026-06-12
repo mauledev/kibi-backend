@@ -1,6 +1,7 @@
 <?php
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleInput;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleUseCase;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -108,7 +109,7 @@ describe('UpdateRoleUseCase', function () {
             ->andReturn($updatedRole);
         $this->audit->shouldReceive('log')
             ->once()
-            ->with('role.update', 1, 10, null, Mockery::type('array'), Mockery::type('array'));
+            ->with(RoleAuditEvent::ROLE_UPDATE, 1, 10, null, Mockery::type('array'), Mockery::type('array'));
 
         $input = new UpdateRoleInput(actorUserId: 1, actorSlug: 'owner', uuid: 'role-uuid', name: 'New Name');
         $result = $this->useCase->execute($input);
