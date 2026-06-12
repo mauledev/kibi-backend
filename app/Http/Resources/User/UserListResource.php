@@ -2,30 +2,47 @@
 
 namespace App\Http\Resources\User;
 
-use App\Models\User;
+use App\Modules\User\Domain\Entities\RoleAssignment;
+use App\Modules\User\Domain\Entities\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * UserListResource
- * Serializes User for list responses (minimal fields).
+ * Serializes a Domain User entity for the paginated list response.
+ *
+ * Exposes only the fields needed for a compact list view. Full detail
+ * (first_name, last_name_* individually) is available from UserDetailResource.
+ *
+ * @mixin User
  */
 class UserListResource extends JsonResource
 {
-    /** @return array<string, mixed> */
+    /**
+     * Transform the Domain User entity into the list API response shape.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         /** @var User $user */
         $user = $this->resource;
 
         return [
-            'uuid' => $user->uuid,
-            'email' => $user->email,
-            'first_name' => $user->first_name,
-            'last_name_paternal' => $user->last_name_paternal,
-            'last_name_maternal' => $user->last_name_maternal,
-            'full_name' => $user->first_name.' '.$user->last_name_paternal.($user->last_name_maternal !== null ? ' '.$user->last_name_maternal : ''),
-            'status' => $user->status,
+            'uuid' => $user->getUuid(),
+            'full_name' => $user->getFullName(),
+            'email' => $user->getEmail(),
+            'phone' => $user->getPhone(),
+            'status' => $user->getStatus(),
+            'roles' => array_map(
+                fn (RoleAssignment $role): array => [
+                    'role_uuid' => $role->roleUuid,
+                    'slug' => $role->slug,
+                    'name' => $role->name,
+                    'school_uuid' => $role->schoolUuid,
+                ],
+                $user->getRoles()
+            ),
+            'created_at' => $user->getCreatedAt()->format('c'),
         ];
     }
 }

@@ -32,6 +32,8 @@ use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
+use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
+use App\Modules\Onboarding\Infrastructure\Repositories\EloquentOnboardingRepository;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\GetRole\GetRoleUseCase;
 use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
@@ -184,6 +186,17 @@ class AppServiceProvider extends ServiceProvider
                     $app->make(AuditLoggerInterface::class)
                 );
             });
+        // --- Onboarding module ---
+        $this->app->bind(
+            OnboardingRepositoryInterface::class,
+            EloquentOnboardingRepository::class
+        );
+
+        // --- User module ---
+        $this->app->bind(
+            \App\Modules\User\Domain\Contracts\UserRepositoryInterface::class,
+            \App\Modules\User\Infrastructure\Repositories\EloquentUserRepository::class
+        );
     }
 
     /**

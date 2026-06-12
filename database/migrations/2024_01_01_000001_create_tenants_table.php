@@ -19,6 +19,8 @@ return new class extends Migration
             $table->jsonb('fiscal_address')->nullable();
             $table->string('contact_email')->nullable();
             $table->string('contact_phone', 30)->nullable();
+            $table->string('contact_name')->nullable();
+            $table->jsonb('branding')->nullable();
             $table->string('status', 20)->default('active');
             $table->smallInteger('custom_roles_limit')->nullable();
             $table->timestampsTz();

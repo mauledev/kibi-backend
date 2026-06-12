@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Me\MeOnboardingController;
+use App\Http\Controllers\Me\MeSchoolsController;
+use App\Http\Controllers\Onboarding\OnboardingController;
 use App\Http\Controllers\Roles\AssignmentDenialController;
 use App\Http\Controllers\Roles\CustomRoleLimitController;
 use App\Http\Controllers\Roles\PermissionController;
@@ -79,11 +82,15 @@ Route::middleware('tenant')->group(function () {
         Route::prefix('tenant')->group(function () {
             Route::apiResource('users', UserController::class);
 
+            // Current user shortcuts
+            Route::get('/me/onboarding', [MeOnboardingController::class, 'show'])->name('me.onboarding.show');
+            Route::get('/me/schools', [MeSchoolsController::class, 'show'])->name('me.schools.show');
+
             // Roles and Permissions
             Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
             Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
 
-            // Custom role creation — must be declared before /roles/{uuid} to avoid /roles/custom
+            // Custom role creation — declared before /roles/{uuid} to avoid /roles/custom
             // being captured as a UUID segment.
             Route::post('/roles/custom', [RoleController::class, 'store'])->name('roles.custom.store');
 
@@ -140,6 +147,18 @@ Route::middleware('tenant')->group(function () {
                 ->name('schools.roles.permissions.store');
             Route::delete('/schools/{uuid}/roles/{role_uuid}/permissions/{permission_uuid}', [SchoolRolePermissionController::class, 'destroy'])
                 ->name('schools.roles.permissions.destroy');
+
+            // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
+            Route::prefix('onboarding')->group(function () {
+                Route::get('/progress', [OnboardingController::class, 'getProgress'])
+                    ->name('onboarding.progress');
+                Route::post('/steps/company', [OnboardingController::class, 'completeCompanyData'])
+                    ->name('onboarding.steps.company');
+                Route::post('/steps/branding', [OnboardingController::class, 'completeBranding'])
+                    ->name('onboarding.steps.branding');
+                Route::post('/steps/first-school', [OnboardingController::class, 'completeFirstSchool'])
+                    ->name('onboarding.steps.first-school');
+            });
         });
     });
 });
