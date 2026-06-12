@@ -88,7 +88,7 @@ class UserController extends Controller
             return ApiResponse::forbidden($e->getMessage());
         }
 
-        $items = UserListResource::collection($result['items'])->resolve();
+        $items = UserListResource::collection($result['items']);
 
         $pagination = [
             'total' => $result['total'],
@@ -116,7 +116,7 @@ class UserController extends Controller
         try {
             $user = $useCase->execute(new GetUserInput(uuid: $uuid));
 
-            return ApiResponse::success((new UserDetailResource($user))->resolve());
+            return ApiResponse::success((new UserDetailResource($user)));
 
         } catch (UserNotFoundException) {
             return ApiResponse::notFound();

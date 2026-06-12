@@ -29,7 +29,7 @@ class RoleController extends Controller
 
         $roles = $this->listRolesUseCase->execute(new ListRolesInput);
 
-        return ApiResponse::success(RoleResource::collection($roles)->resolve());
+        return ApiResponse::success(RoleResource::collection($roles));
     }
 
     /**
@@ -42,7 +42,7 @@ class RoleController extends Controller
         try {
             $role = $this->getRoleUseCase->execute(new GetRoleInput($uuid));
 
-            return ApiResponse::success((new RoleResource($role))->resolve());
+            return ApiResponse::success(new RoleResource($role));
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
