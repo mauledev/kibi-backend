@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\RevokePermissionFromRole;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -64,7 +67,7 @@ class RevokePermissionFromRoleUseCase
         $this->roles->detachPermission($role->getId(), $permission->getId());
 
         $this->audit->log(
-            action: 'permission.revoke',
+            action: RoleAuditEvent::PERMISSION_REVOKE,
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: [

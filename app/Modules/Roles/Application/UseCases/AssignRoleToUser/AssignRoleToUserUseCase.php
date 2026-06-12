@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\AssignRoleToUser;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -111,7 +114,7 @@ class AssignRoleToUserUseCase
         );
 
         $this->audit->log(
-            action: 'role.assign',
+            action: RoleAuditEvent::ROLE_ASSIGN,
             userId: $actor?->getId(),
             entityId: $assignment->getId(),
             structAfter: [
