@@ -22,5 +22,6 @@ interface AuditLoggerInterface
         ?int $schoolId = null,
         ?array $structBefore = null,
         ?array $structAfter = null,
+        ?int $tenantId = null,
     ): void;
 }
