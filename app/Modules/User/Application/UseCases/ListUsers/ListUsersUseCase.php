@@ -42,6 +42,7 @@ final class ListUsersUseCase
                 search: $input->search,
                 roleSlugs: $input->roleSlugs,
                 status: $input->status,
+                unassigned: $input->unassigned,
                 schoolIds: $this->resolveSchoolScope($input),
                 perPage: $input->perPage,
                 page: $input->page,

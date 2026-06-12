@@ -76,7 +76,7 @@ describe('GetUserUseCase', function () {
 
     it('returns the entity with its roles populated', function () {
         $roles = [
-            new RoleAssignment(slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
+            new RoleAssignment(roleUuid: 'role-uuid-student', slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
         ];
         $user = getUserEntity(['roles' => $roles]);
 

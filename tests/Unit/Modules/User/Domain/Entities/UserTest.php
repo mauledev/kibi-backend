@@ -94,8 +94,8 @@ describe('User entity', function () {
 
         it('exposes roles provided at construction', function () {
             $roles = [
-                new RoleAssignment(slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
-                new RoleAssignment(slug: 'tutor', name: 'Tutor', schoolUuid: null),
+                new RoleAssignment(roleUuid: 'role-uuid-student', slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
+                new RoleAssignment(roleUuid: 'role-uuid-tutor', slug: 'tutor', name: 'Tutor', schoolUuid: null),
             ];
 
             $user = makeUserEntity(['roles' => $roles]);
@@ -146,7 +146,7 @@ describe('User entity', function () {
 
         it('returns each RoleAssignment with slug, name, and schoolUuid', function () {
             $roles = [
-                new RoleAssignment(slug: 'teacher', name: 'Teacher', schoolUuid: 'school-uuid-abc'),
+                new RoleAssignment(roleUuid: 'role-uuid-teacher', slug: 'teacher', name: 'Teacher', schoolUuid: 'school-uuid-abc'),
             ];
 
             $user = makeUserEntity(['roles' => $roles]);
@@ -161,8 +161,8 @@ describe('User entity', function () {
 
         it('returns multiple RoleAssignment objects unchanged', function () {
             $roles = [
-                new RoleAssignment(slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
-                new RoleAssignment(slug: 'tutor', name: 'Tutor', schoolUuid: null),
+                new RoleAssignment(roleUuid: 'role-uuid-student', slug: 'student', name: 'Student', schoolUuid: 'school-uuid-1'),
+                new RoleAssignment(roleUuid: 'role-uuid-tutor', slug: 'tutor', name: 'Tutor', schoolUuid: null),
             ];
 
             $user = makeUserEntity(['roles' => $roles]);

@@ -28,7 +28,7 @@ return [
         '#^https?://[^.]+\.localhost(:\d+)?$#',   // local dev wildcard subdomains
     ],
 
-    'allowed_headers' => ['Content-Type', 'Authorization', 'Accept', 'X-Tenant-Slug'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'Accept', 'X-Tenant-Slug', 'X-School-Uuid'],
 
     'exposed_headers' => [],
 
