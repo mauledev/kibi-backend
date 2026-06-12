@@ -16,8 +16,9 @@ class CreateRoleRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'slug' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/'],
-            'hierarchy_level' => ['required', 'integer', 'min:1', 'max:9'],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/'],
+            'school_uuids' => ['required', 'array', 'min:1'],
+            'school_uuids.*' => ['string', 'uuid'],
         ];
     }
 }

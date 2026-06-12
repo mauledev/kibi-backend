@@ -7,9 +7,13 @@ use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
+use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 class UpdateRoleUseCase
 {
+    /** Actors authorised to update roles, in descending authority order. */
+    private const ALLOWED_ACTORS = ['owner', 'school_manager', 'director'];
+
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly AuditLoggerInterface $audit,
@@ -17,22 +21,35 @@ class UpdateRoleUseCase
 
     /**
      * Update mutable fields on a role.
-     * The actor must have a strictly lower hierarchy_level than the target role.
+     * Only owner, school_manager, and director may update roles.
+     * System roles cannot be renamed.
      *
      * @throws RoleNotFoundException
+     * @throws SystemRoleViolationException
      * @throws HierarchyViolationException
      */
     public function execute(UpdateRoleInput $input): Role
     {
+        if (! in_array($input->actorSlug, self::ALLOWED_ACTORS, true)) {
+            throw new HierarchyViolationException(
+                'Only owner, school_manager, or director can update roles.'
+            );
+        }
+
         $role = $this->roles->findByUuid($input->uuid);
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
         }
 
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
+        if ($role->isSystemRole()) {
+            throw new SystemRoleViolationException('System roles cannot be renamed.');
+        }
+
+        // Director cannot update gestor or owner roles.
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'You can only update roles with a hierarchy level strictly greater than your own.'
+                'Director cannot update owner or school_manager roles.'
             );
         }
 
@@ -59,7 +76,7 @@ class UpdateRoleUseCase
             'id' => $role->getId(),
             'uuid' => $role->getUuid(),
             'name' => $role->getName(),
-            'hierarchy_level' => $role->getHierarchyLevel(),
+            'slug' => $role->getSlug(),
         ];
     }
 }

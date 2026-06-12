@@ -9,10 +9,11 @@ use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use Illuminate\Auth\Access\AuthorizationException;
 
 class AssignPermissionToRoleUseCase
 {
+    private const PROTECTED_SLUGS = ['superadmin', 'owner', 'school_manager'];
+
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
         private readonly PermissionRepositoryInterface $permissions,
@@ -23,11 +24,11 @@ class AssignPermissionToRoleUseCase
      * Assign a permission to a role.
      *
      * Rules:
-     * - System roles never receive role_permissions rows.
-     * - The actor must hold manage.permissions.
-     * - The target role must have a strictly greater hierarchy_level than the actor.
+     * - The target role cannot be superadmin, owner, or school_manager.
+     * - Actor slug must be owner (any role), school_manager (roles in their schools),
+     *   or director (roles in their school, not gestor/owner roles).
+     * - Permission category scope must match the role category scope (skipped for custom roles).
      *
-     * @throws AuthorizationException
      * @throws RoleNotFoundException
      * @throws PermissionNotFoundException
      * @throws SystemRoleViolationException
@@ -35,8 +36,10 @@ class AssignPermissionToRoleUseCase
      */
     public function execute(AssignPermissionToRoleInput $input): void
     {
-        if (! $input->actorCanManagePermissions) {
-            throw new AuthorizationException('Actor does not hold the manage.permissions permission.');
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
+            throw new HierarchyViolationException(
+                'Only owner, school_manager, or director can manage role permissions.'
+            );
         }
 
         $role = $this->roles->findByUuid($input->roleUuid);
@@ -45,13 +48,18 @@ class AssignPermissionToRoleUseCase
             throw new RoleNotFoundException;
         }
 
+        if (in_array($role->getSlug(), self::PROTECTED_SLUGS, true)) {
+            throw new SystemRoleViolationException;
+        }
+
         if ($role->isSystemRole()) {
             throw new SystemRoleViolationException;
         }
 
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
+        // Director cannot manage gestor or owner roles
+        if ($input->actorSlug === 'director' && in_array($role->getSlug(), ['owner', 'school_manager'], true)) {
             throw new HierarchyViolationException(
-                'You can only manage permissions for roles with a hierarchy level strictly greater than your own.'
+                'Director cannot manage permissions on owner or school_manager roles.'
             );
         }
 
@@ -59,6 +67,19 @@ class AssignPermissionToRoleUseCase
 
         if ($permission === null) {
             throw new PermissionNotFoundException;
+        }
+
+        // Scope validation: permission category scope must match the role's category scope.
+        // Custom roles (category_id = null) skip this check.
+        if (! $role->isCustomRole() && $role->getCategoryId() !== null) {
+            $roleScope = $this->permissions->findCategoryScope($role->getCategoryId());
+            $permissionScope = $this->permissions->findCategoryScope($permission->getCategoryId());
+
+            if ($roleScope !== null && $permissionScope !== null && $roleScope !== $permissionScope) {
+                throw new HierarchyViolationException(
+                    'The permission scope does not match the role category scope.'
+                );
+            }
         }
 
         // Idempotent — only insert if not already present

@@ -30,13 +30,16 @@ class Tenant extends Model
         'legal_name',
         'rfc',
         'fiscal_address',
+        'contact_name',
         'contact_email',
         'contact_phone',
+        'branding',
         'status',
     ];
 
     protected $casts = [
         'fiscal_address' => 'array',
+        'branding' => 'array',
     ];
 
     /** @return BelongsTo<User, $this> */

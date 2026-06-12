@@ -5,7 +5,6 @@ namespace App\Models;
 use Database\Factories\PermissionCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -15,7 +14,7 @@ use Illuminate\Support\Str;
  *
  * @property int $id
  * @property string $uuid
- * @property int|null $school_id
+ * @property string $scope
  * @property string $name
  */
 class PermissionCategory extends Model
@@ -34,12 +33,11 @@ class PermissionCategory extends Model
 
     protected $fillable = [
         'uuid',
-        'school_id',
+        'scope',
         'name',
     ];
 
     protected $casts = [
-        'school_id' => 'integer',
         'created_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
@@ -47,12 +45,6 @@ class PermissionCategory extends Model
     const CREATED_AT = 'created_at';
 
     const UPDATED_AT = null;
-
-    /** @return BelongsTo<School, covariant PermissionCategory> */
-    public function school(): BelongsTo
-    {
-        return $this->belongsTo(School::class);
-    }
 
     /** @return HasMany<Permission, $this> */
     public function permissions(): HasMany

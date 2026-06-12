@@ -3,6 +3,7 @@
 namespace App\Modules\Schools\Application\UseCases\ListSchools;
 
 use App\Modules\Schools\Domain\Contracts\SchoolRepositoryInterface;
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
 
 final class ListSchoolsUseCase
@@ -12,12 +13,15 @@ final class ListSchoolsUseCase
     ) {}
 
     /**
-     * Return all schools belonging to the current tenant.
+     * Return schools belonging to the current tenant, optionally narrowed by
+     * the lifecycle filter carried in the input.
      *
      * @return array<School>
      */
     public function execute(ListSchoolsInput $input): array
     {
-        return $this->repository->findAll();
+        return $this->repository->findAll(
+            new SchoolListCriteria(status: $input->statusFilter),
+        );
     }
 }

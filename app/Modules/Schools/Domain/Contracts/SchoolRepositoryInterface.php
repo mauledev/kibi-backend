@@ -2,19 +2,30 @@
 
 namespace App\Modules\Schools\Domain\Contracts;
 
+use App\Modules\Schools\Domain\Criteria\SchoolListCriteria;
 use App\Modules\Schools\Domain\Entities\School;
 
 interface SchoolRepositoryInterface
 {
     /**
-     * Return all non-deleted schools belonging to the current tenant.
+     * Return schools belonging to the current tenant, narrowed by the given
+     * {@see SchoolListCriteria}.
      *
      * Tenant scoping is applied internally by the repository implementation
      * via the injected TenantContext — callers must not pass a tenant ID.
      *
+     * A criteria with `status = null` (the default) returns every non-deleted
+     * row without filtering by the `status` column — preserving the legacy
+     * contract.
+     *
      * @return array<School>
      */
-    public function findAll(): array;
+    public function findAll(SchoolListCriteria $criteria): array;
+
+    /**
+     * Find a single school by its internal primary key within the current tenant scope.
+     */
+    public function findById(int $id): ?School;
 
     /**
      * Find a single school by its public UUID within the current tenant scope.

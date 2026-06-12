@@ -4,6 +4,11 @@ namespace App\Modules\Schools\Domain\Exceptions;
 
 final class SchoolNotFoundException extends SchoolException
 {
+    public static function withId(int $id): self
+    {
+        return new self("School with id '{$id}' not found");
+    }
+
     public static function withUuid(string $uuid): self
     {
         return new self("School with uuid '{$uuid}' not found");

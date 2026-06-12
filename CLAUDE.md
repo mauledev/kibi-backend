@@ -16,6 +16,7 @@ Before any task, identify which docs are relevant and read them.
 | `docs/audit.md` | When emitting audit logs or adding audit events | Audit event catalog, `{model}.{verb}` convention, what is and isn't audited, how to add an event |
 | `docs/oauth.md` | When working on OAuth, Socialite, or social login | Full OAuth flow diagram, lookup logic, gateway pattern, Socialite integration guide |
 | `docs/post-mvp.md` | When making architectural trade-off decisions | Known limitations accepted for MVP with recommended solutions for the mature system |
+| `docs/roles-and-permissions.md` | When working on roles, permissions, assignments, or anything related to authorization | Full roles and permissions model: role types, scopes, category bounds, denials, school context, worked examples |
 
 After completing any task, update the docs that are affected by the changes made. If a new pattern was introduced, a rule changed, or a structural decision was taken, reflect it in the corresponding doc. Do not document task-specific details — only rules, patterns and decisions that apply going forward.
 

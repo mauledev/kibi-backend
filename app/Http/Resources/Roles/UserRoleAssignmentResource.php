@@ -20,6 +20,7 @@ class UserRoleAssignmentResource extends JsonResource
         $assignment = $this->resource;
 
         return [
+            'uuid' => $assignment->getUuid(),
             'assigned_at' => $assignment->getAssignedAt()->format('c'),
             'revoked_at' => $assignment->getRevokedAt()?->format('c'),
             'is_active' => $assignment->isActive(),

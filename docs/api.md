@@ -79,9 +79,19 @@ When a user holds multiple roles, the frontend sends the currently selected role
 X-Active-Role: {role_uuid}
 ```
 
-This header is **UI context only**. The frontend uses it to decide which dashboard to render. It does **not** participate in permission checks on the backend.
+**UI context only.** The frontend uses it to decide which dashboard to render. The backend never reads it — permission checks are always evaluated against all active assignments for the current school.
 
-Permission checks always merge all active role assignments — no backend logic reads `X-Active-Role`. Reading an HTTP header inside a UseCase would couple the Application layer to HTTP, violating hexagonal architecture.
+### X-School-Uuid
+
+Identifies the school the user is currently operating in:
+
+```
+X-School-Uuid: {school_uuid}
+```
+
+Read by `SchoolMiddleware`, which resolves the UUID to a `school_id`, verifies it belongs to the current tenant, and binds `SchoolContext` into the container. The Gate uses this context to scope permission checks to the correct `user_role_assignments` rows and apply the corresponding `user_role_assignment_denials`.
+
+Required on all school-level endpoints. Absent on tenant-level endpoints (e.g. managing gestores, configuring custom role limits).
 
 ---
 
@@ -225,20 +235,194 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 
 `DELETE /staff/tenants/{uuid}` soft-deletes the tenant. Returns 200 with a success message. Returns 404 when not found.
 
+### Schools
+
+```
+GET    /schools                          List schools of the current tenant
+POST   /schools                          Create a school
+GET    /schools/{uuid}                   Get a single school
+PUT    /schools/{uuid}                   Update mutable fields (partial)
+POST   /schools/{uuid}/deactivate        Soft-delete a school
+```
+
+`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+
+| Value          | Meaning                                                                                |
+|----------------|----------------------------------------------------------------------------------------|
+| *(omitted)*    | Equivalent to `active` — the default. There is no separate "no-filter" mode.           |
+| `active`       | `status='active'` AND not soft-deleted.                                                |
+| `deactivated`  | Only soft-deleted rows.                                                                |
+| `all`          | Every row, including soft-deleted and any rows with a non-`active` status (suspended). |
+
+This is the canonical pattern for list endpoints that need to expose soft-deleted rows alongside lifecycle states. The filter values are a Domain enum (`SchoolListFilter`); the FormRequest validates via `Rule::enum(...)` and the controller never inlines strings. The repository contract accepts a **Criteria** object (`SchoolListCriteria`) rather than loose primitives, so adding pagination, search or sorting later does not break callers. The Criteria's `status` field is non-nullable with `Active` as its default — "include everything" is expressed exclusively as `All`, eliminating the previous `null`/`All` ambiguity. The repository maps `Deactivated` to `onlyTrashed()` and `All` to `withTrashed()`; the soft-delete column stays an Infrastructure concern. Resources expose `deleted_at` so the frontend can render deactivated rows distinctly.
+
+### Users
+
+```
+GET    /users                   List users in the current tenant (paginated, filterable)
+GET    /users/{uuid}            Get a single user with full detail
+POST   /users                   Invite a tenant user (creates a pending account + sends a magic link)
+PUT    /users/{uuid}            Update a user (not yet implemented — returns 501)
+DELETE /users/{uuid}            Delete a user (not yet implemented — returns 501)
+```
+
+`GET /users` returns 200 with a paginated list of tenant users. Authorization requires the `user.view` permission. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string (max 255) | Free-text search across `first_name`, `last_name_paternal`, `last_name_maternal`, `email` (Postgres ILIKE, case-insensitive) |
+| `filter[role]` | string or string[] | Filter by role slug(s). Users must hold an active assignment with at least one of the provided slugs. The reserved value `none` (sent alone) inverts the filter and returns only users with **no active role assignment** — see below. |
+| `filter[status]` | string | Filter by lifecycle status. Allowed: `active`, `inactive`, `suspended`. |
+| `page` | integer (min 1) | Page number. Default: 1. |
+| `per_page` | integer (1–100) | Items per page. Default: 20. |
+
+**Unassigned users (`filter[role]=none`).** Sending the reserved sentinel `none` as the sole value of `filter[role]` returns only users that have **no active role assignment** (every assignment revoked, or never assigned). This is the inverse of the normal include filter and is mutually exclusive with concrete slugs — when `none` is present, any other slug in the array is ignored. The school scope does not apply in this mode (a role-less user belongs to no school); only tenant + `is_staff = false` scoping holds. Use case: surfacing newly created staff who still need a role/school assigned.
+
+**School visibility is authority-driven, not header-driven.** The set of schools a caller can list is derived on the server from the actor, so omitting `X-School-Uuid` can never widen visibility beyond what the actor is entitled to:
+
+| Actor | Without `X-School-Uuid` | With `X-School-Uuid` |
+|---|---|---|
+| Owner (`tenants.owner_id`) | All users in the tenant (every school) | Narrowed to that one school |
+| Non-owner (gestor, director, …) | Union of all schools where they hold an active assignment | That school, only if it is within their accessible set — otherwise `403` |
+
+A non-owner who requests a school they have no active assignment in receives `403` (`SchoolAccessDeniedException`). A non-owner with no school-scoped assignments (tenant-level role only) sees an empty list unless they are the owner. The `X-School-Uuid` header therefore only ever *narrows* the scope an actor already has.
+
+Response shape:
+```json
+{
+  "success": true,
+  "status": 200,
+  "data": [
+    {
+      "uuid": "...",
+      "full_name": "Mauricio Ledesma García",
+      "email": "mauricio@example.com",
+      "phone": "+52 55 1234 5678",
+      "status": "active",
+      "roles": [
+        { "role_uuid": "...", "slug": "teacher", "name": "Teacher", "school_uuid": "..." }
+      ],
+      "created_at": "2025-01-15T10:00:00+00:00"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 42,
+      "per_page": 20,
+      "current_page": 1,
+      "last_page": 3
+    }
+  }
+}
+```
+
+`GET /users/{uuid}` returns 200 with the full user detail. Authorization requires `user.view`. Returns 404 when the UUID does not exist within the current tenant.
+
+Detail response includes the list fields plus: `first_name`, `last_name_paternal`, `last_name_maternal`.
+
+Permission slug used: `user.view` (seeded under `school/director` category — also held by `school_registrar`, `prefect`, `finance`, `hr`, and `academic_coordinator` via their respective category slugs).
+
+`POST /users` **invites** a tenant user. Authorization requires `user.create` (owner bypasses). Body:
+
+```json
+{
+  "email": "nuevo@colegio.mx",
+  "first_name": "Ana",
+  "last_name_paternal": "García",
+  "last_name_maternal": "López",
+  "assignments": [
+    { "role_uuid": "...", "school_uuid": "..." }
+  ]
+}
+```
+
+It creates a **pending** user (`password_hash = null`, `email_verified_at = null`) in the current tenant, applies each `assignments[]` entry via the same logic as `POST /users/{uuid}/roles` (hierarchy, role-exclusion and owner-role protections enforced — only `owner`, `school_manager`, `director` may assign; `school_uuid` may be null for tenant-level roles), and emails a signed activation **magic link** to `/auth/magic` (same `auth.activate` signed route + 7-day TTL as owner activation). The invitee sets a password via `POST /auth/activate` and is logged in. Returns 201 with `{ uuid, email, full_name }`. Returns 409 when the email already exists; 403 on a hierarchy/role-exclusion violation; 422 on validation errors. No password is accepted at invite time.
+
+Activation note: `POST /auth/activate` promotes a tenant from `pending → active` only — invited members land on an already-active tenant, so their activation only sets their password and verifies their email (it never re-activates a suspended tenant).
+
+---
+
+### Me
+
+```
+GET    /me/onboarding          Onboarding progress of the authenticated user
+GET    /me/schools             Schools the authenticated user can operate in
+```
+
+`GET /me/schools` returns the schools the authenticated user can operate in, consumed by the client `SchoolGate` to decide the pre-dashboard flow (no schools / one school / pick a school). Access is **strictly role-based**: a school is returned **only if the user holds an active role assignment in it** (`User::accessibleSchoolIds()` — active `user_role_assignments` with a non-null `school_id`). No role in a school = no access. A user with no school-scoped assignment gets `[]` (this includes the owner, whose tenant-wide access is handled by the client gate's owner short-circuit, not by this endpoint). Compact shape:
+
+```json
+[ { "id": "school-uuid", "slug": "primaria-centro", "name": "Escuela Primaria Central", "logo_url": null } ]
+```
+
+`id` is the school **uuid**. The percentage/onboarding endpoint above and this one are read-only.
+
+
+`GET /me/onboarding` returns the invited member's registration progress as a **percentage derived on the fly** from their existing data — required fields filled vs. missing. **Nothing is stored** (no table). Response:
+
+```json
+{ "percent": 75, "completed": ["first_name", "last_name_paternal", "email"], "missing": ["phone"], "is_complete": false }
+```
+
+The required set lives in `ComputeOnboardingProgressUseCase::requiredFields()` (MVP: minimum profile — `first_name`, `last_name_paternal`, `email`, `phone`) and is meant to grow per role as each role's data points are defined. The percentage rises automatically as the user fills those fields through the relevant resource endpoints; there is no separate "save step" endpoint.
+
+---
+
 ### Roles and permissions
 
 ```
-GET    /roles                                              List roles for current tenant
-POST   /roles                                             Create role (requires manage.permissions)
-GET    /roles/{uuid}                                 Get role with its permissions
-PUT    /roles/{uuid}                                 Update role
-DELETE /roles/{uuid}                                 Delete role
-GET    /permissions                                       List permissions grouped by category
-POST   /roles/{uuid}/permissions                     Assign permission to role
-DELETE /roles/{uuid}/permissions/{permission_uuid}   Revoke permission from role
-POST   /users/{uuid}/roles                           Assign role to user
-DELETE /users/{uuid}/roles/{role_uuid}          Revoke role from user
+GET    /roles                                                        List roles for current tenant
+POST   /roles/custom                                                 Create a custom role (owner and gestor only)
+GET    /roles/{uuid}                                                 Get role with its effective permissions
+PUT    /roles/{uuid}                                                 Update role name (custom roles only)
+DELETE /roles/{uuid}                                                 Delete role (custom roles only)
+GET    /permissions                                                  List permissions (filtered by role category if role_uuid provided)
+POST   /roles/{uuid}/permissions                                     Assign permission to role (category-bound)
+DELETE /roles/{uuid}/permissions/{permission_uuid}                   Revoke permission from role
+POST   /users/{uuid}/roles                                           Assign role to user (owner, gestor, director only)
+DELETE /users/{uuid}/roles/{role_uuid}                               Revoke role from user
+POST   /users/{uuid}/assignments/{assignment_uuid}/denials            Deny a permission for a specific assignment
+DELETE /users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
+PUT    /tenant/custom-roles-limit                                    Configure max custom roles (owner only)
 ```
+
+`POST /roles/custom` creates a custom role (`category_id = NULL`) and assigns it to one or more schools. Requires the tenant's `custom_roles_limit` to be set and not exceeded. Body: `{ "name": "...", "school_uuids": ["..."] }`.
+
+`GET /permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+
+`POST /users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
+
+`PUT /tenant/custom-roles-limit` sets `tenants.custom_roles_limit` for the authenticated owner's tenant. Body: `{ "limit": 10 }` (1–50).
+
+---
+
+### Onboarding
+
+```
+GET    /onboarding/progress               Return current onboarding progress (auto-bootstraps)
+POST   /onboarding/steps/company          Complete step 1 — company data
+POST   /onboarding/steps/branding         Complete step 2 — branding
+POST   /onboarding/steps/first-school     Complete step 3 — link first school
+POST   /onboarding/steps/skip             501 — not implemented (MVP stub)
+POST   /onboarding/steps/academic-template 501 — not implemented (MVP stub)
+POST   /onboarding/steps/fiscal           501 — not implemented (MVP stub)
+POST   /onboarding/steps/payment          501 — not implemented (MVP stub)
+POST   /onboarding/steps/director         501 — not implemented (MVP stub)
+```
+
+All onboarding endpoints require `auth:sanctum` + `tenant` middleware. Owner-only access is enforced **inline in the controller** via a private `denyIfNotOwner(Request)` helper that compares `request.user.id` against `TenantContext::ownerId` and returns `403 Forbidden` (`Only the owner can perform onboarding`) when they differ. The check runs at the top of every action and is not extracted to a dedicated middleware because the rule has a single consumer (this controller) and the wizard is a transient flow — extracting it would add indirection without removing repetition elsewhere. If a second owner-only group appears later, promote the helper to `EnsureUserIsTenantOwner` middleware then.
+
+**Wizard closure:** once `progress.status = 'completed'`, the three `POST /onboarding/steps/*` endpoints return `409 Conflict` and reject any write. Post-wizard edits to fiscal data, branding, or the first-school link must go through their respective Settings endpoints (not implemented in MVP — tracked as post-MVP work).
+
+`GET /onboarding/progress` auto-bootstraps a missing record (handles legacy tenants). Returns an `OnboardingProgressResource` with `uuid`, `current_step`, `status` (effective — may be `suspended` when grace period expired), `steps[]`, `grace_period_ends_at`, `is_grace_period_expired`, `can_access_full_panel`, `created_at`, `updated_at`.
+
+`POST /onboarding/steps/company` body: `business_name`, `rfc` (auto-uppercased), `fiscal_address` (nested object), `primary_contact_name`, `primary_contact_email`, `primary_contact_phone`. Returns 200 with updated progress. Idempotent.
+
+`POST /onboarding/steps/branding` body: `logo_url`, `primary_color` (hex), `secondary_color` (hex). Requires step 1 completed (422 if not). Returns 200 with updated progress. Idempotent.
+
+`POST /onboarding/steps/first-school` body: `school_id` (school UUID). Requires step 2 completed (422 if not). Returns 403 if school UUID does not belong to the tenant. Returns 200 with updated progress. Idempotent.
+
+`BootstrapOnboardingUseCase` is called inside the `CreateTenantUseCase` transaction after tenant creation, so every new tenant gets an onboarding record immediately.
 
 ---
 

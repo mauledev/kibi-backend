@@ -34,6 +34,12 @@ class RevokeRoleFromUserUseCase
      */
     public function execute(RevokeRoleFromUserInput $input): UserRoleAssignment
     {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
+            throw new HierarchyViolationException(
+                'Only owner, school_manager, or director can revoke roles from users.'
+            );
+        }
+
         $actor = $this->users->findByUuid($input->actorUuid);
 
         $targetUser = $this->users->findByUuid($input->targetUserUuid);
@@ -46,12 +52,6 @@ class RevokeRoleFromUserUseCase
 
         if ($role === null || $role->isDeleted()) {
             throw new RoleNotFoundException;
-        }
-
-        if ($role->getHierarchyLevel() <= $input->actorHierarchyLevel) {
-            throw new HierarchyViolationException(
-                'You can only revoke roles with a hierarchy level strictly greater than your own.'
-            );
         }
 
         $schoolId = $input->schoolUuid !== null

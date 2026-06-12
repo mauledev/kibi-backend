@@ -4,6 +4,7 @@ namespace App\Modules\Tenant\Application\UseCases\CreateTenant;
 
 use App\Common\Mail\MailerInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
+use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\UserRoleAssignmentRepositoryInterface;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface;
 use App\Modules\Tenant\Domain\Entities\Tenant;
@@ -19,6 +20,7 @@ class CreateTenantUseCase
         private readonly GlobalUserRepositoryInterface $users,
         private readonly UserRoleAssignmentRepositoryInterface $assignments,
         private readonly MailerInterface $mailer,
+        private readonly OnboardingRepositoryInterface $onboarding,
     ) {}
 
     /**
@@ -66,14 +68,27 @@ class CreateTenantUseCase
                 userId: $owner->getId(),
             );
 
+            $this->onboarding->bootstrap($tenant->getId());
+
             return $this->tenants->findBySlugWithOwner($input->tenantSlug);
         });
 
-        $activationUrl = URL::temporarySignedRoute(
+        $backendSignedUrl = URL::temporarySignedRoute(
             'auth.activate',
-            now()->addHours(48),
+            now()->addHours(168),
             ['user' => $tenant->getOwner()?->getUuid()],
+            absolute: false
         );
+
+        $query = parse_url($backendSignedUrl, PHP_URL_QUERY);
+
+        $baseUrl = config('app.frontend_url') ?? config('app.url');
+
+        $baseUrlWithTenant = str_replace('{APP_TENANT}', $input->tenantSlug, $baseUrl);
+        $baseUrlWithTenant = rtrim($baseUrlWithTenant, '/');
+
+        $frontendUrl = $baseUrlWithTenant.'/auth/magic';
+        $activationUrl = $query ? "{$frontendUrl}?{$query}" : $frontendUrl;
 
         $this->mailer->sendActivation(
             to: $input->ownerEmail,

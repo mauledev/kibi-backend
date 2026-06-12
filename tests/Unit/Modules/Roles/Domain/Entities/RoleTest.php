@@ -10,6 +10,7 @@ describe('Role entity', function () {
             id: $overrides['id'] ?? 1,
             uuid: $overrides['uuid'] ?? 'uuid-1',
             tenantId: array_key_exists('tenantId', $overrides) ? $overrides['tenantId'] : 10,
+            categoryId: array_key_exists('categoryId', $overrides) ? $overrides['categoryId'] : null,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 4,
@@ -109,5 +110,37 @@ describe('Role entity', function () {
         expect($role->hasPermission('manage.permissions'))->toBeTrue();
         expect($role->hasPermission('manage'))->toBeFalse();
         expect($role->hasPermission('permissions'))->toBeFalse();
+    });
+
+    describe('isCustomRole()', function () {
+        it('returns true when tenantId is set, categoryId is null, and slug is not owner or school_manager', function () {
+            $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'my_custom_role']);
+
+            expect($role->isCustomRole())->toBeTrue();
+        });
+
+        it('returns false for owner slug even when tenantId is set and categoryId is null', function () {
+            $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'owner']);
+
+            expect($role->isCustomRole())->toBeFalse();
+        });
+
+        it('returns false for school_manager slug even when tenantId is set and categoryId is null', function () {
+            $role = makeRole(['tenantId' => 5, 'categoryId' => null, 'slug' => 'school_manager']);
+
+            expect($role->isCustomRole())->toBeFalse();
+        });
+
+        it('returns false when categoryId is set', function () {
+            $role = makeRole(['tenantId' => 5, 'categoryId' => 3, 'slug' => 'director']);
+
+            expect($role->isCustomRole())->toBeFalse();
+        });
+
+        it('returns false when tenantId is null (system role)', function () {
+            $role = makeRole(['tenantId' => null, 'categoryId' => null, 'slug' => 'some_role']);
+
+            expect($role->isCustomRole())->toBeFalse();
+        });
     });
 });

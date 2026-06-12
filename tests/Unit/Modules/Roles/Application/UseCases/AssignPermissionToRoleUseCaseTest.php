@@ -11,7 +11,6 @@ use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use Illuminate\Auth\Access\AuthorizationException;
 
 describe('AssignPermissionToRoleUseCase', function () {
     beforeEach(function () {
@@ -35,6 +34,7 @@ describe('AssignPermissionToRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
+            categoryId: $overrides['categoryId'] ?? null,
             name: $overrides['name'] ?? 'Director',
             slug: $overrides['slug'] ?? 'director',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 4,
@@ -56,24 +56,22 @@ describe('AssignPermissionToRoleUseCase', function () {
         );
     }
 
-    it('throws AuthorizationException when actor does not hold manage.permissions', function () {
+    it('throws HierarchyViolationException when actor slug is unknown', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: false,
+            actorSlug: 'prefect',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(AuthorizationException::class);
+            ->toThrow(HierarchyViolationException::class);
     });
 
     it('throws RoleNotFoundException when role does not exist', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'nonexistent-uuid',
             permissionUuid: 'perm-uuid',
         );
@@ -87,35 +85,15 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->toThrow(RoleNotFoundException::class);
     });
 
-    it('throws RoleNotFoundException when role is soft-deleted', function () {
+    it('throws SystemRoleViolationException when target role is superadmin', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
-        $role = makeRoleEntity(['deletedAt' => new DateTimeImmutable('2025-01-01')]);
-
-        $this->roleRepo->shouldReceive('findByUuid')
-            ->once()
-            ->andReturn($role);
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(RoleNotFoundException::class);
-    });
-
-    it('throws SystemRoleViolationException when target role is a system role', function () {
-        $input = new AssignPermissionToRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
-            roleUuid: 'role-uuid',
-            permissionUuid: 'perm-uuid',
-        );
-
-        $role = makeRoleEntity(['isSystemRole' => true]);
+        $role = makeRoleEntity(['slug' => 'superadmin', 'isSystemRole' => true]);
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->once()
@@ -125,54 +103,34 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when target role has same hierarchy level as actor', function () {
+    it('throws SystemRoleViolationException when director tries to manage school_manager role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 4, // same as role
-            actorCanManagePermissions: true,
+            actorSlug: 'director',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
-        $role = makeRoleEntity(['hierarchyLevel' => 4]);
+        // school_manager is in PROTECTED_SLUGS — SystemRoleViolationException fires first
+        $role = makeRoleEntity(['slug' => 'school_manager', 'categoryId' => null]);
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
-    });
-
-    it('throws HierarchyViolationException when target role has lower hierarchy level than actor', function () {
-        $input = new AssignPermissionToRoleInput(
-            actorUserId: 1,
-            actorHierarchyLevel: 4,
-            actorCanManagePermissions: true,
-            roleUuid: 'role-uuid',
-            permissionUuid: 'perm-uuid',
-        );
-
-        $role = makeRoleEntity(['hierarchyLevel' => 3]); // more privileged
-
-        $this->roleRepo->shouldReceive('findByUuid')
-            ->once()
-            ->andReturn($role);
-
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
+            ->toThrow(SystemRoleViolationException::class);
     });
 
     it('throws PermissionNotFoundException when permission does not exist', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'nonexistent-perm-uuid',
         );
 
-        $role = makeRoleEntity(['hierarchyLevel' => 5]);
+        $role = makeRoleEntity();
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->once()
@@ -190,13 +148,12 @@ describe('AssignPermissionToRoleUseCase', function () {
     it('attaches permission and writes audit log when all checks pass', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
-        $role = makeRoleEntity(['hierarchyLevel' => 5]);
+        $role = makeRoleEntity();
         $permission = makePermissionEntity('grade.publish');
 
         $this->roleRepo->shouldReceive('findByUuid')
@@ -206,6 +163,9 @@ describe('AssignPermissionToRoleUseCase', function () {
         $this->permissionRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($permission);
+
+        $this->permissionRepo->shouldReceive('findCategoryScope')
+            ->andReturn('school');
 
         $this->roleRepo->shouldReceive('attachPermission')
             ->once()
@@ -223,15 +183,13 @@ describe('AssignPermissionToRoleUseCase', function () {
 
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
-            actorHierarchyLevel: 3,
-            actorCanManagePermissions: true,
+            actorSlug: 'owner',
             roleUuid: 'role-uuid',
             permissionUuid: 'perm-uuid',
         );
 
         // Role already has the permission in its collection
         $role = makeRoleEntity([
-            'hierarchyLevel' => 5,
             'permissions' => [$permission],
         ]);
 
@@ -242,6 +200,9 @@ describe('AssignPermissionToRoleUseCase', function () {
         $this->permissionRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($permission);
+
+        $this->permissionRepo->shouldReceive('findCategoryScope')
+            ->andReturn('school');
 
         $this->roleRepo->shouldNotReceive('attachPermission');
         $this->audit->shouldNotReceive('log');

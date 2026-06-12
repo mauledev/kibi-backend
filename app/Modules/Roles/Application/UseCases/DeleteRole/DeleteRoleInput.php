@@ -6,7 +6,7 @@ class DeleteRoleInput
 {
     public function __construct(
         public readonly int $actorUserId,
-        public readonly int $actorHierarchyLevel,
+        public readonly string $actorSlug,
         public readonly string $uuid,
     ) {}
 }
