@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\School;
-use App\Models\StudentProfile;
 use App\Models\Tenant;
 use App\Models\TutorProfile;
 use App\Models\User;
@@ -108,30 +107,9 @@ class DevSeeder extends Seeder
         $studentRole = Role::where('slug', 'student')->whereNull('tenant_id')->first();
 
         $demoStudents = [
-            [
-                'email' => 'student1@colegiodemo.mx',
-                'first_name' => 'Ana',
-                'last_name_paternal' => 'García',
-                'last_name_maternal' => 'López',
-                'enrollment_number' => 'EN-001',
-                'gender' => 'female',
-            ],
-            [
-                'email' => 'student2@colegiodemo.mx',
-                'first_name' => 'Carlos',
-                'last_name_paternal' => 'Martínez',
-                'last_name_maternal' => 'Ruiz',
-                'enrollment_number' => 'EN-002',
-                'gender' => 'male',
-            ],
-            [
-                'email' => 'student3@colegiodemo.mx',
-                'first_name' => 'Sofía',
-                'last_name_paternal' => 'Hernández',
-                'last_name_maternal' => null,
-                'enrollment_number' => 'EN-003',
-                'gender' => 'female',
-            ],
+            ['email' => 'student1@colegiodemo.mx', 'first_name' => 'Ana', 'last_name_paternal' => 'García', 'last_name_maternal' => 'López'],
+            ['email' => 'student2@colegiodemo.mx', 'first_name' => 'Carlos', 'last_name_paternal' => 'Martínez', 'last_name_maternal' => 'Ruiz'],
+            ['email' => 'student3@colegiodemo.mx', 'first_name' => 'Sofía', 'last_name_paternal' => 'Hernández', 'last_name_maternal' => null],
         ];
 
         $studentUsers = [];
@@ -161,15 +139,6 @@ class DevSeeder extends Seeder
                     ['assigned_at' => now(), 'assigned_by' => null],
                 );
             }
-
-            StudentProfile::firstOrCreate(
-                ['user_id' => $studentUser->id],
-                [
-                    'uuid' => (string) Str::uuid(),
-                    'enrollment_number' => $data['enrollment_number'],
-                    'gender' => $data['gender'],
-                ]
-            );
 
             $studentUsers[$data['email']] = $studentUser;
         }
