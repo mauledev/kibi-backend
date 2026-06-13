@@ -7,6 +7,7 @@ use App\Models\User as UserModel;
 use App\Models\UserRoleAssignment;
 use App\Modules\User\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\User\Domain\Criteria\UserListCriteria;
+use App\Modules\User\Domain\Criteria\UserStatsCriteria;
 use App\Modules\User\Domain\Entities\RoleAssignment;
 use App\Modules\User\Domain\Entities\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,7 +31,8 @@ class EloquentUserRepository implements UserRepositoryInterface
 {
     public function __construct(
         private readonly TenantContext $context,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritDoc}
@@ -61,7 +63,7 @@ class EloquentUserRepository implements UserRepositoryInterface
 
         return [
             'items' => array_map(
-                fn (UserModel $m) => $this->toDomain($m),
+                fn(UserModel $m) => $this->toDomain($m),
                 $paginator->items()
             ),
             'total' => $paginator->total(),
@@ -84,9 +86,41 @@ class EloquentUserRepository implements UserRepositoryInterface
         return $model ? $this->toDomain($model) : null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function getStats(UserStatsCriteria $criteria): array
+    {
+        // Two COUNT queries over the same directory scope — no rows are loaded.
+        // `pending` reuses the virtual-status rule: an unverified email.
+        $total = $this->statsScopedQuery($criteria)->count();
+        $pending = $this->statsScopedQuery($criteria)
+            ->whereNull('email_verified_at')
+            ->count();
+
+        return [
+            'total' => $total,
+            'pending' => $pending,
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * A fresh base query scoped to the directory (tenant + non-staff + role/school
+     * scope). Built fresh on each call so the two COUNT queries never share state.
+     *
+     * @return Builder<UserModel>
+     */
+    private function statsScopedQuery(UserStatsCriteria $criteria): Builder
+    {
+        $query = $this->baseQuery();
+        $this->applyRoleAndSchoolFilter($query, $criteria->roleSlugs, $criteria->schoolIds);
+
+        return $query;
+    }
 
     /**
      * Return a base query already scoped to the current tenant's non-staff users.
@@ -124,15 +158,29 @@ class EloquentUserRepository implements UserRepositoryInterface
     }
 
     /**
-     * Apply an exact status filter when provided.
+     * Apply a status filter when provided.
+     *
+     * `pending` is a VIRTUAL status: the API derives it from an unverified email
+     * (see UserListResource), it is NOT a value stored in users.status. Filtering
+     * by it must therefore match unverified users (email_verified_at IS NULL),
+     * not a literal status-column value — keeping the filter symmetric with how
+     * the resource presents the status.
      *
      * @param  Builder<UserModel>  $query
      */
     private function applyStatusFilter(Builder $query, ?string $status): void
     {
-        if ($status !== null) {
-            $query->where('status', $status);
+        if ($status === null) {
+            return;
         }
+
+        if ($status === 'pending') {
+            $query->whereNull('email_verified_at');
+
+            return;
+        }
+
+        $query->where('status', $status);
     }
 
     /**
@@ -158,7 +206,7 @@ class EloquentUserRepository implements UserRepositoryInterface
         $hasRoleFilter = count($roleSlugs) > 0;
         $hasSchoolFilter = $schoolIds !== null;
 
-        if (! $hasRoleFilter && ! $hasSchoolFilter) {
+        if (!$hasRoleFilter && !$hasSchoolFilter) {
             return;
         }
 
@@ -273,6 +321,7 @@ class EloquentUserRepository implements UserRepositoryInterface
             phone: $model->phone,
             status: $model->status,
             createdAt: $model->created_at?->toDateTime() ?? new \DateTime,
+            emailVerifiedAt: $model->email_verified_at?->toDateTime() ?? null,
             roles: $roles,
         );
     }

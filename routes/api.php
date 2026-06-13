@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
+Route::get('/health', fn() => ApiResponse::success(['status' => 'ok']));
 
 /*
 |--------------------------------------------------------------------------
@@ -119,6 +119,9 @@ Route::middleware('tenant')->group(function () {
         // All tenant resources are prefixed with /tenant
         Route::prefix('tenant')->group(function () {
             Route::apiResource('users', UserController::class);
+            Route::get('/users/stats', [UserController::class, 'stats'])
+                ->middleware('school')
+                ->name('users.stats');
 
             // Current user shortcuts
             Route::get('/me/onboarding', [MeOnboardingController::class, 'show'])->name('me.onboarding.show');
