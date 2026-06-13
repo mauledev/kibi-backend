@@ -100,7 +100,7 @@ describe('POST /api/staff/personnel', function () {
 
         $response->assertJsonStructure([
             'data' => [
-                'id',
+                'uuid',
                 'role',
                 'personal_data' => ['first_name', 'last_name_paternal', 'email', 'phone'],
                 'work_schedule' => ['timezone', 'days', 'start_time', 'end_time'],
@@ -213,7 +213,7 @@ describe('POST /api/staff/personnel', function () {
 
         $response->assertStatus(201);
 
-        $id = $response->json('data.id');
+        $id = $response->json('data.uuid');
         expect(preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id))->toBe(1);
     });
 });

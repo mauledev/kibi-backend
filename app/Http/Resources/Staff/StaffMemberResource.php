@@ -20,7 +20,7 @@ class StaffMemberResource extends JsonResource
         $member = $this->resource;
 
         return [
-            'id' => $member->getUuid(),
+            'uuid' => $member->getUuid(),
             'role' => $member->getRole(),
             'personal_data' => [
                 'first_name' => $member->getFirstName(),
