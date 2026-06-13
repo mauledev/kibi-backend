@@ -35,6 +35,8 @@ function makeApprovalSuperadmin(string $email): User
         'assigned_at' => now(),
     ]);
 
+    acceptPurFor($user);
+
     return $user;
 }
 

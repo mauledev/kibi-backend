@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PolicyAcceptanceController;
 use App\Http\Controllers\Me\MeOnboardingController;
 use App\Http\Controllers\Me\MeSchoolsController;
 use App\Http\Controllers\Onboarding\OnboardingController;
@@ -42,23 +43,29 @@ Route::prefix('staff')->group(function () {
 
     // Authenticated
     Route::middleware('auth:sanctum')->group(function () {
+        // Always reachable, even while the Responsible Use Policy gate is pending:
+        // the user needs their session and a way to accept the policy.
         Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
+        Route::post('/auth/policy/accept', [PolicyAcceptanceController::class, 'accept'])->name('staff.auth.policy.accept');
 
-        Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
+        // App endpoints — blocked until the Responsible Use Policy is accepted (SCRUM-520).
+        Route::middleware('policy.accepted')->group(function () {
+            Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
 
-        // Backoffice staff personnel — Superadmin only (explicit check; no Gate on staff routes)
-        Route::middleware('staff.superadmin')->group(function () {
-            Route::get('/personnel', [PersonnelController::class, 'index'])->name('staff.personnel.index');
-            Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
-            Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
+            // Backoffice staff personnel — Superadmin only (explicit check; no Gate on staff routes)
+            Route::middleware('staff.superadmin')->group(function () {
+                Route::get('/personnel', [PersonnelController::class, 'index'])->name('staff.personnel.index');
+                Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
+                Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
 
-            // Superadmin dual-control creation ceremony (SCRUM-520)
-            Route::get('/superadmin/approvals', [SuperadminApprovalController::class, 'index'])->name('staff.superadmin.approvals.index');
-            Route::post('/superadmin/approvals', [SuperadminApprovalController::class, 'store'])->name('staff.superadmin.approvals.store');
-            Route::get('/superadmin/approvals/{uuid}', [SuperadminApprovalController::class, 'show'])->name('staff.superadmin.approvals.show');
-            Route::post('/superadmin/approvals/{uuid}/approve', [SuperadminApprovalController::class, 'approve'])->name('staff.superadmin.approvals.approve');
-            Route::post('/superadmin/approvals/{uuid}/reject', [SuperadminApprovalController::class, 'reject'])->name('staff.superadmin.approvals.reject');
+                // Superadmin dual-control creation ceremony (SCRUM-520)
+                Route::get('/superadmin/approvals', [SuperadminApprovalController::class, 'index'])->name('staff.superadmin.approvals.index');
+                Route::post('/superadmin/approvals', [SuperadminApprovalController::class, 'store'])->name('staff.superadmin.approvals.store');
+                Route::get('/superadmin/approvals/{uuid}', [SuperadminApprovalController::class, 'show'])->name('staff.superadmin.approvals.show');
+                Route::post('/superadmin/approvals/{uuid}/approve', [SuperadminApprovalController::class, 'approve'])->name('staff.superadmin.approvals.approve');
+                Route::post('/superadmin/approvals/{uuid}/reject', [SuperadminApprovalController::class, 'reject'])->name('staff.superadmin.approvals.reject');
+            });
         });
     });
 });

@@ -6,6 +6,7 @@ uses(TestCase::class);
 
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
 use App\Modules\Auth\Application\UseCases\StaffLogin\IssueStaffSessionUseCase;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
@@ -19,12 +20,15 @@ describe('IssueStaffSessionUseCase', function () {
         $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
         $this->tokens = Mockery::mock(TokenServiceInterface::class);
         $this->audit = Mockery::mock(AuditLoggerInterface::class);
+        $this->policy = Mockery::mock(PolicyAcceptanceChecker::class);
+        $this->policy->shouldReceive('mustAccept')->andReturn(false);
 
         $this->useCase = new IssueStaffSessionUseCase(
             $this->userRepo,
             $this->roleRepo,
             $this->tokens,
             $this->audit,
+            $this->policy,
         );
     });
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsurePolicyAccepted;
 use App\Http\Middleware\EnsureStaffSuperadmin;
 use App\Http\Middleware\SchoolMiddleware;
 use App\Http\Middleware\TenantMiddleware;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => TenantMiddleware::class,
             'school' => SchoolMiddleware::class,
             'staff.superadmin' => EnsureStaffSuperadmin::class,
+            'policy.accepted' => EnsurePolicyAccepted::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

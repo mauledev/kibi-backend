@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Auth\Application\DTOs\MeOutput;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Entities\User;
@@ -13,7 +14,9 @@ describe('GetStaffMeUseCase', function () {
     beforeEach(function () {
         $this->userRepo = Mockery::mock(UserRepositoryInterface::class);
         $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
-        $this->useCase = new GetStaffMeUseCase($this->userRepo, $this->roleRepo);
+        $this->policy = Mockery::mock(PolicyAcceptanceChecker::class);
+        $this->policy->shouldReceive('mustAccept')->andReturn(false);
+        $this->useCase = new GetStaffMeUseCase($this->userRepo, $this->roleRepo, $this->policy);
     });
 
     afterEach(function () {

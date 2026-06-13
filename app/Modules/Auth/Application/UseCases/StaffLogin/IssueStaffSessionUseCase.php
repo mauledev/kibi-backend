@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Application\UseCases\StaffLogin;
 
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
@@ -22,6 +23,7 @@ class IssueStaffSessionUseCase
         private readonly RoleRepositoryInterface $roles,
         private readonly TokenServiceInterface $tokens,
         private readonly AuditLoggerInterface $audit,
+        private readonly PolicyAcceptanceChecker $policy,
     ) {}
 
     /**
@@ -50,7 +52,17 @@ class IssueStaffSessionUseCase
             token: $this->tokens->generate($userId),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
+            mustAcceptPolicy: $this->policy->mustAccept($userId, $this->roleSlugs($roles)),
         );
+    }
+
+    /**
+     * @param  array<Role>  $roles
+     * @return array<string>
+     */
+    private function roleSlugs(array $roles): array
+    {
+        return array_map(static fn (Role $role): string => $role->getSlug(), $roles);
     }
 
     /**

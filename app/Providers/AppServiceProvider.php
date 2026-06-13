@@ -11,6 +11,8 @@ use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
 use App\Models\User;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
+use App\Modules\Auth\Application\UseCases\AcceptPolicy\AcceptPolicyUseCase;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
@@ -22,6 +24,7 @@ use App\Modules\Auth\Application\UseCases\TwoFactorLogin\StartTwoFactorSetupUseC
 use App\Modules\Auth\Domain\Contracts\ActivationRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
+use App\Modules\Auth\Domain\Contracts\PolicyAcceptanceRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\TwoFactorChallengeRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\TwoFactorRepositoryInterface;
@@ -31,6 +34,7 @@ use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
 use App\Modules\Auth\Infrastructure\Repositories\CacheTwoFactorChallengeRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentActivationRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentPolicyAcceptanceRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentTwoFactorRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
@@ -137,6 +141,23 @@ class AppServiceProvider extends ServiceProvider
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
         $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
+
+        // Responsible Use Policy (PUR) acceptance — SCRUM-520
+        $this->app->bind(
+            PolicyAcceptanceRepositoryInterface::class,
+            EloquentPolicyAcceptanceRepository::class,
+        );
+
+        // Checker reads version + required roles from config once (single source).
+        $this->app->singleton(PolicyAcceptanceChecker::class, fn ($app) => new PolicyAcceptanceChecker(
+            $app->make(PolicyAcceptanceRepositoryInterface::class),
+            (string) config('policies.pur.version'),
+            (array) config('policies.pur.required_roles'),
+        ));
+
+        $this->app->when(AcceptPolicyUseCase::class)
+            ->needs('$version')
+            ->giveConfig('policies.pur.version');
 
         // Two-factor (TOTP) base — reusable engine + persistence
         $this->app->bind(
