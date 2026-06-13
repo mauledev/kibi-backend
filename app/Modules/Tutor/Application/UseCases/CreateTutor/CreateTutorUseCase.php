@@ -4,7 +4,6 @@ namespace App\Modules\Tutor\Application\UseCases\CreateTutor;
 
 use App\Common\Audit\AuditLoggerInterface;
 use App\Common\Mail\MailerInterface;
-use App\Models\User as UserModel;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserInput;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
@@ -67,10 +66,8 @@ final class CreateTutorUseCase
 
             $this->globalUsers->setTenantId($user->getId(), $input->tenantId);
 
-            // Update phone on the users row — GlobalUserRepositoryInterface does not
-            // accept phone at creation time, so we update it directly here.
             if ($input->phone !== null) {
-                UserModel::where('id', $user->getId())->update(['phone' => $input->phone]);
+                $this->globalUsers->updatePhone($user->getId(), $input->phone);
             }
 
             $this->assignRole->execute(new AssignRoleToUserInput(

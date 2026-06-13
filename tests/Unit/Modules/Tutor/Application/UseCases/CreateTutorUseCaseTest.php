@@ -232,6 +232,7 @@ describe('CreateTutorUseCase', function () {
         $this->roleRepo->shouldReceive('findBySlug')->once()->andReturn($role);
         $this->users->shouldReceive('createPending')->once()->andReturn($authUser);
         $this->users->shouldReceive('setTenantId')->once();
+        $this->users->shouldReceive('updatePhone')->once()->with(99, '5551234567');
         $this->assignRole->shouldReceive('execute')->once();
         $this->tutorRepo->shouldReceive('create')->once()->andReturn($tutor);
         $this->audit->shouldReceive('log')->once();

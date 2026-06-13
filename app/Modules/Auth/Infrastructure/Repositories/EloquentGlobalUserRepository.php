@@ -47,6 +47,12 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
     }
 
     /** {@inheritDoc} */
+    public function updatePhone(int $userId, string $phone): void
+    {
+        UserModel::where('id', $userId)->update(['phone' => $phone]);
+    }
+
+    /** {@inheritDoc} */
     public function findByUuid(string $uuid): ?User
     {
         $model = UserModel::where('uuid', $uuid)->first();
