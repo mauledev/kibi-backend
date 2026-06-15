@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -41,7 +42,7 @@ describe('PermissionController', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions')
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 403 when user lacks manage.permissions', function () {
@@ -53,7 +54,7 @@ describe('PermissionController', function () {
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions')
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 200 with permissions when user has manage.permissions', function () {
@@ -70,7 +71,7 @@ describe('PermissionController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
                     'success',
                     'data',
@@ -84,7 +85,7 @@ describe('PermissionController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions')
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
         });
 
         it('returns permission uuids not internal ids', function () {
@@ -100,7 +101,7 @@ describe('PermissionController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/permissions');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $data = $response->json('data');
 

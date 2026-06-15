@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -34,7 +35,7 @@ describe('POST /api/staff/tenants', function () {
 
     it('returns 401 when unauthenticated', function () {
         $this->postJson('/api/staff/tenants', validCreateTenantPayload())
-            ->assertStatus(401);
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
     });
 
     it('returns 201 and creates tenant with pending status', function () {
@@ -45,7 +46,7 @@ describe('POST /api/staff/tenants', function () {
         $response = $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', validCreateTenantPayload());
 
-        $response->assertStatus(201);
+        $response->assertStatus(Response::HTTP_CREATED);
 
         $this->assertDatabaseHas('tenants', [
             'slug' => 'san-ignacio',
@@ -123,7 +124,7 @@ describe('POST /api/staff/tenants', function () {
 
         $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', validCreateTenantPayload())
-            ->assertStatus(409);
+            ->assertStatus(Response::HTTP_CONFLICT);
     });
 
     it('returns 409 when owner email is already taken', function () {
@@ -135,13 +136,13 @@ describe('POST /api/staff/tenants', function () {
 
         $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', validCreateTenantPayload())
-            ->assertStatus(409);
+            ->assertStatus(Response::HTTP_CONFLICT);
     });
 
     it('returns 422 when required fields are missing', function () {
         $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', [])
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 
     it('returns 422 when slug has invalid characters', function () {
@@ -154,7 +155,7 @@ describe('POST /api/staff/tenants', function () {
 
         $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', $payload)
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 
     it('response never exposes internal id', function () {
@@ -165,7 +166,7 @@ describe('POST /api/staff/tenants', function () {
         $response = $this->actingAs($this->staff)
             ->postJson('/api/staff/tenants', validCreateTenantPayload());
 
-        $response->assertStatus(201);
+        $response->assertStatus(Response::HTTP_CREATED);
 
         // Internal integer id must not appear at the data level
         expect($response->json('data.id'))->toBeNull();

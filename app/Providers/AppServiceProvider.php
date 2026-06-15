@@ -10,6 +10,7 @@ use App\Common\School\SchoolContext;
 use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
+use App\Http\Middleware\TenantMiddleware;
 use App\Models\User;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
@@ -42,14 +43,22 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
+use App\Modules\Student\Domain\Contracts\StudentRepositoryInterface;
+use App\Modules\Student\Infrastructure\Repositories\EloquentStudentRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
 use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
 use App\Modules\Treasury\Domain\Contracts\PaymentRepositoryInterface;
 use App\Modules\Treasury\Infrastructure\Repositories\EloquentPaymentRepository;
+use App\Modules\Tutor\Domain\Contracts\TutorRepositoryInterface;
+use App\Modules\Tutor\Infrastructure\Repositories\EloquentTutorRepository;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -158,6 +167,18 @@ class AppServiceProvider extends ServiceProvider
             PaymentRepositoryInterface::class,
             EloquentPaymentRepository::class
         );
+
+        // --- Student module ---
+        $this->app->bind(
+            StudentRepositoryInterface::class,
+            EloquentStudentRepository::class
+        );
+
+        // --- Tutor module ---
+        $this->app->bind(
+            TutorRepositoryInterface::class,
+            EloquentTutorRepository::class
+        );
     }
 
     /**
@@ -166,6 +187,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerGates();
+        $this->registerRateLimiters();
     }
 
     /**
@@ -215,6 +237,47 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return $user->hasPermissionTo($ability, $schoolId) ? true : null;
+        });
+    }
+
+    /**
+     * Register named rate limiters.
+     *
+     * "login" throttles authentication attempts with two stacked limits, both from
+     * config/auth.php (env-driven, replacing the throttle:5,15 once inlined in routes):
+     *
+     *  1. Per credential — scope (tenant slug or staff) + email + IP. Blocks brute
+     *     force on one account without letting an attacker lock a victim out from
+     *     a different IP (the key includes the IP on purpose, Fortify-style).
+     *  2. Per IP backstop — caps email spraying from a single source. Higher ceiling
+     *     because one school NAT can legitimately funnel many users through one IP.
+     *
+     * Requires TrustProxies (TRUSTED_PROXIES env, bootstrap/app.php) in production,
+     * otherwise $request->ip() is the load balancer's address and every user shares
+     * the same backstop bucket.
+     */
+    private function registerRateLimiters(): void
+    {
+        RateLimiter::for('login', function (Request $request): array {
+            $maxAttempts = (int) config('auth.login_throttle.max_attempts');
+            $decayMinutes = (int) config('auth.login_throttle.decay_minutes');
+            $ipMaxAttempts = (int) config('auth.login_throttle.ip_max_attempts');
+
+            // The throttle middleware runs BEFORE TenantMiddleware (framework
+            // middleware priority hoists it), so TenantContext is never bound
+            // here — the tenant scope must be derived from the request itself.
+            $scope = $request->routeIs('staff.*')
+                ? 'staff'
+                : 'tenant:'.TenantMiddleware::resolveSlug($request);
+
+            $email = Str::lower(trim((string) $request->input('email')));
+
+            return [
+                Limit::perMinutes($decayMinutes, $maxAttempts)
+                    ->by('login:'.$scope.'|'.hash('sha256', $email.'|'.$request->ip())),
+                Limit::perMinutes($decayMinutes, $ipMaxAttempts)
+                    ->by('login-ip:'.$request->ip()),
+            ];
         });
     }
 }

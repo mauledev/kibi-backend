@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Application\UseCases\StaffLogin;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\Support\DummyPasswordHash;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
@@ -30,21 +31,38 @@ class StaffLoginUseCase
 
         $hash = $user?->getPasswordHash();
 
-        if (! $user || $hash === null || ! Hash::check($input->password, $hash)) {
+        // Always run exactly one bcrypt verification — even when the user does not exist
+        // or has no password (OAuth-only) — so response timing does not reveal whether
+        // the email is registered (anti-enumeration). Keep this hoisted outside the if:
+        // inlining it in the || chain would let short-circuiting skip it and reopen the oracle.
+        $passwordMatches = Hash::check($input->password, $hash ?? DummyPasswordHash::BCRYPT);
+
+        if ($user === null || $hash === null || ! $passwordMatches) {
+            $this->logFailed($input, $user?->getId());
+
             throw new InvalidCredentialsException;
         }
 
         if (! $user->isActive()) {
-            throw new InvalidCredentialsException('User is inactive');
+            $this->logFailed($input, $user->getId(), reason: 'inactive');
+
+            throw new InvalidCredentialsException;
         }
 
         if (! $user->isStaff()) {
+            $this->logFailed($input, $user->getId(), reason: 'not_staff');
+
             throw new InvalidCredentialsException;
         }
 
         $roles = $this->roles->findActiveRolesForUser($user->getId());
 
-        $this->audit->log(action: 'auth.login', userId: $user->getId());
+        $this->audit->log(
+            action: 'auth.login',
+            userId: $user->getId(),
+            tenantId: $input->tenantId,
+            structAfter: ['ip' => $input->ip],
+        );
 
         return new LoginOutput(
             uuid: $user->getUuid(),
@@ -57,6 +75,22 @@ class StaffLoginUseCase
             token: $this->tokens->generate($user->getId()),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
+        );
+    }
+
+    private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
+    {
+        $struct = ['email' => $input->email, 'ip' => $input->ip];
+
+        if ($reason !== null) {
+            $struct['reason'] = $reason;
+        }
+
+        $this->audit->log(
+            action: 'auth.login_failed',
+            userId: $userId,
+            tenantId: $input->tenantId,
+            structAfter: $struct,
         );
     }
 

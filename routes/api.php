@@ -12,7 +12,9 @@ use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\Staff\TenantController;
+use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\Treasury\PaymentController;
+use App\Http\Controllers\Tutor\TutorController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -32,7 +34,7 @@ Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 */
 Route::prefix('staff')->group(function () {
     // Public
-    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:5,15')->name('staff.auth.login');
+    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:login')->name('staff.auth.login');
 
     // Authenticated
     Route::middleware('auth:sanctum')->group(function () {
@@ -65,7 +67,7 @@ Route::post('/auth/activate', [AuthController::class, 'activate'])->name('auth.a
 */
 Route::middleware('tenant')->group(function () {
     // Public (login needs tenant context to scope user lookup)
-    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,15')->name('auth.login');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.login');
     Route::post('/auth/oauth/{provider}', [AuthController::class, 'oauthLogin'])->whereIn('provider', ['google', 'microsoft'])->name('auth.oauth');
 
     // Authenticated
@@ -126,6 +128,24 @@ Route::middleware('tenant')->group(function () {
         // Permissions scoped to a school and role category
         Route::get('/schools/{uuid}/permissions', [PermissionController::class, 'schoolIndex'])
             ->name('schools.permissions.index');
+
+        // Students
+        Route::middleware('school')->group(function (): void {
+            Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+        });
+        Route::get('/students', [StudentController::class, 'index'])->middleware('school')->name('students.index');
+        Route::get('/students/{uuid}', [StudentController::class, 'show'])->name('students.show');
+        Route::put('/students/{uuid}', [StudentController::class, 'update'])->name('students.update');
+
+        // Tutors
+        Route::middleware('school')->group(function (): void {
+            Route::post('/tutors', [TutorController::class, 'store'])->name('tutors.store');
+        });
+        Route::get('/tutors', [TutorController::class, 'index'])->middleware('school')->name('tutors.index');
+        Route::get('/tutors/{uuid}', [TutorController::class, 'show'])->name('tutors.show');
+        Route::put('/tutors/{uuid}', [TutorController::class, 'update'])->name('tutors.update');
+        Route::post('/tutors/{tutorUuid}/students/{studentUuid}', [TutorController::class, 'linkStudent'])
+            ->name('tutors.students.link');
 
         // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
         Route::prefix('onboarding')->group(function () {
