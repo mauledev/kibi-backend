@@ -2,6 +2,7 @@
 
 use App\Modules\Roles\Application\UseCases\GetRole\GetRoleInput;
 use App\Modules\Roles\Application\UseCases\GetRole\GetRoleUseCase;
+use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Permission;
 use App\Modules\Roles\Domain\Entities\Role;
@@ -10,7 +11,10 @@ use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 describe('GetRoleUseCase', function () {
     beforeEach(function () {
         $this->roleRepo = Mockery::mock(RoleRepositoryInterface::class);
-        $this->useCase = new GetRoleUseCase($this->roleRepo);
+        $this->permissionRepo = Mockery::mock(PermissionRepositoryInterface::class);
+        $this->permissionRepo->shouldReceive('findAll')->andReturn([]);
+        $this->permissionRepo->shouldReceive('findByCategoryId')->andReturn([]);
+        $this->useCase = new GetRoleUseCase($this->roleRepo, $this->permissionRepo);
     });
 
     afterEach(function () {

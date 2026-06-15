@@ -53,4 +53,16 @@ interface GlobalUserRepositoryInterface
      * Called inside the tenant creation transaction after the tenant record exists.
      */
     public function setTenantId(int $userId, int $tenantId): void;
+
+    /**
+     * Update the phone number on a user row.
+     */
+    public function updatePhone(int $userId, string $phone): void;
+
+    /**
+     * Find a user by their public UUID, regardless of tenant or staff status.
+     *
+     * Returns null when no user with the given UUID exists.
+     */
+    public function findByUuid(string $uuid): ?User;
 }

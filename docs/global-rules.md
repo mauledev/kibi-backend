@@ -107,7 +107,7 @@ All response messages (success, error, exception defaults) must be written in **
 
 - Passwords: `Hash::make()` with 12+ rounds (bcrypt)
 - Sanctum tokens expire after 24 hours: `createToken(..., expiresAt: now()->addHours(24))`
-- Rate-limit sensitive endpoints: 5 attempts / 15 min for login
+- Rate-limit login: 5 attempts / 15 min per credential (tenant + email + ip) plus a per-IP backstop (`AUTH_LOGIN_IP_MAX_ATTEMPTS`); in production `TRUSTED_PROXIES` MUST be set so request IPs are real behind the load balancer
 - Never use `unserialize()` on external input; use `json_decode(..., flags: JSON_THROW_ON_ERROR)`
 - Log security events with `user_id`, `TenantContext::tenantId`, `ip` and `timestamp`
 

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\RevokePermissionFromRole;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -32,9 +35,9 @@ class RevokePermissionFromRoleUseCase
      */
     public function execute(RevokePermissionFromRoleInput $input): void
     {
-        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director', 'superadmin'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, school_manager, or director can manage role permissions.'
+                'Only owner, school_manager, director, or superadmin can manage role permissions.'
             );
         }
 
@@ -64,7 +67,7 @@ class RevokePermissionFromRoleUseCase
         $this->roles->detachPermission($role->getId(), $permission->getId());
 
         $this->audit->log(
-            action: 'permission.revoke',
+            action: RoleAuditEvent::PERMISSION_REVOKE,
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: [

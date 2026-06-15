@@ -4,6 +4,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
 use App\Modules\Auth\Application\DTOs\TwoFactorChallenge;
@@ -25,6 +26,7 @@ describe('StaffLoginUseCase', function () {
         $this->issueSession = Mockery::mock(IssueStaffSessionUseCase::class);
         $this->twoFactor = Mockery::mock(TwoFactorRepositoryInterface::class);
         $this->challenges = Mockery::mock(TwoFactorChallengeRepositoryInterface::class);
+        $this->audit = Mockery::mock(AuditLoggerInterface::class);
 
         $this->useCase = new StaffLoginUseCase(
             $this->userRepo,
@@ -32,6 +34,7 @@ describe('StaffLoginUseCase', function () {
             $this->issueSession,
             $this->twoFactor,
             $this->challenges,
+            $this->audit,
         );
     });
 
@@ -69,10 +72,11 @@ describe('StaffLoginUseCase', function () {
         );
     }
 
-    // ---- credential failures (the 2FA gate is never reached) ------------------
+    // ---- credential failures (audited as auth.login_failed) -------------------
 
     it('throws InvalidCredentialsException when user is not found', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+        $this->audit->shouldReceive('log')->once();
 
         expect(fn () => $this->useCase->execute(new LoginInput(email: 'unknown@kibi.com', password: 'secret')))
             ->toThrow(InvalidCredentialsException::class);
@@ -81,6 +85,7 @@ describe('StaffLoginUseCase', function () {
     it('throws InvalidCredentialsException when password does not match', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()
             ->andReturn(staffMakeUser(['passwordHash' => Hash::make('correct')]));
+        $this->audit->shouldReceive('log')->once();
 
         expect(fn () => $this->useCase->execute(new LoginInput(email: 'staff@kibi.com', password: 'wrong')))
             ->toThrow(InvalidCredentialsException::class);
@@ -89,6 +94,7 @@ describe('StaffLoginUseCase', function () {
     it('throws InvalidCredentialsException when user is inactive', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()
             ->andReturn(staffMakeUser(['status' => 'inactive']));
+        $this->audit->shouldReceive('log')->once();
 
         expect(fn () => $this->useCase->execute(new LoginInput(email: 'staff@kibi.com', password: 'secret')))
             ->toThrow(InvalidCredentialsException::class);
@@ -97,6 +103,7 @@ describe('StaffLoginUseCase', function () {
     it('throws InvalidCredentialsException when user is a tenant user not staff', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()
             ->andReturn(staffMakeUser(['isStaff' => false]));
+        $this->audit->shouldReceive('log')->once();
 
         expect(fn () => $this->useCase->execute(new LoginInput(email: 'tenant_user@kibi.com', password: 'secret')))
             ->toThrow(InvalidCredentialsException::class);
@@ -105,12 +112,55 @@ describe('StaffLoginUseCase', function () {
     it('throws InvalidCredentialsException when password hash is null', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()
             ->andReturn(staffMakeUser(['passwordHash' => null]));
+        $this->audit->shouldReceive('log')->once();
 
         expect(fn () => $this->useCase->execute(new LoginInput(email: 'staff@kibi.com', password: 'secret')))
             ->toThrow(InvalidCredentialsException::class);
     });
 
-    // ---- 2FA gate -------------------------------------------------------------
+    it('logs auth.login_failed with reason not_staff and never the password', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(staffMakeUser([
+            'isStaff' => false,
+            'passwordHash' => Hash::make('super-secret-pw'),
+        ]));
+
+        $captured = null;
+        $this->audit->shouldReceive('log')->once()->withArgs(function (...$args) use (&$captured) {
+            $captured = $args;
+
+            return $args[0] === 'auth.login_failed';
+        });
+
+        expect(fn () => $this->useCase->execute(new LoginInput(email: 'tenant_user@kibi.com', password: 'super-secret-pw', ip: '203.0.113.7')))
+            ->toThrow(InvalidCredentialsException::class);
+
+        expect($captured[5])->toBe(['email' => 'tenant_user@kibi.com', 'ip' => '203.0.113.7', 'reason' => 'not_staff']);
+        expect(json_encode($captured))->not->toContain('super-secret-pw');
+    });
+
+    it('runs a dummy hash check when the user is not found (anti timing-oracle)', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+        // Pin the mitigation: bcrypt must run exactly once even without a user,
+        // so response timing cannot reveal whether the email is registered.
+        Hash::shouldReceive('check')->once()->andReturnFalse();
+        $this->audit->shouldReceive('log')->once();
+
+        expect(fn () => $this->useCase->execute(new LoginInput(email: 'unknown@kibi.com', password: 'secret')))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('rejects a null-password-hash user even if the dummy hash check passes', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(staffMakeUser(['passwordHash' => null]));
+        // The dummy hash runs for timing equalization, but its result must never
+        // authenticate an OAuth-only account: the null-hash guard wins.
+        Hash::shouldReceive('check')->once()->andReturnTrue();
+        $this->audit->shouldReceive('log')->once();
+
+        expect(fn () => $this->useCase->execute(new LoginInput(email: 'staff@kibi.com', password: 'secret')))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    // ---- 2FA gate (success path delegates to IssueStaffSessionUseCase) --------
 
     it('issues the session when no role requires 2FA and the user is not enrolled', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(staffMakeUser());
@@ -132,7 +182,6 @@ describe('StaffLoginUseCase', function () {
         $output = $this->useCase->execute(new LoginInput(email: 'staff@kibi.com', password: 'secret'));
 
         expect($output)->toBe($session);
-        expect($output->isStaff)->toBeTrue();
         expect($output->token)->toBe('staff-token');
     });
 

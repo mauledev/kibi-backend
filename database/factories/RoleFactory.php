@@ -42,6 +42,15 @@ class RoleFactory extends Factory
         ]);
     }
 
+    /** Global operational role (tenant_id IS NULL, is_system_role = false). Mirrors how the seeder creates tenant/school operational roles. */
+    public function global(): static
+    {
+        return $this->state(fn () => [
+            'tenant_id' => null,
+            'is_system_role' => false,
+        ]);
+    }
+
     /** Owner role — level 2, tenant-scoped. */
     public function owner(): static
     {

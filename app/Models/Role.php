@@ -72,4 +72,16 @@ class Role extends Model
     {
         return $this->belongsToMany(Permission::class, 'role_permissions');
     }
+
+    /** @return BelongsTo<PermissionCategory, covariant Role> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(PermissionCategory::class, 'category_id');
+    }
+
+    /** @return BelongsToMany<School, $this> */
+    public function customRoleSchools(): BelongsToMany
+    {
+        return $this->belongsToMany(School::class, 'custom_role_schools');
+    }
 }

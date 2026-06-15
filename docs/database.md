@@ -213,6 +213,28 @@ Table users {
 }
 ```
 
+### student_profiles
+```sql
+Table student_profiles {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
+  user_id bigint [unique, not null, ref: > users.id, note: '1:1 with users. One profile per student user.']
+  birth_date date
+  national_id varchar(50) [note: 'CURP/RUT/CPF/DNI depending on country']
+  enrollment_number varchar(50)
+  gender varchar(20) [note: 'male, female, other, prefer_not_to_say']
+  blood_type varchar(5)
+  group_id bigint [ref: > groups.id, note: 'NULL = no group assigned']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  deleted_at timestamptz
+}
+```
+
+Student profile data is stored in a dedicated table rather than polluting `users`. Identity fields (name, email, phone) live on `users`; academic fields (birth date, national ID, enrollment number, gender, blood type, group) live here.
+
+The public route identifier for a student is the **user's UUID** (`users.uuid`), not `student_profiles.uuid`. Student endpoints (`GET /students/{uuid}`) always resolve by user UUID to keep the concept of "user" consistent across modules.
+
 ### permission_categories
 ```sql
 Table permission_categories {
@@ -450,6 +472,42 @@ Table onboarding_step_status {
 ```
 
 No `timestamps` columns — this is a pivot-like table tracking step state within a progress record.
+
+### tutor_profiles
+```sql
+Table tutor_profiles {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null]
+  user_id bigint [unique, not null, ref: > users.id]
+  occupation varchar(100) [null]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz
+  deleted_at timestamptz
+}
+```
+
+One profile per tutor user. `user_id` is unique — a user can only have one tutor profile. Tutor identity (name, email, phone) is stored in `users` and joined in queries. Business logic lives in `App\Modules\Tutor\Domain\Entities\Tutor`.
+
+### student_tutors
+```sql
+Table student_tutors {
+  id bigserial [pk, increment]
+  tutor_user_id bigint [not null, ref: > users.id]
+  student_user_id bigint [not null, ref: > users.id]
+  relationship varchar(50) [null, note: 'mother | father | guardian | other']
+  linked_at timestamptz [not null, default: `now()`]
+  unlinked_at timestamptz [null]
+
+  indexes {
+    (tutor_user_id, student_user_id) [unique, note: 'WHERE unlinked_at IS NULL — partial index via DB::statement in migration']
+    student_user_id
+  }
+}
+```
+
+Junction table linking tutors to students. References `users.id` on both sides — kept decoupled from `tutor_profiles` and `student_profiles` to avoid cross-module FK dependencies. A link is active when `unlinked_at IS NULL`. The partial unique index prevents duplicate active links between the same tutor+student pair. No soft deletes — rows are logically deactivated by setting `unlinked_at`.
+
+Magic link behaviour: when the first active link for a student is created (`hasActiveLink(studentUserId)` returns false before insert) and the student's email is unverified (`email_verified_at IS NULL`), a magic link is sent. Subsequent tutors linking to the same student do not resend.
 
 ### audit_logs
 ```sql

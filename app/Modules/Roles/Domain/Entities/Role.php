@@ -6,6 +6,9 @@ use DateTimeImmutable;
 
 class Role
 {
+    /** @var array<Permission> */
+    private array $availablePermissions = [];
+
     /**
      * @param  array<Permission>  $permissions
      */
@@ -89,6 +92,18 @@ class Role
         return $this->requiresTwoFactor;
     }
 
+    /**
+     * Return true when this role bypasses the permission grant system entirely.
+     * Mirrors the Gate::before / Gate::after bypass logic in AppServiceProvider:
+     *   superadmin  — staff system bypass (is_system_role + StaffContext)
+     *   owner       — tenant owner bypass (TenantContext::ownerId)
+     *   school_manager — school gestor bypass (isGestorOfSchool)
+     */
+    public function bypassesPermissions(): bool
+    {
+        return in_array($this->slug, ['superadmin', 'owner', 'school_manager'], true);
+    }
+
     /** @return array<Permission> */
     public function getPermissions(): array
     {
@@ -135,6 +150,23 @@ class Role
     public function setPermissions(array $permissions): void
     {
         $this->permissions = $permissions;
+    }
+
+    /** @return array<Permission> */
+    public function getAvailablePermissions(): array
+    {
+        return $this->availablePermissions;
+    }
+
+    /**
+     * Sets all permissions applicable to this role's scope (used by GetRoleUseCase
+     * to populate the edit-permissions view with granted: true/false flags).
+     *
+     * @param  array<Permission>  $permissions
+     */
+    public function setAvailablePermissions(array $permissions): void
+    {
+        $this->availablePermissions = $permissions;
     }
 
     public function rename(string $name): void

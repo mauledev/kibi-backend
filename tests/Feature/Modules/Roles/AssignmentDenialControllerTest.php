@@ -57,7 +57,7 @@ describe('Assignment Denial endpoints', function () {
     describe('POST /users/{uuid}/assignments/{assignment_uuid}/denials', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
+                ->postJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
                     'permission_uuid' => $this->permission->uuid,
                 ])
                 ->assertStatus(401);
@@ -73,7 +73,7 @@ describe('Assignment Denial endpoints', function () {
 
             $this->actingAs($unprivilegedUser)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
+                ->postJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
                     'permission_uuid' => $this->permission->uuid,
                 ])
                 ->assertStatus(403);
@@ -88,7 +88,7 @@ describe('Assignment Denial endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$gestorUser->uuid}/assignments/{$gestorAssignment->uuid}/denials", [
+                ->postJson("/api/tenant/users/{$gestorUser->uuid}/assignments/{$gestorAssignment->uuid}/denials", [
                     'permission_uuid' => $this->permission->uuid,
                 ])
                 ->assertStatus(403);
@@ -97,7 +97,7 @@ describe('Assignment Denial endpoints', function () {
         it('returns 201 when a valid denial is created', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
+                ->postJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
                     'permission_uuid' => $this->permission->uuid,
                 ]);
 
@@ -118,7 +118,7 @@ describe('Assignment Denial endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
+                ->postJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials", [
                     'permission_uuid' => $this->permission->uuid,
                 ]);
 
@@ -141,7 +141,7 @@ describe('Assignment Denial endpoints', function () {
             ]);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
+                ->deleteJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
                 ->assertStatus(401);
         });
 
@@ -160,7 +160,7 @@ describe('Assignment Denial endpoints', function () {
 
             $this->actingAs($unprivilegedUser)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
+                ->deleteJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
                 ->assertStatus(403);
         });
 
@@ -172,7 +172,7 @@ describe('Assignment Denial endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
+                ->deleteJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
                 ->assertStatus(200);
 
             $this->assertDatabaseMissing('user_role_assignment_denials', [
@@ -185,7 +185,7 @@ describe('Assignment Denial endpoints', function () {
             // No denial in the database — still returns 200 gracefully
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
+                ->deleteJson("/api/tenant/users/{$this->targetUser->uuid}/assignments/{$this->targetAssignment->uuid}/denials/{$this->permission->uuid}")
                 ->assertStatus(200);
         });
     });

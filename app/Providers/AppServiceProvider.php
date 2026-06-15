@@ -7,9 +7,13 @@ use App\Common\Audit\AuditLoggerInterface;
 use App\Common\Mail\LaravelMailer;
 use App\Common\Mail\MailerInterface;
 use App\Common\School\SchoolContext;
+use App\Common\Staff\StaffContext;
 use App\Common\Tenant\EloquentTenantRepository;
 use App\Common\Tenant\TenantContext;
 use App\Common\Tenant\TenantRepositoryInterface;
+use App\Http\Controllers\Staff\RoleController;
+use App\Http\Controllers\Staff\RolePermissionController;
+use App\Http\Middleware\TenantMiddleware;
 use App\Models\User;
 use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
 use App\Modules\Auth\Application\UseCases\AcceptPolicy\AcceptPolicyUseCase;
@@ -42,7 +46,11 @@ use App\Modules\Auth\Infrastructure\Services\Google2faService;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
 use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Onboarding\Infrastructure\Repositories\EloquentOnboardingRepository;
+use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
+use App\Modules\Roles\Application\UseCases\GetRole\GetRoleUseCase;
+use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
+use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -62,12 +70,20 @@ use App\Modules\Staff\Domain\Contracts\SuperadminApprovalRepositoryInterface;
 use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffPersonnelReadRepository;
 use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffWorkScheduleRepository;
 use App\Modules\Staff\Infrastructure\Repositories\EloquentSuperadminApprovalRepository;
+use App\Modules\Student\Domain\Contracts\StudentRepositoryInterface;
+use App\Modules\Student\Infrastructure\Repositories\EloquentStudentRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
 use App\Modules\Tenant\Infrastructure\Repositories\EloquentTenantRepository as TenantModuleEloquentRepository;
+use App\Modules\Tutor\Domain\Contracts\TutorRepositoryInterface;
+use App\Modules\Tutor\Infrastructure\Repositories\EloquentTutorRepository;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -246,6 +262,46 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Schools\Infrastructure\Repositories\EloquentSchoolRepository::class
         );
 
+        // --- Staff role controllers — use EloquentStaffRoleRepository ---
+        // The contextual binding on the controller does not propagate to UseCases resolved
+        // inside it, so we use factory closures to wire the correct repository explicitly.
+
+        $this->app->when(RoleController::class)
+            ->needs(ListRolesUseCase::class)
+            ->give(function ($app) {
+                return new ListRolesUseCase(
+                    $app->make(EloquentStaffRoleRepository::class)
+                );
+            });
+
+        $this->app->when(RoleController::class)
+            ->needs(GetRoleUseCase::class)
+            ->give(function ($app) {
+                return new GetRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class)
+                );
+            });
+
+        $this->app->when(RolePermissionController::class)
+            ->needs(AssignPermissionToRoleUseCase::class)
+            ->give(function ($app) {
+                return new AssignPermissionToRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class),
+                    $app->make(AuditLoggerInterface::class)
+                );
+            });
+
+        $this->app->when(RolePermissionController::class)
+            ->needs(RevokePermissionFromRoleUseCase::class)
+            ->give(function ($app) {
+                return new RevokePermissionFromRoleUseCase(
+                    $app->make(EloquentStaffRoleRepository::class),
+                    $app->make(PermissionRepositoryInterface::class),
+                    $app->make(AuditLoggerInterface::class)
+                );
+            });
         // --- Onboarding module ---
         $this->app->bind(
             OnboardingRepositoryInterface::class,
@@ -257,6 +313,18 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\User\Domain\Contracts\UserRepositoryInterface::class,
             \App\Modules\User\Infrastructure\Repositories\EloquentUserRepository::class
         );
+
+        // --- Student module ---
+        $this->app->bind(
+            StudentRepositoryInterface::class,
+            EloquentStudentRepository::class
+        );
+
+        // --- Tutor module ---
+        $this->app->bind(
+            TutorRepositoryInterface::class,
+            EloquentTutorRepository::class
+        );
     }
 
     /**
@@ -265,6 +333,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerGates();
+        $this->registerRateLimiters();
     }
 
     /**
@@ -272,9 +341,13 @@ class AppServiceProvider extends ServiceProvider
      *
      * Two mechanisms work in tandem:
      *
-     * 1. Gate::before — Owner bypass: the user whose id matches TenantContext::ownerId
-     *    is granted every ability unconditionally. Staff routes do not bind TenantContext,
-     *    so this bypass is skipped entirely for staff requests.
+     * 1. Gate::before — Two explicit bypasses, mutually exclusive by context:
+     *    a) Owner bypass (tenant routes): the user whose id matches TenantContext::ownerId
+     *       is granted every ability unconditionally.
+     *    b) Superadmin bypass (staff routes): a staff user holding any is_system_role = true
+     *       role is granted every ability unconditionally.
+     *    Context is detected via container bindings: TenantContext on tenant routes,
+     *    StaffContext on staff routes.
      *
      * 2. Gate::after — Dynamic permission gate: for every other user we load the merged
      *    set of permission slugs from all active role assignments and check whether the
@@ -283,17 +356,18 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerGates(): void
     {
-        // Owner bypass — runs before any ability check.
-        // Skipped on staff routes where TenantContext is never bound.
-        // The owner identity comes from tenants.owner_id, not from role assignments.
         Gate::before(function (User $user, string $ability): ?bool {
-            if (! app()->bound(TenantContext::class)) {
-                return null;
+            // Owner bypass — tenant routes only (TenantContext is bound by TenantMiddleware).
+            // Owner identity comes from tenants.owner_id, not from role assignments.
+            if (app()->bound(TenantContext::class)) {
+                $context = app(TenantContext::class);
+
+                return $context->ownerId === $user->id ? true : null;
             }
 
-            $context = app(TenantContext::class);
-
-            if ($context->ownerId === $user->id) {
+            // Superadmin bypass — staff routes only (StaffContext is bound by StaffMiddleware).
+            // Any staff user holding a role with is_system_role = true gets full access.
+            if (app()->bound(StaffContext::class) && $user->is_staff && $user->hasActiveSystemRole()) {
                 return true;
             }
 
@@ -314,6 +388,47 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return $user->hasPermissionTo($ability, $schoolId) ? true : null;
+        });
+    }
+
+    /**
+     * Register named rate limiters.
+     *
+     * "login" throttles authentication attempts with two stacked limits, both from
+     * config/auth.php (env-driven, replacing the throttle:5,15 once inlined in routes):
+     *
+     *  1. Per credential — scope (tenant slug or staff) + email + IP. Blocks brute
+     *     force on one account without letting an attacker lock a victim out from
+     *     a different IP (the key includes the IP on purpose, Fortify-style).
+     *  2. Per IP backstop — caps email spraying from a single source. Higher ceiling
+     *     because one school NAT can legitimately funnel many users through one IP.
+     *
+     * Requires TrustProxies (TRUSTED_PROXIES env, bootstrap/app.php) in production,
+     * otherwise $request->ip() is the load balancer's address and every user shares
+     * the same backstop bucket.
+     */
+    private function registerRateLimiters(): void
+    {
+        RateLimiter::for('login', function (Request $request): array {
+            $maxAttempts = (int) config('auth.login_throttle.max_attempts');
+            $decayMinutes = (int) config('auth.login_throttle.decay_minutes');
+            $ipMaxAttempts = (int) config('auth.login_throttle.ip_max_attempts');
+
+            // The throttle middleware runs BEFORE TenantMiddleware (framework
+            // middleware priority hoists it), so TenantContext is never bound
+            // here — the tenant scope must be derived from the request itself.
+            $scope = $request->routeIs('staff.*')
+                ? 'staff'
+                : 'tenant:'.TenantMiddleware::resolveSlug($request);
+
+            $email = Str::lower(trim((string) $request->input('email')));
+
+            return [
+                Limit::perMinutes($decayMinutes, $maxAttempts)
+                    ->by('login:'.$scope.'|'.hash('sha256', $email.'|'.$request->ip())),
+                Limit::perMinutes($decayMinutes, $ipMaxAttempts)
+                    ->by('login-ip:'.$request->ip()),
+            ];
         });
     }
 }

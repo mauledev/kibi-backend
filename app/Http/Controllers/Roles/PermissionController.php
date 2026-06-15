@@ -31,7 +31,7 @@ class PermissionController extends Controller
             return ApiResponse::notFound($e->getMessage());
         }
 
-        return ApiResponse::success(PermissionResource::collection($permissions)->resolve());
+        return ApiResponse::success(PermissionResource::collection($permissions));
     }
 
     /**
@@ -57,7 +57,7 @@ class PermissionController extends Controller
         try {
             $permissions = $useCase->execute($request->validated('role_uuid'));
 
-            return ApiResponse::success(PermissionResource::collection($permissions)->resolve());
+            return ApiResponse::success(PermissionResource::collection($permissions));
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }

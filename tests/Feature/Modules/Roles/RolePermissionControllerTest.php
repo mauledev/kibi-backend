@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -63,15 +64,15 @@ describe('RolePermissionController', function () {
         rpAssignRole($this->owner, $ownerFixtureRole);
     });
 
-    describe('POST /api/roles/{uuid}/permissions', function () {
+    describe('POST /api/tenant/roles/{uuid}/permissions', function () {
         it('returns 401 when unauthenticated', function () {
             $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'some_role']);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$role->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$role->uuid}/permissions", [
                     'permission_uuid' => 'any-uuid',
                 ])
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 403 when user lacks manage.permissions', function () {
@@ -85,10 +86,10 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('assigns permission to role and writes audit log when valid', function () {
@@ -103,11 +104,11 @@ describe('RolePermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ]);
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $this->assertDatabaseHas('role_permissions', [
                 'role_id' => $targetRole->id,
@@ -133,10 +134,10 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 403 when target role is a system role', function () {
@@ -150,10 +151,10 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$systemRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$systemRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 404 when permission does not exist', function () {
@@ -166,10 +167,10 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('owner bypasses gate and can assign permissions', function () {
@@ -178,10 +179,10 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ])
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
         });
 
         it('is idempotent — assigning already-present permission does not create duplicate audit log', function () {
@@ -199,10 +200,10 @@ describe('RolePermissionController', function () {
             // Make the request again
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/roles/{$targetRole->uuid}/permissions", [
+                ->postJson("/api/tenant/roles/{$targetRole->uuid}/permissions", [
                     'permission_uuid' => $permission->uuid,
                 ])
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
 
             // No audit log should be written for idempotent call
             $this->assertDatabaseMissing('audit_logs', [
@@ -211,7 +212,7 @@ describe('RolePermissionController', function () {
         });
     });
 
-    describe('DELETE /api/roles/{uuid}/permissions/{permission_uuid}', function () {
+    describe('DELETE /api/tenant/roles/{uuid}/permissions/{permission_uuid}', function () {
         it('revokes permission from role and writes audit log', function () {
             $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
@@ -224,9 +225,9 @@ describe('RolePermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$targetRole->uuid}/permissions/{$permission->uuid}");
+                ->deleteJson("/api/tenant/roles/{$targetRole->uuid}/permissions/{$permission->uuid}");
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $this->assertDatabaseMissing('role_permissions', [
                 'role_id' => $targetRole->id,
@@ -251,7 +252,7 @@ describe('RolePermissionController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/roles/{$targetRole->uuid}/permissions/{$permission->uuid}")
+                ->deleteJson("/api/tenant/roles/{$targetRole->uuid}/permissions/{$permission->uuid}")
                 ->assertStatus(403);
         });
     });

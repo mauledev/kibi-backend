@@ -29,7 +29,7 @@ function crGrantPermission(RoleModel $role, string $slug): PermissionModel
     return $permission;
 }
 
-describe('POST /api/roles/custom', function () {
+describe('POST /api/tenant/roles/custom', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
         $this->owner = User::find($this->tenant->owner_id);
@@ -51,7 +51,7 @@ describe('POST /api/roles/custom', function () {
 
         $this->actingAs($teacher)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'Blocked Custom Role',
                 'slug' => 'blocked_custom',
                 'school_uuids' => [$this->school->uuid],
@@ -62,7 +62,7 @@ describe('POST /api/roles/custom', function () {
     it('returns 422 when school_uuids is empty', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'Valid Custom Role',
                 'slug' => 'valid_custom',
                 'school_uuids' => [],
@@ -73,7 +73,7 @@ describe('POST /api/roles/custom', function () {
     it('returns 422 when school_uuids is missing', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'Valid Custom Role',
                 'slug' => 'valid_custom',
             ])
@@ -86,7 +86,7 @@ describe('POST /api/roles/custom', function () {
 
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'My Custom Role',
                 'slug' => 'my_custom_role',
                 'school_uuids' => [$this->school->uuid],
@@ -115,7 +115,7 @@ describe('POST /api/roles/custom', function () {
 
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'One More Custom',
                 'slug' => 'one_more_custom',
                 'school_uuids' => [$this->school->uuid],
@@ -129,7 +129,7 @@ describe('POST /api/roles/custom', function () {
 
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'Blocked By Null Limit',
                 'slug' => 'blocked_null_limit',
                 'school_uuids' => [$this->school->uuid],
@@ -142,7 +142,7 @@ describe('POST /api/roles/custom', function () {
 
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/roles/custom', [
+            ->postJson('/api/tenant/roles/custom', [
                 'name' => 'Uuid Check Role',
                 'slug' => 'uuid_check_role',
                 'school_uuids' => [$this->school->uuid],

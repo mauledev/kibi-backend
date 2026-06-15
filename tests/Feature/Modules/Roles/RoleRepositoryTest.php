@@ -32,20 +32,38 @@ describe('EloquentRoleRepository', function () {
     }
 
     describe('tenant isolation', function () {
-        it('findAll returns only roles for the current tenant plus system roles', function () {
+        it('findAll returns tenant-admin, tenant-operational and custom roles but excludes school-scoped and staff roles', function () {
             bindTenantContext($this->tenantA);
 
-            $roleA = RoleModel::factory()->forTenant($this->tenantA)->atLevel(4)->create(['name' => 'Director A', 'slug' => 'director_a']);
-            $roleB = RoleModel::factory()->forTenant($this->tenantB)->atLevel(4)->create(['name' => 'Director B', 'slug' => 'director_b']);
-            $systemRole = RoleModel::factory()->system()->atLevel(1)->create(['name' => 'Superadmin', 'slug' => 'superadmin']);
+            // Custom role (tenant-specific) — should be included
+            RoleModel::factory()->forTenant($this->tenantA)->atLevel(4)->create(['slug' => 'custom_a']);
+
+            // Global tenant-admin role (owner / school_manager pattern: NULL tenant, no category, not system) — should be included
+            RoleModel::factory()->global()->atLevel(2)->create(['slug' => 'owner_global', 'category_id' => null]);
+
+            // Global tenant operational role (NULL tenant, tenant-scoped category) — should be included
+            $tenantCategory = PermissionCategory::factory()->create(['scope' => 'tenant']);
+            RoleModel::factory()->global()->atLevel(3)->create(['slug' => 'tenant_finance_global', 'category_id' => $tenantCategory->id]);
+
+            // Global school operational role (NULL tenant, school-scoped category) — should NOT be included
+            $schoolCategory = PermissionCategory::factory()->create(['scope' => 'school']);
+            RoleModel::factory()->global()->atLevel(5)->create(['slug' => 'director_global', 'category_id' => $schoolCategory->id]);
+
+            // Staff system role (NULL tenant, is_system_role = true) — should NOT be included
+            RoleModel::factory()->system()->atLevel(1)->create(['slug' => 'superadmin_test']);
+
+            // Another tenant's custom role — should NOT be included
+            RoleModel::factory()->forTenant($this->tenantB)->atLevel(4)->create(['slug' => 'other_b']);
 
             $roles = makeRepo()->findAll();
-
             $slugs = array_map(fn (Role $r) => $r->getSlug(), $roles);
 
-            expect($slugs)->toContain('director_a');
-            expect($slugs)->toContain('superadmin');
-            expect($slugs)->not->toContain('director_b');
+            expect($slugs)->toContain('custom_a');
+            expect($slugs)->toContain('owner_global');
+            expect($slugs)->toContain('tenant_finance_global');
+            expect($slugs)->not->toContain('director_global');
+            expect($slugs)->not->toContain('superadmin_test');
+            expect($slugs)->not->toContain('other_b');
         });
 
         it('findByUuid returns null when role belongs to a different tenant', function () {

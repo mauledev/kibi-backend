@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\Auth\ActivateAccountRequest;
 use App\Http\Requests\Auth\LoginRequest;
@@ -11,7 +12,9 @@ use App\Http\Requests\Auth\TwoFactorSetupRequest;
 use App\Http\Resources\Auth\LoginResource;
 use App\Http\Resources\Auth\MeResource;
 use App\Http\Response\ApiResponse;
+use App\Models\User;
 use App\Modules\Auth\Application\DTOs\LoginInput;
+use App\Modules\Auth\Application\DTOs\LogoutInput;
 use App\Modules\Auth\Application\DTOs\OAuthLoginInput;
 use App\Modules\Auth\Application\DTOs\TwoFactorChallenge;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountInput;
@@ -44,12 +47,14 @@ class AuthController extends Controller
      * Tenant login — requires TenantMiddleware upstream.
      * POST /auth/login
      */
-    public function login(LoginRequest $request, LoginUseCase $useCase): JsonResponse
+    public function login(LoginRequest $request, LoginUseCase $useCase, TenantContext $tenantContext): JsonResponse
     {
         try {
             $output = $useCase->execute(new LoginInput(
                 email: $request->validated('email'),
                 password: $request->validated('password'),
+                tenantId: $tenantContext->tenantId,
+                ip: $request->ip(),
             ));
 
             return ApiResponse::success(new LoginResource($output), 'Login successful');
@@ -69,6 +74,8 @@ class AuthController extends Controller
             $output = $useCase->execute(new LoginInput(
                 email: $request->validated('email'),
                 password: $request->validated('password'),
+                // Staff does not belong to a tenant: tenantId stays null.
+                ip: $request->ip(),
             ));
 
             if ($output instanceof TwoFactorChallenge) {
@@ -260,9 +267,15 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $tokenId = (int) $request->user()->currentAccessToken()->id;
+        /** @var User $user */
+        $user = $request->user();
 
-        $this->logoutUseCase->execute($tokenId);
+        $this->logoutUseCase->execute(new LogoutInput(
+            tokenId: (int) $user->currentAccessToken()->id,
+            userId: $user->id,
+            tenantId: $user->tenant_id,
+            ip: $request->ip(),
+        ));
 
         return ApiResponse::success(null, 'Logged out successfully');
     }

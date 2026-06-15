@@ -48,7 +48,7 @@ function validCreatePersonnelPayload(array $overrides = []): array
 }
 
 /** Grant the Softlinkia superadmin role to a staff user. */
-function makeSuperadmin(User $user): void
+function makePersonnelSuperadmin(User $user): void
 {
     $role = Role::where('slug', 'superadmin')->whereNull('tenant_id')->firstOrFail();
 
@@ -68,7 +68,7 @@ describe('POST /api/staff/personnel', function () {
         Mail::fake();
 
         $this->superadmin = User::factory()->staff()->create();
-        makeSuperadmin($this->superadmin);
+        makePersonnelSuperadmin($this->superadmin);
     });
 
     it('returns 401 when unauthenticated', function () {

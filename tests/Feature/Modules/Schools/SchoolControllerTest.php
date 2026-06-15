@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -26,10 +27,10 @@ describe('SchoolController', function () {
         $this->owner = User::find($this->tenant->owner_id);
     });
 
-    describe('GET /api/schools', function () {
+    describe('GET /api/tenant/schools', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools')
+                ->getJson('/api/tenant/schools')
                 ->assertStatus(401);
         });
 
@@ -39,23 +40,23 @@ describe('SchoolController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools')
+                ->getJson('/api/tenant/schools')
                 ->assertStatus(403);
         });
 
         it('owner bypasses permission check and receives 200', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools')
+                ->getJson('/api/tenant/schools')
                 ->assertStatus(200);
         });
 
         it('returns 200 with the expected API envelope', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure(['success', 'status', 'data']);
         });
 
@@ -65,9 +66,9 @@ describe('SchoolController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $names = array_column($response->json('data'), 'name');
 
@@ -80,9 +81,9 @@ describe('SchoolController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $item = $response->json('data.0');
 
@@ -98,9 +99,9 @@ describe('SchoolController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
                     'data' => [
                         '*' => [
@@ -120,9 +121,9 @@ describe('SchoolController', function () {
         it('returns an empty data array when the tenant has no schools', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             expect($response->json('data'))->toBeArray()->toBeEmpty();
         });
@@ -139,7 +140,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools');
+                    ->getJson('/api/tenant/schools');
 
                 $response->assertStatus(200);
                 expect($response->json('data'))->toHaveCount(1);
@@ -153,7 +154,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status='.SchoolListFilter::Active->value);
+                    ->getJson('/api/tenant/schools?status='.SchoolListFilter::Active->value);
 
                 $response->assertStatus(200);
                 $statuses = array_column($response->json('data'), 'status');
@@ -166,7 +167,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+                    ->getJson('/api/tenant/schools?status='.SchoolListFilter::Deactivated->value);
 
                 $response->assertStatus(200);
                 expect($response->json('data'))->toHaveCount(1);
@@ -180,7 +181,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status='.SchoolListFilter::All->value);
+                    ->getJson('/api/tenant/schools?status='.SchoolListFilter::All->value);
 
                 $response->assertStatus(200);
                 expect($response->json('data'))->toHaveCount(3);
@@ -189,7 +190,7 @@ describe('SchoolController', function () {
             it('returns 422 with a validation error when status=suspended (no longer in filter)', function () {
                 $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status=suspended')
+                    ->getJson('/api/tenant/schools?status=suspended')
                     ->assertStatus(422)
                     ->assertJsonValidationErrors(['status']);
             });
@@ -197,7 +198,7 @@ describe('SchoolController', function () {
             it('returns 422 with a validation error on status field when an invalid value is passed', function () {
                 $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status=foo')
+                    ->getJson('/api/tenant/schools?status=foo')
                     ->assertStatus(422)
                     ->assertJsonValidationErrors(['status']);
             });
@@ -207,7 +208,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools');
+                    ->getJson('/api/tenant/schools');
 
                 $response->assertStatus(200);
                 expect($response->json('data.0.deleted_at'))->toBeNull();
@@ -218,7 +219,7 @@ describe('SchoolController', function () {
 
                 $response = $this->actingAs($this->user)
                     ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                    ->getJson('/api/schools?status='.SchoolListFilter::Deactivated->value);
+                    ->getJson('/api/tenant/schools?status='.SchoolListFilter::Deactivated->value);
 
                 $response->assertStatus(200);
                 $deletedAt = $response->json('data.0.deleted_at');
@@ -229,12 +230,12 @@ describe('SchoolController', function () {
         });
     });
 
-    describe('GET /api/schools/{uuid}', function () {
+    describe('GET /api/tenant/schools/{uuid}', function () {
         it('returns 401 when unauthenticated', function () {
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$school->uuid}")
+                ->getJson("/api/tenant/schools/{$school->uuid}")
                 ->assertStatus(401);
         });
 
@@ -244,7 +245,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$school->uuid}")
+                ->getJson("/api/tenant/schools/{$school->uuid}")
                 ->assertStatus(403);
         });
 
@@ -253,9 +254,9 @@ describe('SchoolController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$school->uuid}");
+                ->getJson("/api/tenant/schools/{$school->uuid}");
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.uuid', $school->uuid)
                 ->assertJsonPath('data.name', 'Target')
                 ->assertJsonStructure([
@@ -266,7 +267,7 @@ describe('SchoolController', function () {
         it('returns 404 when uuid does not exist', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools/00000000-0000-0000-0000-000000000000')
+                ->getJson('/api/tenant/schools/00000000-0000-0000-0000-000000000000')
                 ->assertStatus(404);
         });
 
@@ -275,7 +276,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$foreign->uuid}")
+                ->getJson("/api/tenant/schools/{$foreign->uuid}")
                 ->assertStatus(404);
         });
 
@@ -284,7 +285,7 @@ describe('SchoolController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$school->uuid}");
+                ->getJson("/api/tenant/schools/{$school->uuid}");
 
             $data = $response->json('data');
 
@@ -293,7 +294,7 @@ describe('SchoolController', function () {
         });
     });
 
-    describe('POST /api/schools', function () {
+    describe('POST /api/tenant/schools', function () {
         $validPayload = fn (): array => [
             'name' => 'Colegio Nuevo',
             'slug' => 'colegio-nuevo',
@@ -311,7 +312,7 @@ describe('SchoolController', function () {
 
         it('returns 401 when unauthenticated', function () use ($validPayload) {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload())
+                ->postJson('/api/tenant/schools', $validPayload())
                 ->assertStatus(401);
         });
 
@@ -320,16 +321,16 @@ describe('SchoolController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload())
+                ->postJson('/api/tenant/schools', $validPayload())
                 ->assertStatus(403);
         });
 
         it('returns 201 with the created school for owner', function () use ($validPayload) {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload());
+                ->postJson('/api/tenant/schools', $validPayload());
 
-            $response->assertStatus(201)
+            $response->assertStatus(Response::HTTP_CREATED)
                 ->assertJsonPath('data.name', 'Colegio Nuevo')
                 ->assertJsonPath('data.slug', 'colegio-nuevo')
                 ->assertJsonPath('data.status', 'active')
@@ -342,7 +343,7 @@ describe('SchoolController', function () {
         it('persists the school under the current tenant', function () use ($validPayload) {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload())
+                ->postJson('/api/tenant/schools', $validPayload())
                 ->assertStatus(201);
 
             $this->assertDatabaseHas('schools', [
@@ -357,7 +358,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload())
+                ->postJson('/api/tenant/schools', $validPayload())
                 ->assertStatus(409);
         });
 
@@ -367,14 +368,14 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', $validPayload())
+                ->postJson('/api/tenant/schools', $validPayload())
                 ->assertStatus(201);
         });
 
         it('returns 422 on missing required fields', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', ['phone' => '+52'])
+                ->postJson('/api/tenant/schools', ['phone' => '+52'])
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['name', 'slug']);
         });
@@ -382,18 +383,18 @@ describe('SchoolController', function () {
         it('returns 422 on invalid slug format', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools', ['name' => 'X', 'slug' => 'NOT VALID SLUG'])
+                ->postJson('/api/tenant/schools', ['name' => 'X', 'slug' => 'NOT VALID SLUG'])
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['slug']);
         });
     });
 
-    describe('PUT /api/schools/{uuid}', function () {
+    describe('PUT /api/tenant/schools/{uuid}', function () {
         it('returns 401 when unauthenticated', function () {
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['name' => 'X'])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['name' => 'X'])
                 ->assertStatus(401);
         });
 
@@ -403,7 +404,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['name' => 'X'])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['name' => 'X'])
                 ->assertStatus(403);
         });
 
@@ -415,11 +416,11 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", [
+                ->putJson("/api/tenant/schools/{$school->uuid}", [
                     'name' => 'After',
                     'phone' => '+52 55 9999 9999',
                 ])
-                ->assertStatus(200)
+                ->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.name', 'After')
                 ->assertJsonPath('data.phone', '+52 55 9999 9999');
 
@@ -438,7 +439,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['phone' => '+52 55 1111 1111'])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['phone' => '+52 55 1111 1111'])
                 ->assertStatus(200)
                 ->assertJsonPath('data.name', 'Untouched')
                 ->assertJsonPath('data.phone', '+52 55 1111 1111');
@@ -449,7 +450,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['phone' => null])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['phone' => null])
                 ->assertStatus(200)
                 ->assertJsonPath('data.phone', null);
         });
@@ -459,7 +460,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['slug' => 'hacked'])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['slug' => 'hacked'])
                 ->assertStatus(200)
                 ->assertJsonPath('data.slug', 'original');
         });
@@ -467,7 +468,7 @@ describe('SchoolController', function () {
         it('returns 404 when uuid does not exist', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson('/api/schools/00000000-0000-0000-0000-000000000000', ['name' => 'X'])
+                ->putJson('/api/tenant/schools/00000000-0000-0000-0000-000000000000', ['name' => 'X'])
                 ->assertStatus(404);
         });
 
@@ -476,7 +477,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$foreign->uuid}", ['name' => 'X'])
+                ->putJson("/api/tenant/schools/{$foreign->uuid}", ['name' => 'X'])
                 ->assertStatus(404);
         });
 
@@ -485,18 +486,18 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/schools/{$school->uuid}", ['name' => ''])
+                ->putJson("/api/tenant/schools/{$school->uuid}", ['name' => ''])
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['name']);
         });
     });
 
-    describe('POST /api/schools/{uuid}/deactivate', function () {
+    describe('POST /api/tenant/schools/{uuid}/deactivate', function () {
         it('returns 401 when unauthenticated', function () {
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(401);
         });
 
@@ -506,7 +507,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(403);
         });
 
@@ -515,7 +516,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(200)
                 ->assertJsonPath('data', null);
 
@@ -527,7 +528,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(200);
 
             $this->assertSoftDeleted('schools', ['id' => $school->id]);
@@ -538,12 +539,12 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(200);
 
             $listResponse = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/schools');
+                ->getJson('/api/tenant/schools');
 
             $uuids = array_column($listResponse->json('data'), 'uuid');
             expect($uuids)->not->toContain($school->uuid);
@@ -554,12 +555,12 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(200);
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/schools/{$school->uuid}")
+                ->getJson("/api/tenant/schools/{$school->uuid}")
                 ->assertStatus(404);
         });
 
@@ -568,14 +569,14 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$school->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$school->uuid}/deactivate")
                 ->assertStatus(404);
         });
 
         it('returns 404 when uuid does not exist', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/schools/00000000-0000-0000-0000-000000000000/deactivate')
+                ->postJson('/api/tenant/schools/00000000-0000-0000-0000-000000000000/deactivate')
                 ->assertStatus(404);
         });
 
@@ -584,7 +585,7 @@ describe('SchoolController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/schools/{$foreign->uuid}/deactivate")
+                ->postJson("/api/tenant/schools/{$foreign->uuid}/deactivate")
                 ->assertStatus(404);
 
             $this->assertDatabaseHas('schools', [
