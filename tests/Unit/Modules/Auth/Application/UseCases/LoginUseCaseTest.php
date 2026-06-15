@@ -55,6 +55,7 @@ describe('LoginUseCase', function () {
             ->once()
             ->with('unknown@test.com')
             ->andReturn(null);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
 
@@ -68,6 +69,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'wrong');
 
@@ -81,6 +83,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
@@ -94,6 +97,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')
             ->once()
             ->andReturn($user);
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
 
@@ -107,7 +111,7 @@ describe('LoginUseCase', function () {
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->with(1)->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->with(1)->andReturn('plain-text-token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, ['ip' => null], null);
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
         $output = $this->useCase->execute($input);
@@ -126,13 +130,27 @@ describe('LoginUseCase', function () {
         $permB = new Permission(id: 2, uuid: 'perm-b', categoryId: 1, name: 'B', slug: 'payment.approve');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, categoryId: null, name: 'Role A', slug: 'role_a',
-            hierarchyLevel: 4, isSystemRole: false, permissions: [$permA],
+            id: 10,
+            uuid: 'r-a',
+            tenantId: 10,
+            categoryId: null,
+            name: 'Role A',
+            slug: 'role_a',
+            hierarchyLevel: 4,
+            isSystemRole: false,
+            permissions: [$permA],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, categoryId: null, name: 'Role B', slug: 'role_b',
-            hierarchyLevel: 5, isSystemRole: false, permissions: [$permB],
+            id: 11,
+            uuid: 'r-b',
+            tenantId: 10,
+            categoryId: null,
+            name: 'Role B',
+            slug: 'role_b',
+            hierarchyLevel: 5,
+            isSystemRole: false,
+            permissions: [$permB],
             createdAt: new DateTimeImmutable,
         );
 
@@ -155,13 +173,27 @@ describe('LoginUseCase', function () {
         $perm = new Permission(id: 1, uuid: 'perm-shared', categoryId: 1, name: 'Shared', slug: 'role.view');
 
         $roleA = new Role(
-            id: 10, uuid: 'r-a', tenantId: 10, categoryId: null, name: 'Role A', slug: 'role_a',
-            hierarchyLevel: 4, isSystemRole: false, permissions: [$perm],
+            id: 10,
+            uuid: 'r-a',
+            tenantId: 10,
+            categoryId: null,
+            name: 'Role A',
+            slug: 'role_a',
+            hierarchyLevel: 4,
+            isSystemRole: false,
+            permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );
         $roleB = new Role(
-            id: 11, uuid: 'r-b', tenantId: 10, categoryId: null, name: 'Role B', slug: 'role_b',
-            hierarchyLevel: 5, isSystemRole: false, permissions: [$perm],
+            id: 11,
+            uuid: 'r-b',
+            tenantId: 10,
+            categoryId: null,
+            name: 'Role B',
+            slug: 'role_b',
+            hierarchyLevel: 5,
+            isSystemRole: false,
+            permissions: [$perm],
             createdAt: new DateTimeImmutable,
         );
 
@@ -176,15 +208,63 @@ describe('LoginUseCase', function () {
         expect(array_count_values($output->permissions)['role.view'])->toBe(1);
     });
 
-    it('always writes an audit log on successful login', function () {
+    it('writes an auth.login audit entry on successful login', function () {
         $user = loginMakeUser();
 
         $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
         $this->roleRepo->shouldReceive('findActiveRolesForUser')->once()->andReturn([]);
         $this->tokens->shouldReceive('generate')->once()->andReturn('token');
-        $this->audit->shouldReceive('log')->once()->with('auth.login', 1);
+        $this->audit->shouldReceive('log')->once()->with('auth.login', 1, null, null, null, ['ip' => '203.0.113.7'], null);
+
+        $input = new LoginInput(email: 'user@test.com', password: 'secret', ip: '203.0.113.7');
+        $this->useCase->execute($input);
+    });
+
+    it('logs auth.login_failed with the attempted email and never the password', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+
+        $captured = null;
+        $this->audit->shouldReceive('log')->once()->withArgs(function (...$args) use (&$captured) {
+            $captured = $args;
+
+            return $args[0] === 'auth.login_failed';
+        });
+
+        $input = new LoginInput(email: 'attacker@test.com', password: 'super-secret-pw', ip: '203.0.113.7');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+
+        // The attempted email and IP are stored in struct_after for brute-force correlation...
+        expect($captured[5])->toBe(['email' => 'attacker@test.com', 'ip' => '203.0.113.7']);
+        expect(json_encode($captured))->not->toContain('super-secret-pw');
+    });
+
+    it('runs a dummy hash check when the user is not found (anti timing-oracle)', function () {
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn(null);
+        // Pin the mitigation: bcrypt must run exactly once even without a user,
+        // so response timing cannot reveal whether the email is registered.
+        Hash::shouldReceive('check')->once()->andReturnFalse();
+        $this->audit->shouldReceive('log')->once();
+
+        $input = new LoginInput(email: 'unknown@test.com', password: 'secret');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
+    });
+
+    it('rejects a null-password-hash user even if the dummy hash check passes', function () {
+        $user = loginMakeUser(['passwordHash' => null]);
+
+        $this->userRepo->shouldReceive('findByEmail')->once()->andReturn($user);
+        // The dummy hash runs for timing equalization, but its result must never
+        // authenticate an OAuth-only account: the null-hash guard wins.
+        Hash::shouldReceive('check')->once()->andReturnTrue();
+        $this->audit->shouldReceive('log')->once();
 
         $input = new LoginInput(email: 'user@test.com', password: 'secret');
-        $this->useCase->execute($input);
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(InvalidCredentialsException::class);
     });
 });

@@ -5,6 +5,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -60,7 +61,7 @@ describe('POST /api/auth/activate', function () {
             'password' => 'SecurePass1!',
             'password_confirmation' => 'SecurePass1!',
         ])
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 
     it('returns 422 when signature is expired', function () {
@@ -79,7 +80,7 @@ describe('POST /api/auth/activate', function () {
             'password' => 'SecurePass1!',
             'password_confirmation' => 'SecurePass1!',
         ])
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 
     it('returns 404 when user uuid does not exist', function () {
@@ -99,7 +100,7 @@ describe('POST /api/auth/activate', function () {
             'password' => 'SecurePass1!',
             'password_confirmation' => 'SecurePass1!',
         ])
-            ->assertStatus(404);
+            ->assertStatus(Response::HTTP_NOT_FOUND);
     });
 
     it('returns 422 when account is already activated', function () {
@@ -116,7 +117,7 @@ describe('POST /api/auth/activate', function () {
             'password' => 'SecurePass1!',
             'password_confirmation' => 'SecurePass1!',
         ])
-            ->assertStatus(404);
+            ->assertStatus(Response::HTTP_NOT_FOUND);
     });
 
     it('activates account and returns token', function () {
@@ -129,7 +130,7 @@ describe('POST /api/auth/activate', function () {
             'password_confirmation' => 'SecurePass1!',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(Response::HTTP_OK);
 
         // Token must be present and non-empty.
         $token = $response->json('data.token');
@@ -154,7 +155,7 @@ describe('POST /api/auth/activate', function () {
         $this->postJson('/api/auth/activate?'.http_build_query($queryParams), [
             'password' => 'SecurePass1!',
             'password_confirmation' => 'SecurePass1!',
-        ])->assertStatus(200);
+        ])->assertStatus(Response::HTTP_OK);
 
         $this->assertDatabaseHas('tenants', [
             'id' => $tenant->id,
@@ -171,7 +172,7 @@ describe('POST /api/auth/activate', function () {
             'password' => 'SecurePass1!',
             'password_confirmation' => 'DifferentPass2!',
         ])
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 
     it('returns 422 when password is too short', function () {
@@ -183,6 +184,6 @@ describe('POST /api/auth/activate', function () {
             'password' => 'short',
             'password_confirmation' => 'short',
         ])
-            ->assertStatus(422);
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     });
 });

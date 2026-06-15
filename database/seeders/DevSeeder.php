@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\School;
+use App\Models\StudentProfile;
 use App\Models\Tenant;
 use App\Models\TutorProfile;
 use App\Models\User;
@@ -87,48 +88,73 @@ class DevSeeder extends Seeder
         $ownerUser->tenant_id = $tenant->id;
         $ownerUser->save();
 
-        $ownerRole = Role::where('slug', 'owner')->whereNull('tenant_id')->first();
+        $ownerRole = Role::firstOrCreate(
+            ['slug' => 'owner', 'tenant_id' => null],
+            ['name' => 'Owner', 'hierarchy_level' => 1, 'is_system_role' => true],
+        );
 
-        if ($ownerRole !== null) {
-            UserRoleAssignment::firstOrCreate(
-                [
-                    'user_id' => $ownerUser->id,
-                    'role_id' => $ownerRole->id,
-                    'school_id' => null,
-                    'revoked_at' => null,
-                ],
-                ['assigned_at' => now(), 'assigned_by' => null],
-            );
-        }
+        UserRoleAssignment::firstOrCreate(
+            [
+                'user_id' => $ownerUser->id,
+                'role_id' => $ownerRole->id,
+                'school_id' => null,
+                'revoked_at' => null,
+            ],
+            ['assigned_at' => now(), 'assigned_by' => null],
+        );
 
         // -------------------------------------------------------
         // Demo students — enrolled in demo-escuela
         // -------------------------------------------------------
-        $studentRole = Role::where('slug', 'student')->whereNull('tenant_id')->first();
-
-        $demoStudents = [
-            ['email' => 'student1@colegiodemo.mx', 'first_name' => 'Ana', 'last_name_paternal' => 'García', 'last_name_maternal' => 'López'],
-            ['email' => 'student2@colegiodemo.mx', 'first_name' => 'Carlos', 'last_name_paternal' => 'Martínez', 'last_name_maternal' => 'Ruiz'],
-            ['email' => 'student3@colegiodemo.mx', 'first_name' => 'Sofía', 'last_name_paternal' => 'Hernández', 'last_name_maternal' => null],
-        ];
+        $studentRole = Role::firstOrCreate(
+            ['slug' => 'student', 'tenant_id' => null],
+            ['name' => 'Student', 'hierarchy_level' => 9, 'is_system_role' => false],
+        );
 
         $studentUsers = [];
 
-        foreach ($demoStudents as $data) {
-            $studentUser = User::firstOrCreate(
-                ['email' => $data['email']],
+        if ($demoSchool !== null) {
+            $demoStudents = [
                 [
-                    'uuid' => (string) Str::uuid(),
-                    'tenant_id' => $tenant->id,
-                    'is_staff' => false,
-                    'first_name' => $data['first_name'],
-                    'last_name_paternal' => $data['last_name_paternal'],
-                    'last_name_maternal' => $data['last_name_maternal'],
-                    'status' => 'pending',
-                ]
-            );
+                    'email' => 'student1@colegiodemo.mx',
+                    'first_name' => 'Ana',
+                    'last_name_paternal' => 'García',
+                    'last_name_maternal' => 'López',
+                    'enrollment_number' => 'EN-001',
+                    'gender' => 'female',
+                ],
+                [
+                    'email' => 'student2@colegiodemo.mx',
+                    'first_name' => 'Carlos',
+                    'last_name_paternal' => 'Martínez',
+                    'last_name_maternal' => 'Ruiz',
+                    'enrollment_number' => 'EN-002',
+                    'gender' => 'male',
+                ],
+                [
+                    'email' => 'student3@colegiodemo.mx',
+                    'first_name' => 'Sofía',
+                    'last_name_paternal' => 'Hernández',
+                    'last_name_maternal' => null,
+                    'enrollment_number' => 'EN-003',
+                    'gender' => 'female',
+                ],
+            ];
 
-            if ($studentRole !== null) {
+            foreach ($demoStudents as $data) {
+                $studentUser = User::firstOrCreate(
+                    ['email' => $data['email']],
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'tenant_id' => $tenant->id,
+                        'is_staff' => false,
+                        'first_name' => $data['first_name'],
+                        'last_name_paternal' => $data['last_name_paternal'],
+                        'last_name_maternal' => $data['last_name_maternal'],
+                        'status' => 'pending',
+                    ]
+                );
+
                 UserRoleAssignment::firstOrCreate(
                     [
                         'user_id' => $studentUser->id,
@@ -138,9 +164,18 @@ class DevSeeder extends Seeder
                     ],
                     ['assigned_at' => now(), 'assigned_by' => null],
                 );
-            }
 
-            $studentUsers[$data['email']] = $studentUser;
+                StudentProfile::firstOrCreate(
+                    ['user_id' => $studentUser->id],
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'enrollment_number' => $data['enrollment_number'],
+                        'gender' => $data['gender'],
+                    ]
+                );
+
+                $studentUsers[$data['email']] = $studentUser;
+            }
         }
 
         // -------------------------------------------------------
