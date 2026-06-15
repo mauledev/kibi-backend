@@ -342,6 +342,80 @@ Activation note: `POST /auth/activate` promotes a tenant from `pending → activ
 
 ---
 
+### Students
+
+```
+GET    /students               List students in the current tenant (paginated, filterable)
+GET    /students/{uuid}        Get a single student by user UUID
+POST   /students               Create a student (requires X-School-Uuid header)
+PUT    /students/{uuid}        Update a student's identity and profile fields
+```
+
+`{uuid}` in all student routes is the **user's UUID**, not the `student_profiles.uuid`.
+
+`GET /students` returns 200 with a paginated list of students in the current tenant. Authorization requires `user.view`. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string | Free-text search across `first_name`, `last_name_paternal`, `email` (Postgres ILIKE) |
+| `page` | integer (min 1) | Page number. Default: 1. |
+| `per_page` | integer (1–100) | Items per page. Default: 20. |
+
+School visibility is authority-driven (same pattern as `GET /users`):
+
+| Actor | Without `X-School-Uuid` | With `X-School-Uuid` |
+|---|---|---|
+| Owner | All students in the tenant | Narrowed to that one school |
+| Non-owner | Union of all schools where they hold an active assignment | That school, only if within their accessible set |
+
+`GET /students/{uuid}` returns 200 with the full student detail. Returns 404 when the UUID does not exist within the current tenant. Authorization requires `user.view`.
+
+`POST /students` creates a student. **Requires `X-School-Uuid` header** — a student must belong to a school at creation. Authorization requires `user.create`. Body:
+
+```json
+{
+  "email": "ana.garcia@example.com",
+  "first_name": "Ana",
+  "last_name_paternal": "García",
+  "last_name_maternal": "López",
+  "phone": "+52 55 1234 5678",
+  "birth_date": "2010-03-15",
+  "national_id": "GARL100315MDFXXX01",
+  "enrollment_number": "EN-001",
+  "gender": "female",
+  "blood_type": "O+",
+  "group_uuid": "..."
+}
+```
+
+Creates a `pending` user (no password), assigns the `student` role in the given school, and creates the `student_profiles` row. Returns 201 with the full student detail. Returns 409 when the email is already taken. Returns 403 on a hierarchy or role-exclusion violation. Returns 422 when `X-School-Uuid` is missing or unresolvable.
+
+`PUT /students/{uuid}` updates a student. All fields are optional — only provided (non-null) fields are updated. Both `users` (identity fields) and `student_profiles` (profile fields) may be updated in a single transaction. Returns 200 with the updated student detail. Returns 404 when not found. Authorization requires `user.update`.
+
+Detail response shape:
+
+```json
+{
+  "uuid": "...",
+  "email": "ana.garcia@example.com",
+  "first_name": "Ana",
+  "last_name_paternal": "García",
+  "last_name_maternal": "López",
+  "phone": "+52 55 1234 5678",
+  "status": "pending",
+  "birth_date": "2010-03-15",
+  "national_id": "GARL100315MDFXXX01",
+  "enrollment_number": "EN-001",
+  "gender": "female",
+  "blood_type": "O+",
+  "group_uuid": "...",
+  "group_name": "3° A",
+  "created_at": "2026-06-11T00:00:00+00:00"
+}
+```
+
+---
+
 ### Me
 
 ```
