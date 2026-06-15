@@ -17,6 +17,7 @@ use App\Http\Controllers\Staff\RoleController as StaffRoleController;
 use App\Http\Controllers\Staff\RolePermissionController as StaffRolePermissionController;
 use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\Student\StudentController;
+use App\Http\Controllers\Treasury\PaymentController;
 use App\Http\Controllers\Tutor\TutorController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
@@ -47,6 +48,11 @@ Route::prefix('staff')->group(function () {
 
         Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
 
+        // Treasury — payment validation (Superadmin operates this in MVP)
+        Route::get('/treasury/payments', [PaymentController::class, 'index'])->name('staff.treasury.payments.index');
+        Route::get('/treasury/payments/{uuid}', [PaymentController::class, 'show'])->name('staff.treasury.payments.show');
+        Route::post('/treasury/payments/{uuid}/approve', [PaymentController::class, 'approve'])->name('staff.treasury.payments.approve');
+        Route::post('/treasury/payments/{uuid}/reject', [PaymentController::class, 'reject'])->name('staff.treasury.payments.reject');
         // Staff role management
         Route::get('/roles', [StaffRoleController::class, 'index'])->name('staff.roles.index');
         Route::get('/roles/{uuid}', [StaffRoleController::class, 'show'])->name('staff.roles.show');
