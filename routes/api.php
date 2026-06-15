@@ -16,6 +16,7 @@ use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\Staff\RoleController as StaffRoleController;
 use App\Http\Controllers\Staff\RolePermissionController as StaffRolePermissionController;
 use App\Http\Controllers\Staff\TenantController;
+use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -25,7 +26,8 @@ use Illuminate\Support\Facades\Route;
 | Health check
 |--------------------------------------------------------------------------
 */
-Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
+
+Route::get('/health', fn() => ApiResponse::success(['status' => 'ok']));
 
 /*
 |--------------------------------------------------------------------------
@@ -35,7 +37,7 @@ Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 */
 Route::prefix('staff')->group(function () {
     // Public
-    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:5,15')->name('staff.auth.login');
+    Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:login')->name('staff.auth.login');
 
     // Authenticated
     Route::middleware(['auth:sanctum', 'staff'])->group(function () {
@@ -70,7 +72,7 @@ Route::post('/auth/activate', [AuthController::class, 'activate'])->name('auth.a
 */
 Route::middleware('tenant')->group(function () {
     // Public (login needs tenant context to scope user lookup)
-    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,15')->name('auth.login');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.login');
     Route::post('/auth/oauth/{provider}', [AuthController::class, 'oauthLogin'])->whereIn('provider', ['google', 'microsoft'])->name('auth.oauth');
 
     // Authenticated
@@ -147,6 +149,14 @@ Route::middleware('tenant')->group(function () {
                 ->name('schools.roles.permissions.store');
             Route::delete('/schools/{uuid}/roles/{role_uuid}/permissions/{permission_uuid}', [SchoolRolePermissionController::class, 'destroy'])
                 ->name('schools.roles.permissions.destroy');
+
+            // Students
+            Route::middleware('school')->group(function (): void {
+                Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+            });
+            Route::get('/students', [StudentController::class, 'index'])->middleware('school')->name('students.index');
+            Route::get('/students/{uuid}', [StudentController::class, 'show'])->name('students.show');
+            Route::put('/students/{uuid}', [StudentController::class, 'update'])->name('students.update');
 
             // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
             Route::prefix('onboarding')->group(function () {

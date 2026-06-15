@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use App\Modules\Schools\Domain\Enums\SchoolListFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -55,7 +56,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure(['success', 'status', 'data']);
         });
 
@@ -67,7 +68,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $names = array_column($response->json('data'), 'name');
 
@@ -82,7 +83,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $item = $response->json('data.0');
 
@@ -100,7 +101,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
                     'data' => [
                         '*' => [
@@ -122,7 +123,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/tenant/schools');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             expect($response->json('data'))->toBeArray()->toBeEmpty();
         });
@@ -255,7 +256,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/tenant/schools/{$school->uuid}");
 
-            $response->assertStatus(200)
+            $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.uuid', $school->uuid)
                 ->assertJsonPath('data.name', 'Target')
                 ->assertJsonStructure([
@@ -329,7 +330,7 @@ describe('SchoolController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->postJson('/api/tenant/schools', $validPayload());
 
-            $response->assertStatus(201)
+            $response->assertStatus(Response::HTTP_CREATED)
                 ->assertJsonPath('data.name', 'Colegio Nuevo')
                 ->assertJsonPath('data.slug', 'colegio-nuevo')
                 ->assertJsonPath('data.status', 'active')
@@ -419,7 +420,7 @@ describe('SchoolController', function () {
                     'name' => 'After',
                     'phone' => '+52 55 9999 9999',
                 ])
-                ->assertStatus(200)
+                ->assertStatus(Response::HTTP_OK)
                 ->assertJsonPath('data.name', 'After')
                 ->assertJsonPath('data.phone', '+52 55 9999 9999');
 
