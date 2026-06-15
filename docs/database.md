@@ -210,6 +210,28 @@ Table users {
 }
 ```
 
+### student_profiles
+```sql
+Table student_profiles {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null, default: `gen_random_uuid()`]
+  user_id bigint [unique, not null, ref: > users.id, note: '1:1 with users. One profile per student user.']
+  birth_date date
+  national_id varchar(50) [note: 'CURP/RUT/CPF/DNI depending on country']
+  enrollment_number varchar(50)
+  gender varchar(20) [note: 'male, female, other, prefer_not_to_say']
+  blood_type varchar(5)
+  group_id bigint [ref: > groups.id, note: 'NULL = no group assigned']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  deleted_at timestamptz
+}
+```
+
+Student profile data is stored in a dedicated table rather than polluting `users`. Identity fields (name, email, phone) live on `users`; academic fields (birth date, national ID, enrollment number, gender, blood type, group) live here.
+
+The public route identifier for a student is the **user's UUID** (`users.uuid`), not `student_profiles.uuid`. Student endpoints (`GET /students/{uuid}`) always resolve by user UUID to keep the concept of "user" consistent across modules.
+
 ### permission_categories
 ```sql
 Table permission_categories {
