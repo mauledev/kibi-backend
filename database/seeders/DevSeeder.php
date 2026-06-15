@@ -6,9 +6,11 @@ use App\Models\Role;
 use App\Models\School;
 use App\Models\StudentProfile;
 use App\Models\Tenant;
+use App\Models\TutorProfile;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -73,7 +75,7 @@ class DevSeeder extends Seeder
             ]
         );
 
-        School::firstOrCreate(
+        $demoSchool = School::firstOrCreate(
             ['slug' => 'demo-escuela'],
             [
                 'tenant_id' => $tenant->id,
@@ -104,11 +106,12 @@ class DevSeeder extends Seeder
         // -------------------------------------------------------
         // Demo students — enrolled in demo-escuela
         // -------------------------------------------------------
-        $demoSchool = School::where('slug', 'demo-escuela')->first();
         $studentRole = Role::firstOrCreate(
             ['slug' => 'student', 'tenant_id' => null],
             ['name' => 'Student', 'hierarchy_level' => 9, 'is_system_role' => false],
         );
+
+        $studentUsers = [];
 
         if ($demoSchool !== null) {
             $demoStudents = [
@@ -159,6 +162,7 @@ class DevSeeder extends Seeder
                         'school_id' => $demoSchool->id,
                         'revoked_at' => null,
                     ],
+                    ['assigned_at' => now(), 'assigned_by' => null],
                 );
 
                 StudentProfile::firstOrCreate(
@@ -169,6 +173,105 @@ class DevSeeder extends Seeder
                         'gender' => $data['gender'],
                     ]
                 );
+
+                $studentUsers[$data['email']] = $studentUser;
+            }
+        }
+
+        // -------------------------------------------------------
+        // Demo tutors — enrolled in demo-escuela
+        // -------------------------------------------------------
+        $tutorRole = Role::where('slug', 'tutor')->whereNull('tenant_id')->first();
+
+        $demoTutors = [
+            [
+                'email' => 'tutor1@colegiodemo.mx',
+                'first_name' => 'María',
+                'last_name_paternal' => 'González',
+                'last_name_maternal' => 'Pérez',
+                'occupation' => 'Contadora',
+            ],
+            [
+                'email' => 'tutor2@colegiodemo.mx',
+                'first_name' => 'Roberto',
+                'last_name_paternal' => 'Sánchez',
+                'last_name_maternal' => 'Torres',
+                'occupation' => 'Ingeniero',
+            ],
+        ];
+
+        $tutorUsers = [];
+
+        foreach ($demoTutors as $data) {
+            $tutorUser = User::firstOrCreate(
+                ['email' => $data['email']],
+                [
+                    'uuid' => (string) Str::uuid(),
+                    'tenant_id' => $tenant->id,
+                    'is_staff' => false,
+                    'first_name' => $data['first_name'],
+                    'last_name_paternal' => $data['last_name_paternal'],
+                    'last_name_maternal' => $data['last_name_maternal'],
+                    'password_hash' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                    'status' => 'active',
+                ]
+            );
+
+            if ($tutorRole !== null) {
+                UserRoleAssignment::firstOrCreate(
+                    [
+                        'user_id' => $tutorUser->id,
+                        'role_id' => $tutorRole->id,
+                        'school_id' => $demoSchool->id,
+                        'revoked_at' => null,
+                    ],
+                    ['assigned_at' => now(), 'assigned_by' => null],
+                );
+            }
+
+            TutorProfile::firstOrCreate(
+                ['user_id' => $tutorUser->id],
+                [
+                    'uuid' => (string) Str::uuid(),
+                    'occupation' => $data['occupation'],
+                ]
+            );
+
+            $tutorUsers[$data['email']] = $tutorUser;
+        }
+
+        // -------------------------------------------------------
+        // Tutor-student links
+        // tutor1 → student1, tutor1 → student2, tutor2 → student3
+        // -------------------------------------------------------
+        $links = [
+            ['tutor' => 'tutor1@colegiodemo.mx', 'student' => 'student1@colegiodemo.mx', 'relationship' => 'mother'],
+            ['tutor' => 'tutor1@colegiodemo.mx', 'student' => 'student2@colegiodemo.mx', 'relationship' => 'father'],
+            ['tutor' => 'tutor2@colegiodemo.mx', 'student' => 'student3@colegiodemo.mx', 'relationship' => 'guardian'],
+        ];
+
+        foreach ($links as $link) {
+            $tutorUser = $tutorUsers[$link['tutor']] ?? null;
+            $studentUser = $studentUsers[$link['student']] ?? null;
+
+            if ($tutorUser === null || $studentUser === null) {
+                continue;
+            }
+
+            $exists = DB::table('student_tutors')
+                ->where('tutor_user_id', $tutorUser->id)
+                ->where('student_user_id', $studentUser->id)
+                ->whereNull('unlinked_at')
+                ->exists();
+
+            if (! $exists) {
+                DB::table('student_tutors')->insert([
+                    'tutor_user_id' => $tutorUser->id,
+                    'student_user_id' => $studentUser->id,
+                    'relationship' => $link['relationship'],
+                    'linked_at' => now(),
+                ]);
             }
         }
     }
