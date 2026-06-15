@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\CreateRole;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Contracts\SchoolRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
@@ -63,7 +66,7 @@ class CreateRoleUseCase
         }
 
         $this->audit->log(
-            action: 'role.create',
+            action: RoleAuditEvent::ROLE_CREATE,
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structAfter: $this->roleToArray($role),

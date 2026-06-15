@@ -1,6 +1,7 @@
 <?php
 
 use App\Common\Audit\AuditLogger;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleInput;
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Domain\Contracts\PermissionRepositoryInterface;
@@ -173,7 +174,7 @@ describe('AssignPermissionToRoleUseCase', function () {
 
         $this->audit->shouldReceive('log')
             ->once()
-            ->with('permission.grant', 1, $role->getId(), null, null, Mockery::type('array'));
+            ->with(RoleAuditEvent::PERMISSION_GRANT, 1, $role->getId(), null, null, Mockery::type('array'));
 
         $this->useCase->execute($input);
     });

@@ -13,6 +13,7 @@ Before any task, identify which docs are relevant and read them.
 | `docs/api.md` | When creating endpoints, controllers, requests or responses | ApiResponse, HTTP codes, route conventions, authentication, Postman collection rule |
 | `docs/testing.md` | When writing any test | Pest conventions, what to test per layer, factories in tests, tenant context |
 | `docs/global-rules.md` | Always | Cross-cutting code rules that apply to every task |
+| `docs/audit.md` | When emitting audit logs or adding audit events | Audit event catalog, `{model}.{verb}` convention, what is and isn't audited, how to add an event |
 | `docs/oauth.md` | When working on OAuth, Socialite, or social login | Full OAuth flow diagram, lookup logic, gateway pattern, Socialite integration guide |
 | `docs/post-mvp.md` | When making architectural trade-off decisions | Known limitations accepted for MVP with recommended solutions for the mature system |
 | `docs/roles-and-permissions.md` | When working on roles, permissions, assignments, or anything related to authorization | Full roles and permissions model: role types, scopes, category bounds, denials, school context, worked examples |

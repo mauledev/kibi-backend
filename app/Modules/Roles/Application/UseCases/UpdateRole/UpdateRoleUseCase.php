@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\UpdateRole;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Entities\Role;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -59,7 +62,7 @@ class UpdateRoleUseCase
         $updated = $this->roles->update($role);
 
         $this->audit->log(
-            action: 'role.update',
+            action: RoleAuditEvent::ROLE_UPDATE,
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: $before,
