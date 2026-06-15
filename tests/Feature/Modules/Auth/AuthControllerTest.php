@@ -279,13 +279,13 @@ describe('AuthController', function () {
 
             $response->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure([
-                    'data' => ['id', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'roles', 'permissions'],
+                    'data' => ['uuid', 'email', 'first_name', 'last_name_paternal', 'full_name', 'is_staff', 'roles', 'permissions'],
                 ]);
 
-            // id must be a UUID
-            $id = $response->json('data.id');
-            expect($id)->toBeString();
-            expect(preg_match('/^[0-9a-f\-]{36}$/i', $id))->toBe(1);
+            // uuid must be a UUID
+            $uuid = $response->json('data.uuid');
+            expect($uuid)->toBeString();
+            expect(preg_match('/^[0-9a-f\-]{36}$/i', $uuid))->toBe(1);
         });
 
         it('returns user roles in the me response', function () {
