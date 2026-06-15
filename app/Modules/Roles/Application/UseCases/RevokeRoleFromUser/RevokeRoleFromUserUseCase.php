@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\RevokeRoleFromUser;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -71,7 +74,7 @@ class RevokeRoleFromUserUseCase
         $updated = $this->assignments->revoke($assignment->getId());
 
         $this->audit->log(
-            action: 'role.revoke',
+            action: RoleAuditEvent::ROLE_REVOKE,
             userId: $actor?->getId(),
             entityId: $assignment->getId(),
             structBefore: [

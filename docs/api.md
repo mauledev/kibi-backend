@@ -575,6 +575,84 @@ All onboarding endpoints require `auth:sanctum` + `tenant` middleware. Owner-onl
 
 ---
 
+### Tutors
+
+```
+GET    /tutors                                     List tutors (paginated, filterable)
+POST   /tutors                                     Create a tutor (requires X-School-Uuid)
+GET    /tutors/{uuid}                              Get a single tutor
+PUT    /tutors/{uuid}                              Update tutor fields (partial)
+POST   /tutors/{tutorUuid}/students/{studentUuid}  Link tutor to a student
+```
+
+All tutor endpoints require `auth:sanctum` + `tenant` middleware.
+
+`GET /tutors` requires the `X-School-Uuid` header and the `user.view` permission. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string (max 255) | Free-text search across `first_name`, `last_name_paternal`, `email` |
+| `page` | integer (min 1) | Page number. Default: 1. |
+| `per_page` | integer (1–100) | Items per page. Default: 20. |
+
+School visibility follows the same authority-driven pattern as users: owner sees the whole tenant, non-owners see only schools where they hold an active assignment.
+
+List response shape (each item):
+```json
+{
+  "uuid": "user-uuid",
+  "full_name": "María González Pérez",
+  "email": "tutor@example.com",
+  "phone": "+52 55 1234 5678",
+  "status": "active",
+  "occupation": "Contadora",
+  "created_at": "2025-01-15T10:00:00+00:00"
+}
+```
+
+`POST /tutors` requires `X-School-Uuid` and the `user.create` permission. Creates a pending user, assigns the `tutor` role in the given school, creates the tutor profile, and sends a magic link activation email to the tutor. Body:
+
+```json
+{
+  "email": "tutor@example.com",
+  "first_name": "María",
+  "last_name_paternal": "González",
+  "last_name_maternal": "Pérez",
+  "phone": "+52 55 1234 5678",
+  "occupation": "Contadora"
+}
+```
+
+Returns 201 with the tutor detail. Returns 409 when the email is already registered. Returns 403 on a hierarchy or role-exclusion violation. Returns 422 when `X-School-Uuid` is missing.
+
+`GET /tutors/{uuid}` requires `user.view`. The `{uuid}` is the user's UUID. Returns 200 with the full tutor detail including `first_name`, `last_name_paternal`, `last_name_maternal`. Returns 404 when not found.
+
+`PUT /tutors/{uuid}` requires `user.update`. All fields are optional — only provided fields are updated:
+
+```json
+{
+  "first_name": "María",
+  "last_name_paternal": "González",
+  "last_name_maternal": "Pérez",
+  "phone": "+52 55 1234 5678",
+  "occupation": "Contadora"
+}
+```
+
+Returns 200 with the updated tutor detail. Returns 404 when not found.
+
+`POST /tutors/{tutorUuid}/students/{studentUuid}` requires `user.create`. Links a tutor to a student. If this is the student's first active tutor link and the student has not verified their email, a magic link is sent to the student. Optional body:
+
+```json
+{
+  "relationship": "mother"
+}
+```
+
+Valid `relationship` values: `mother`, `father`, `guardian`, `other`. Returns 200 on success. Returns 404 when tutor or student not found. Returns 409 when this specific tutor+student link already exists and is active.
+
+---
+
 ## Tenant lifecycle
 
 ```

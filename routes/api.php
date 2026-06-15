@@ -17,6 +17,7 @@ use App\Http\Controllers\Staff\RoleController as StaffRoleController;
 use App\Http\Controllers\Staff\RolePermissionController as StaffRolePermissionController;
 use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\Student\StudentController;
+use App\Http\Controllers\Tutor\TutorController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -157,6 +158,16 @@ Route::middleware('tenant')->group(function () {
             Route::get('/students', [StudentController::class, 'index'])->middleware('school')->name('students.index');
             Route::get('/students/{uuid}', [StudentController::class, 'show'])->name('students.show');
             Route::put('/students/{uuid}', [StudentController::class, 'update'])->name('students.update');
+
+            // Tutors
+            Route::middleware('school')->group(function (): void {
+                Route::post('/tutors', [TutorController::class, 'store'])->name('tutors.store');
+            });
+            Route::get('/tutors', [TutorController::class, 'index'])->middleware('school')->name('tutors.index');
+            Route::get('/tutors/{uuid}', [TutorController::class, 'show'])->name('tutors.show');
+            Route::put('/tutors/{uuid}', [TutorController::class, 'update'])->name('tutors.update');
+            Route::post('/tutors/{tutorUuid}/students/{studentUuid}', [TutorController::class, 'linkStudent'])
+                ->name('tutors.students.link');
 
             // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
             Route::prefix('onboarding')->group(function () {

@@ -22,6 +22,7 @@ class User
         private readonly ?string $microsoftId = null,
         private readonly bool $isStaff = false,
         private readonly ?int $tenantId = null,
+        private readonly ?DateTime $emailVerifiedAt = null,
     ) {}
 
     public function getId(): int
@@ -96,6 +97,12 @@ class User
     public function getUpdatedAt(): ?DateTime
     {
         return $this->updatedAt;
+    }
+
+    /** Return the timestamp when the user's email was verified, or null if not yet verified. */
+    public function getEmailVerifiedAt(): ?DateTime
+    {
+        return $this->emailVerifiedAt;
     }
 
     public function isActive(): bool

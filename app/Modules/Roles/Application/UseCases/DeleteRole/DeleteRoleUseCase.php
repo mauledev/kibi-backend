@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Roles\Application\UseCases\DeleteRole;
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
@@ -48,7 +51,7 @@ class DeleteRoleUseCase
         $this->roles->delete($input->uuid);
 
         $this->audit->log(
-            action: 'role.delete',
+            action: RoleAuditEvent::ROLE_DELETE,
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: [

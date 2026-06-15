@@ -396,6 +396,8 @@ The middleware resolves the UUID to an internal `school_id`, verifies the school
 
 `app/Common/Audit/AuditLoggerInterface` is the contract UseCases depend on. `AuditLogger` is the concrete implementation — an append-only writer for `audit_logs`. Both live in `app/Common/Audit/` because audit logging is a cross-cutting concern not owned by any single module. The binding is registered in `AppServiceProvider`. Every mutation UseCase injects `AuditLoggerInterface` and calls `$this->audit->log(action, userId, entityId, structBefore, structAfter)`.
 
+Action strings come from the typed catalog in `app/Common/Audit/Events/` — one string-backed enum per module (each implementing `AuditEvent`), aggregated by `AuditEventRegistry`. Prefer passing an enum case (`$this->audit->log(AuthAuditEvent::LOGIN, ...)`); raw `{model}.{verb}` strings are still accepted for backward compatibility. See `docs/audit.md` for the full catalog and what is / isn't audited.
+
 ---
 
 ## Checklist: adding a new module
