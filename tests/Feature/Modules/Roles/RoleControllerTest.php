@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
@@ -58,7 +59,7 @@ describe('RoleController', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles')
-                ->assertStatus(401);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
         it('returns 403 when user lacks role.view permission', function () {
@@ -68,7 +69,7 @@ describe('RoleController', function () {
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles')
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('returns 200 with roles when user has role.view permission', function () {
@@ -80,7 +81,7 @@ describe('RoleController', function () {
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles')
-                ->assertStatus(200)
+                ->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure(['success', 'data']);
         });
 
@@ -88,7 +89,7 @@ describe('RoleController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles')
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
         });
 
         it('does not return roles from another tenant', function () {
@@ -99,7 +100,7 @@ describe('RoleController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles');
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
 
             $data = $response->json('data');
             $slugs = array_column($data, 'slug');
@@ -129,7 +130,7 @@ describe('RoleController', function () {
                     'slug' => 'new_role',
                     'school_uuids' => [$this->school->uuid],
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('creates a custom role and returns 201 when actor is owner', function () {
@@ -141,8 +142,8 @@ describe('RoleController', function () {
                     'school_uuids' => [$this->school->uuid],
                 ]);
 
-            $response->assertStatus(201)
-                ->assertJsonStructure(['success', 'data' => ['uuid', 'name', 'slug']]);
+            $response->assertStatus(Response::HTTP_CREATED)
+                ->assertJsonStructure(['success', 'data' => ['uuid', 'name', 'slug', 'hierarchy_level']]);
 
             expect($response->json('data.slug'))->toBe('new_director_cr');
         });
@@ -160,7 +161,7 @@ describe('RoleController', function () {
                     'slug' => 'director_copy_cr',
                     'school_uuids' => [$this->school->uuid],
                 ])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
         it('owner can create a custom role', function () {
@@ -172,7 +173,7 @@ describe('RoleController', function () {
                     'school_uuids' => [$this->school->uuid],
                 ]);
 
-            $response->assertStatus(201);
+            $response->assertStatus(Response::HTTP_CREATED);
         });
 
         it('creates audit_log entry on successful role creation', function () {
@@ -199,7 +200,7 @@ describe('RoleController', function () {
                     'school_uuids' => [$this->school->uuid],
                 ]);
 
-            $response->assertStatus(201);
+            $response->assertStatus(Response::HTTP_CREATED);
 
             $id = $response->json('data.uuid');
 
@@ -214,7 +215,7 @@ describe('RoleController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson('/api/roles/00000000-0000-0000-0000-000000000000')
-                ->assertStatus(404);
+                ->assertStatus(Response::HTTP_NOT_FOUND);
         });
 
         it('returns role with permissions when it exists', function () {
@@ -223,7 +224,7 @@ describe('RoleController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->getJson("/api/roles/{$targetRole->uuid}")
-                ->assertStatus(200)
+                ->assertStatus(Response::HTTP_OK)
                 ->assertJsonStructure(['data' => ['uuid', 'name', 'slug', 'hierarchy_level', 'permissions']]);
         });
     });
@@ -242,7 +243,7 @@ describe('RoleController', function () {
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/roles/{$targetRole->uuid}", ['name' => 'New Name']);
 
-            $response->assertStatus(200);
+            $response->assertStatus(Response::HTTP_OK);
             expect($response->json('data.name'))->toBe('New Name');
 
             $this->assertDatabaseHas('audit_logs', [
@@ -263,7 +264,7 @@ describe('RoleController', function () {
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->putJson("/api/roles/{$targetRole->uuid}", ['name' => 'Blocked'])
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
     });
 
@@ -280,7 +281,7 @@ describe('RoleController', function () {
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/roles/{$targetRole->uuid}")
-                ->assertStatus(200);
+                ->assertStatus(Response::HTTP_OK);
 
             $this->assertSoftDeleted('roles', ['id' => $targetRole->id]);
 
@@ -296,7 +297,7 @@ describe('RoleController', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->deleteJson("/api/roles/{$systemRole->uuid}")
-                ->assertStatus(403);
+                ->assertStatus(Response::HTTP_FORBIDDEN);
         });
     });
 });

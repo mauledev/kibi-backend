@@ -17,7 +17,7 @@ class TenantMiddleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        $slug = $this->resolveSlug($request);
+        $slug = self::resolveSlug($request);
 
         $tenant = $this->tenants->findBySlug($slug);
 
@@ -37,7 +37,11 @@ class TenantMiddleware
         return $next($request);
     }
 
-    private function resolveSlug(Request $request): string
+    /**
+     * Static because the "login" rate limiter (AppServiceProvider) needs the same
+     * resolution: it runs BEFORE this middleware, so TenantContext is not bound yet.
+     */
+    public static function resolveSlug(Request $request): string
     {
         // In local development, accept X-Tenant-Slug header as fallback
         // when there is no real subdomain (e.g. localhost:8000)

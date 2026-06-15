@@ -2,11 +2,11 @@
 
 namespace App\Modules\Auth\Application\DTOs;
 
-class LoginInput
+class LogoutInput
 {
     public function __construct(
-        public readonly string $email,
-        public readonly string $password,
+        public readonly int $tokenId,
+        public readonly ?int $userId = null,
         public readonly ?int $tenantId = null,
         public readonly ?string $ip = null,
     ) {}
