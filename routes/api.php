@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/health', fn() => ApiResponse::success(['status' => 'ok']));
+Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 
 /*
 |--------------------------------------------------------------------------

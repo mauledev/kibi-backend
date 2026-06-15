@@ -149,7 +149,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/tutors');
+                ->getJson('/api/tenant/tutors');
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -171,7 +171,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/tutors');
+                ->getJson('/api/tenant/tutors');
 
             $response->assertStatus(200);
 
@@ -190,13 +190,13 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/tutors')
+                ->getJson('/api/tenant/tutors')
                 ->assertStatus(403);
         });
 
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/tutors')
+                ->getJson('/api/tenant/tutors')
                 ->assertStatus(401);
         });
     });
@@ -212,7 +212,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/tutors/{$tutor->uuid}");
+                ->getJson("/api/tenant/tutors/{$tutor->uuid}");
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -235,7 +235,7 @@ describe('Tutor endpoints', function () {
         it('returns 404 for an unknown uuid', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/tutors/00000000-0000-0000-0000-000000000000')
+                ->getJson('/api/tenant/tutors/00000000-0000-0000-0000-000000000000')
                 ->assertStatus(404);
         });
 
@@ -247,7 +247,7 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/tutors/{$tutorInB->uuid}")
+                ->getJson("/api/tenant/tutors/{$tutorInB->uuid}")
                 ->assertStatus(404);
         });
 
@@ -255,7 +255,7 @@ describe('Tutor endpoints', function () {
             $tutor = tutorCtrlCreateTutor($this->tenant, $this->school);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/tutors/{$tutor->uuid}")
+                ->getJson("/api/tenant/tutors/{$tutor->uuid}")
                 ->assertStatus(401);
         });
     });
@@ -272,7 +272,7 @@ describe('Tutor endpoints', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload());
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload());
 
             $response->assertStatus(201);
             $response->assertJsonPath('success', true);
@@ -303,7 +303,7 @@ describe('Tutor endpoints', function () {
             $response = $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload([
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload([
                     'email' => 'tutor.director@example.com',
                 ]));
 
@@ -314,7 +314,7 @@ describe('Tutor endpoints', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', [])
+                ->postJson('/api/tenant/tutors', [])
                 ->assertStatus(422);
         });
 
@@ -329,7 +329,7 @@ describe('Tutor endpoints', function () {
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload([
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload([
                     'email' => 'forbidden.tutor@example.com',
                 ]))
                 ->assertStatus(403);
@@ -338,7 +338,7 @@ describe('Tutor endpoints', function () {
         it('returns 422 when X-School-Uuid header is missing', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload())
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload())
                 ->assertStatus(422);
         });
 
@@ -348,7 +348,7 @@ describe('Tutor endpoints', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload([
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload([
                     'email' => 'existing.tutor@example.com',
                 ]))
                 ->assertStatus(409);
@@ -357,7 +357,7 @@ describe('Tutor endpoints', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $this->school->uuid)
-                ->postJson('/api/tutors', tutorCtrlCreatePayload())
+                ->postJson('/api/tenant/tutors', tutorCtrlCreatePayload())
                 ->assertStatus(401);
         });
     });
@@ -371,7 +371,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/tutors/{$tutor->uuid}", [
+                ->putJson("/api/tenant/tutors/{$tutor->uuid}", [
                     'first_name' => 'NuevoNombre',
                     'last_name_paternal' => 'Apellido',
                     'occupation' => 'Doctor',
@@ -385,7 +385,7 @@ describe('Tutor endpoints', function () {
         it('returns 404 for an unknown uuid', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson('/api/tutors/00000000-0000-0000-0000-000000000000', [
+                ->putJson('/api/tenant/tutors/00000000-0000-0000-0000-000000000000', [
                     'first_name' => 'NuevoNombre',
                     'last_name_paternal' => 'Apellido',
                 ])
@@ -403,7 +403,7 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/tutors/{$tutor->uuid}", [
+                ->putJson("/api/tenant/tutors/{$tutor->uuid}", [
                     'first_name' => 'Cambiado',
                     'last_name_paternal' => 'Apellido',
                 ])
@@ -414,7 +414,7 @@ describe('Tutor endpoints', function () {
             $tutor = tutorCtrlCreateTutor($this->tenant, $this->school);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->putJson("/api/tutors/{$tutor->uuid}", [
+                ->putJson("/api/tenant/tutors/{$tutor->uuid}", [
                     'first_name' => 'Nombre',
                     'last_name_paternal' => 'Apellido',
                 ])
@@ -436,7 +436,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [
+                ->postJson("/api/tenant/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [
                     'relationship' => 'mother',
                 ]);
 
@@ -470,7 +470,7 @@ describe('Tutor endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/tutors/{$newTutor->uuid}/students/{$studentUser->uuid}", [
+                ->postJson("/api/tenant/tutors/{$newTutor->uuid}/students/{$studentUser->uuid}", [
                     'relationship' => 'father',
                 ]);
 
@@ -492,7 +492,7 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [])
+                ->postJson("/api/tenant/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [])
                 ->assertStatus(409);
         });
 
@@ -501,7 +501,7 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/tutors/00000000-0000-0000-0000-000000000000/students/'.$studentUser->uuid, [])
+                ->postJson('/api/tenant/tutors/00000000-0000-0000-0000-000000000000/students/'.$studentUser->uuid, [])
                 ->assertStatus(404);
         });
 
@@ -510,7 +510,7 @@ describe('Tutor endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/tutors/{$tutorUser->uuid}/students/00000000-0000-0000-0000-000000000000", [])
+                ->postJson("/api/tenant/tutors/{$tutorUser->uuid}/students/00000000-0000-0000-0000-000000000000", [])
                 ->assertStatus(404);
         });
 
@@ -519,7 +519,7 @@ describe('Tutor endpoints', function () {
             $studentUser = tutorCtrlCreateStudent($this->tenant, $this->school);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [])
+                ->postJson("/api/tenant/tutors/{$tutorUser->uuid}/students/{$studentUser->uuid}", [])
                 ->assertStatus(401);
         });
     });
