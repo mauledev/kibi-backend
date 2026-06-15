@@ -3,7 +3,7 @@
 namespace App\Modules\Staff\Domain\Enums;
 
 /**
- * Lifecycle of a superadmin creation request (SCRUM-520 dual-control ceremony).
+ * Lifecycle of a superadmin creation request (dual-control ceremony).
  *
  * pending_approval — proposed by a Superadmin, waiting for a DIFFERENT Superadmin.
  * approved         — second Superadmin confirmed with TOTP; the candidate user exists.

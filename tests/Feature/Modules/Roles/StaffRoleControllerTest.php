@@ -33,7 +33,7 @@ function makeSuperadmin(User $staff): RoleModel
     $superadmin = RoleModel::factory()->system()->create(['slug' => 'superadmin', 'name' => 'Superadmin']);
     UserRoleAssignment::factory()->forUser($staff)->forRole($superadmin)->active()->create();
 
-    // Superadmin endpoints sit behind the Responsible Use Policy gate (SCRUM-520);
+    // Superadmin endpoints sit behind the Responsible Use Policy gate;
     // an operational superadmin has already accepted it.
     acceptPurFor($staff);
 

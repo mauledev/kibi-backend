@@ -7,7 +7,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Privileged accounts must accept the Responsible Use Policy before they can
-    | use the app (SCRUM-520, RNF-COMPLIANCE-LFPDPPP-05). Acceptance is recorded
+    | use the app (RNF-COMPLIANCE-LFPDPPP-05). Acceptance is recorded
     | per user + version in `user_policy_acceptances`.
     |
     | `version`        Current policy version. Bump it when the policy TEXT changes

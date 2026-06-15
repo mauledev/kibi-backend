@@ -175,7 +175,7 @@ confirm) → `422`.
 ## Reuse beyond login (step-up auth)
 
 The base is deliberately login-agnostic so any sensitive action can require a second
-factor. Example — **SCRUM-520** superadmin-approval: the approve use case injects
+factor. Example — superadmin-approval: the approve use case injects
 `VerifyTwoFactorUseCase` and gates the action on the actor's current code:
 
 ```php

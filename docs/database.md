@@ -309,7 +309,7 @@ Table roles {
   is_system_role boolean [default: false,
     note: 'true ONLY for Softlinkia staff roles (tenant_id IS NULL). Never true for tenant roles.']
   requires_2fa boolean [default: false,
-    note: 'true ⇒ holding this role forces 2FA at login. Single source of truth (see two-factor.md). Seeded true for leader/support.']
+    note: 'true ⇒ holding this role forces 2FA at login. Single source of truth (see two-factor.md). Seeded true for superadmin, leader and support.']
   created_at timestamptz [default: `now()`]
   deleted_at timestamptz
 
@@ -439,6 +439,78 @@ Table staff_work_schedules {
 Working schedule of a Backoffice staff member, captured during personnel creation
 (`POST /staff/personnel`). Independent table from `users` (no columns added there);
 one schedule per staff user enforced by the unique `user_id`.
+
+### superadmin_approval_requests
+```sql
+Table superadmin_approval_requests {
+  id bigserial [pk, increment]
+  uuid uuid [unique, not null]
+  proposed_by bigint [not null, ref: > users.id, note: 'Superadmin who proposed the new account.']
+  justification text [not null]
+  candidate_email varchar(255) [not null, note: 'Candidate snapshot — no users row exists until approval.']
+  candidate_first_name varchar(100) [not null]
+  candidate_last_name_paternal varchar(100) [not null]
+  candidate_last_name_maternal varchar(100)
+  candidate_phone varchar(30)
+  status varchar(30) [not null, default: 'pending_approval',
+    note: 'pending_approval | approved | rejected | expired']
+  expires_at timestamptz [not null]
+  resolved_by bigint [ref: > users.id, note: 'The DIFFERENT superadmin who approved/rejected. NULL while pending.']
+  resolved_at timestamptz
+  rejection_reason text
+  created_user_id bigint [ref: > users.id, note: 'The users row materialized on approval. NULL until then.']
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (status, expires_at)
+    candidate_email
+    candidate_email [unique, note: "WHERE status = 'pending_approval' — at most one live pending request per candidate (partial index via DB::statement)"]
+  }
+}
+```
+
+Backs the superadmin dual-control creation ceremony (see `architecture.md`). Proposing
+**never** creates a user — only approval (signed with the approver's fresh TOTP)
+materializes the account into `created_user_id`. The row carries an immutable snapshot
+of the candidate's personal data so the approver reviews exactly what the proposer
+submitted. No soft deletes — terminal states (`approved`, `rejected`, `expired`) are
+reached via `status`. A pending request past `expires_at` is treated as `expired`
+lazily (no cron); the partial unique index is the race backstop for the
+duplicate-pending check.
+
+### user_policy_acceptances
+```sql
+Table user_policy_acceptances {
+  id bigserial [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  policy_type varchar(50) [not null, note: "e.g. 'pur' (Responsible Use Policy)"]
+  version varchar(20) [not null, note: "e.g. '1.0' — must match config('policies.pur.version')"]
+  accepted_at timestamptz [not null, default: `now()`]
+  ip varchar(45) [note: 'Acceptance origin — compliance trace']
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (user_id, policy_type, version) [unique, note: 'One acceptance per user + policy + version (idempotency backstop)']
+  }
+}
+```
+
+Records that a user accepted a versioned policy. Today the only policy is the
+**Responsible Use Policy (PUR)**, required for the roles listed in
+`config/policies.php` (`required_roles`, currently `superadmin`). The
+`EnsurePolicyAccepted` middleware blocks app endpoints with `403` until a matching
+`(user, 'pur', current_version)` row exists; `login`/`me` expose a derived
+`must_accept_policy` flag.
+
+> **The policy text is static on the frontend.** The backend never serves the document
+> body — only the `must_accept_policy` boolean and the authoritative `version` in
+> `config/policies.php`. The wording shown to the user is a placeholder in the frontend
+> i18n bundle (`src/core/i18n/locales/{es,en}/pur.json`), and the version label is
+> hardcoded there (and in `auth.json`). Bumping the version in `config/policies.php`
+> forces re-acceptance, but the displayed text/version must be updated by hand in the
+> frontend to stay in sync. Replace the placeholder when legal provides the final text.
 
 ### onboarding_progress
 ```sql

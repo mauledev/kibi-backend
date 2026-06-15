@@ -61,9 +61,9 @@ class DevSeeder extends Seeder
 
         // -------------------------------------------------------
         // Backoffice Superadmins — TWO dedicated example accounts with the
-        // `superadmin` role. Two are needed for the dual-control ceremony
-        // (SCRUM-520): one proposes a new superadmin and a DIFFERENT one
-        // approves it (proposer != approver).
+        // `superadmin` role. Two are needed for the dual-control ceremony:
+        // one proposes a new superadmin and a DIFFERENT one approves it
+        // (proposer != approver).
         // Login: POST /api/staff/auth/login  (password: "password")
         //   superadmin@kibi.com   · superadmin2@kibi.com
         // -------------------------------------------------------

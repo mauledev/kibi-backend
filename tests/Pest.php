@@ -7,7 +7,7 @@ use Tests\TestCase;
 uses(TestCase::class)->in('Feature');
 
 /**
- * Mark a user as having accepted the current Responsible Use Policy (SCRUM-520),
+ * Mark a user as having accepted the current Responsible Use Policy,
  * so they pass the `policy.accepted` gate. Superadmins must accept the PUR before
  * using app endpoints; an "already onboarded" superadmin in a test needs this.
  */

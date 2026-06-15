@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * does not apply and authority cannot be checked through the permission gate.
  * Superadmin authority is therefore verified explicitly here.
  *
- * Denied attempts are audited (SCRUM-520 AC: a non-superadmin probing a
+ * Denied attempts are audited (a non-superadmin probing a
  * privileged staff route leaves a trace, not just a 403).
  */
 class EnsureStaffSuperadmin

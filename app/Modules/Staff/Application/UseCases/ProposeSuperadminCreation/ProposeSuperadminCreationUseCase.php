@@ -13,7 +13,7 @@ use DateTimeInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
- * First half of the superadmin dual-control ceremony (SCRUM-520): a Superadmin
+ * First half of the superadmin dual-control ceremony: a Superadmin
  * proposes creating another Superadmin. Only a request row is persisted — NO
  * user is created and NO email is sent until a different Superadmin approves
  * with a fresh TOTP (ApproveSuperadminCreationUseCase).
@@ -90,7 +90,7 @@ class ProposeSuperadminCreationUseCase
         );
 
         // TODO(security): notify the other superadmins that a request awaits review
-        // (email + Slack #kibi-security-critical). Out of scope for SCRUM-520 slice 1.
+        // (email + Slack #kibi-security-critical). Out of scope for slice 1.
 
         return $request;
     }

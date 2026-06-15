@@ -5,7 +5,7 @@ namespace App\Http\Requests\Staff;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Payload to propose a superadmin creation (SCRUM-520 dual-control, step 1).
+ * Payload to propose a superadmin creation (dual-control, step 1).
  * `personal_data` mirrors the personnel-creation envelope so frontend mappers
  * stay uniform across staff wizards.
  *

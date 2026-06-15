@@ -30,7 +30,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Superadmin dual-control creation ceremony (SCRUM-520): propose → a DIFFERENT
+ * Superadmin dual-control creation ceremony: propose → a DIFFERENT
  * superadmin approves with a fresh TOTP (or rejects with a reason) → only then
  * the account is created. All routes sit behind `auth:sanctum` + `staff.superadmin`.
  */

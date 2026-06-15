@@ -97,6 +97,54 @@ Rules to keep the split safe:
 
 ---
 
+## Staff superadmin creation (dual control)
+
+Creating a Softlinkia Superadmin is a two-person ceremony, modeled as its own aggregate
+in the Staff module: `App\Modules\Staff\Domain\Entities\SuperadminApprovalRequest`
+(with `ApprovalParticipant`). It is independent from personnel creation — proposing
+never writes a `users` row.
+
+Flow:
+1. A Superadmin **proposes** a candidate (`ProposeSuperadminCreationUseCase`). A
+   `superadmin_approval_requests` row is created in `pending_approval` with an immutable
+   snapshot of the candidate's personal data and an `expires_at`.
+2. A **different** Superadmin **approves** with a fresh TOTP
+   (`ApproveSuperadminCreationUseCase`) or **rejects** with a reason. Self-approval is
+   forbidden and the second factor is verified before the candidate is materialized.
+3. On approval the candidate `users` row is created (pending, no password) and assigned
+   the `superadmin` role, then emailed a signed activation link. Because `superadmin`
+   has `requires_2fa = true`, first login forces password setup + 2FA enrollment.
+
+Status is the EFFECTIVE state: a pending request past `expires_at` is reported as
+`expired` (transitioned lazily, no cron). The HTTP surface
+(`/staff/superadmin/approvals*`) sits behind `auth:sanctum` + `staff.superadmin`.
+Persistence and the partial-unique "one live pending per candidate" index are in
+`docs/database.md` (`superadmin_approval_requests`).
+
+---
+
+## Responsible Use Policy gate
+
+Privileged accounts must accept the Responsible Use Policy (PUR) before reaching app
+endpoints. Acceptance is recorded per user + version in `user_policy_acceptances`
+(see `docs/database.md`) via `AcceptPolicyUseCase`; `PolicyAcceptanceChecker` decides
+who is required, driven by `config/policies.php` (`required_roles`, `version`). The
+`EnsurePolicyAccepted` middleware (`policy.accepted`) returns `403` until a matching
+acceptance row exists; `login`/`me` expose a derived `must_accept_policy` flag so the
+frontend can route to the acceptance screen. The acceptance endpoint, `/me` and logout
+stay OUTSIDE the gate so a user who still owes acceptance can read their session and
+accept.
+
+The policy **text is static on the frontend**: the backend never serves the document
+body — only the `must_accept_policy` boolean and the authoritative `version` in
+`config/policies.php`. The displayed wording is a placeholder in the frontend i18n
+bundle (`src/core/i18n/locales/{es,en}/pur.json`), and the version label shown to the
+user is hardcoded there (and in `auth.json`). Bumping `config/policies.php` forces
+re-acceptance, but the displayed text/version must be updated by hand in the frontend
+to stay in sync. Replace the placeholder when legal provides the final text.
+
+---
+
 ## UseCase vs Service (Application layer)
 
 Use a **UseCase** when the operation has any logic beyond persistence:

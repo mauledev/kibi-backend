@@ -6,7 +6,7 @@ use App\Modules\Staff\Domain\Enums\SuperadminApprovalStatusEnum;
 use DateTimeImmutable;
 
 /**
- * A superadmin creation request under dual control (SCRUM-520).
+ * A superadmin creation request under dual control.
  *
  * Carries an immutable snapshot of the candidate's personal data: what the
  * proposer submitted is exactly what the approver reviews and what gets

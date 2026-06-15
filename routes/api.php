@@ -56,7 +56,7 @@ Route::prefix('staff')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
         Route::post('/auth/policy/accept', [PolicyAcceptanceController::class, 'accept'])->name('staff.auth.policy.accept');
 
-        // App endpoints — blocked until the Responsible Use Policy is accepted (SCRUM-520).
+        // App endpoints — blocked until the Responsible Use Policy is accepted.
         Route::middleware('policy.accepted')->group(function () {
             Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
 
@@ -74,7 +74,7 @@ Route::prefix('staff')->group(function () {
                 Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
                 Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
 
-                // Superadmin dual-control creation ceremony (SCRUM-520)
+                // Superadmin dual-control creation ceremony
                 Route::get('/superadmin/approvals', [SuperadminApprovalController::class, 'index'])->name('staff.superadmin.approvals.index');
                 Route::post('/superadmin/approvals', [SuperadminApprovalController::class, 'store'])->name('staff.superadmin.approvals.store');
                 Route::get('/superadmin/approvals/{uuid}', [SuperadminApprovalController::class, 'show'])->name('staff.superadmin.approvals.show');

@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\URL;
 use function Illuminate\Support\defer;
 
 /**
- * Second half of the superadmin dual-control ceremony (SCRUM-520): a DIFFERENT
+ * Second half of the superadmin dual-control ceremony: a DIFFERENT
  * Superadmin confirms the proposal with a fresh TOTP, and only then the
  * candidate user is materialized (pending, no password), assigned the
  * 'superadmin' role and emailed a signed activation link.
@@ -161,7 +161,7 @@ class ApproveSuperadminCreationUseCase
         });
 
         // TODO(security): cross-channel alert on superadmin creation (email to TL and
-        // CSO + Slack #kibi-security-critical). Out of scope for SCRUM-520 slice 1 —
+        // CSO + Slack #kibi-security-critical). Out of scope for slice 1 —
         // the CRITICAL audit row above is the durable record.
 
         // Send the activation email AFTER the HTTP response is flushed (same rationale

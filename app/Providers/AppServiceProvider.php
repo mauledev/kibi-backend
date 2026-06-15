@@ -133,7 +133,7 @@ class AppServiceProvider extends ServiceProvider
             ->needs(UserRoleAssignmentRepositoryInterface::class)
             ->give(EloquentUserRoleAssignmentRepository::class);
 
-        // Superadmin dual-control creation (SCRUM-520)
+        // Superadmin dual-control creation
         $this->app->bind(
             SuperadminApprovalRepositoryInterface::class,
             EloquentSuperadminApprovalRepository::class
@@ -158,7 +158,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
         $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
 
-        // Responsible Use Policy (PUR) acceptance — SCRUM-520
+        // Responsible Use Policy (PUR) acceptance
         $this->app->bind(
             PolicyAcceptanceRepositoryInterface::class,
             EloquentPolicyAcceptanceRepository::class,

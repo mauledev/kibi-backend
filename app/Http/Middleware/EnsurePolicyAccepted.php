@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Blocks app endpoints until the user has accepted the Responsible Use Policy
- * (SCRUM-520). Sits behind `auth:sanctum`; the policy-acceptance, /me and logout
+ * Blocks app endpoints until the user has accepted the Responsible Use Policy.
+ * Sits behind `auth:sanctum`; the policy-acceptance, /me and logout
  * routes are intentionally OUTSIDE this gate so a user who still owes acceptance
  * can read their session and accept.
  *
