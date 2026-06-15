@@ -12,6 +12,7 @@ use App\Http\Controllers\Roles\RolePermissionController;
 use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\SchoolController;
 use App\Http\Controllers\Staff\TenantController;
+use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Response\ApiResponse;
 use Illuminate\Support\Facades\Route;
@@ -119,6 +120,14 @@ Route::middleware('tenant')->group(function () {
         // Permissions scoped to a school and role category
         Route::get('/schools/{uuid}/permissions', [PermissionController::class, 'schoolIndex'])
             ->name('schools.permissions.index');
+
+        // Students
+        Route::middleware('school')->group(function (): void {
+            Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+        });
+        Route::get('/students', [StudentController::class, 'index'])->middleware('school')->name('students.index');
+        Route::get('/students/{uuid}', [StudentController::class, 'show'])->name('students.show');
+        Route::put('/students/{uuid}', [StudentController::class, 'update'])->name('students.update');
 
         // Onboarding — owner-only enforcement lives inline in the controller (denyIfNotOwner)
         Route::prefix('onboarding')->group(function () {

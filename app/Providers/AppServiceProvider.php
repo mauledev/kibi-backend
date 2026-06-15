@@ -43,6 +43,8 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
+use App\Modules\Student\Domain\Contracts\StudentRepositoryInterface;
+use App\Modules\Student\Infrastructure\Repositories\EloquentStudentRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
 use App\Modules\Tenant\Application\UseCases\GetTenantInfo\GetTenantInfoUseCase;
 use App\Modules\Tenant\Domain\Contracts\TenantRepositoryInterface as TenantModuleRepositoryInterface;
@@ -154,6 +156,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             \App\Modules\User\Domain\Contracts\UserRepositoryInterface::class,
             \App\Modules\User\Infrastructure\Repositories\EloquentUserRepository::class
+        );
+
+        // --- Student module ---
+        $this->app->bind(
+            StudentRepositoryInterface::class,
+            EloquentStudentRepository::class
         );
     }
 
