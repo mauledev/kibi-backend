@@ -42,14 +42,14 @@ describe('UserRoleController', function () {
         urAssignRole($this->owner, $ownerRole);
     });
 
-    describe('POST /api/users/{uuid}/roles', function () {
+    describe('POST /api/tenant/users/{uuid}/roles', function () {
         it('returns 401 when unauthenticated', function () {
             $target = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $targetRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'target_unauth']);
             urAssignRole($target, $targetRole);
 
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => 'some-uuid',
                 ])
                 ->assertStatus(Response::HTTP_UNAUTHORIZED);
@@ -67,7 +67,7 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ])
                 ->assertStatus(Response::HTTP_FORBIDDEN);
@@ -87,7 +87,7 @@ describe('UserRoleController', function () {
 
             $response = $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
@@ -116,7 +116,7 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ])
                 ->assertStatus(Response::HTTP_FORBIDDEN);
@@ -125,7 +125,7 @@ describe('UserRoleController', function () {
         it('returns 404 when target user does not exist', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson('/api/users/00000000-0000-0000-0000-000000000000/roles', [
+                ->postJson('/api/tenant/users/00000000-0000-0000-0000-000000000000/roles', [
                     'role_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
                 ->assertStatus(Response::HTTP_NOT_FOUND);
@@ -143,7 +143,7 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => '00000000-0000-0000-0000-000000000000',
                 ])
                 ->assertStatus(Response::HTTP_NOT_FOUND);
@@ -164,7 +164,7 @@ describe('UserRoleController', function () {
             // Second request — should be idempotent
             $response = $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
@@ -189,7 +189,7 @@ describe('UserRoleController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $roleToAssign->uuid,
                 ]);
 
@@ -203,7 +203,7 @@ describe('UserRoleController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => 'not-a-uuid',
                 ])
                 ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -222,7 +222,7 @@ describe('UserRoleController', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->postJson("/api/users/{$target->uuid}/roles", [
+                ->postJson("/api/tenant/users/{$target->uuid}/roles", [
                     'role_uuid' => $ownerRole->uuid,
                 ]);
 
@@ -230,7 +230,7 @@ describe('UserRoleController', function () {
         });
     });
 
-    describe('DELETE /api/users/{uuid}/roles/{role_uuid}', function () {
+    describe('DELETE /api/tenant/users/{uuid}/roles/{role_uuid}', function () {
         it('revokes role assignment and sets revoked_at', function () {
             $actor = User::factory()->create(['tenant_id' => $this->tenant->id]);
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(3)->create(['slug' => 'school_manager']);
@@ -243,7 +243,7 @@ describe('UserRoleController', function () {
 
             $response = $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}");
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$roleToRevoke->uuid}");
 
             $response->assertStatus(Response::HTTP_OK);
 
@@ -268,8 +268,8 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(Response::HTTP_OK);
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
+                ->assertStatus(200);
 
             $this->assertDatabaseHas('audit_logs', [
                 'action' => 'role.revoke',
@@ -295,8 +295,8 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(Response::HTTP_NOT_FOUND);
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
+                ->assertStatus(404);
         });
 
         it('returns 403 when actor tries to revoke role at same hierarchy level', function () {
@@ -311,8 +311,8 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$sameLevel->uuid}")
-                ->assertStatus(Response::HTTP_FORBIDDEN);
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$sameLevel->uuid}")
+                ->assertStatus(403);
         });
 
         it('returns 403 when actor lacks role.revoke permission', function () {
@@ -327,8 +327,8 @@ describe('UserRoleController', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(Response::HTTP_FORBIDDEN);
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
+                ->assertStatus(403);
         });
 
         it('owner can revoke any role assignment', function () {
@@ -338,8 +338,8 @@ describe('UserRoleController', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->deleteJson("/api/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
-                ->assertStatus(Response::HTTP_OK);
+                ->deleteJson("/api/tenant/users/{$target->uuid}/roles/{$roleToRevoke->uuid}")
+                ->assertStatus(200);
         });
     });
 
@@ -415,7 +415,7 @@ describe('UserRoleController', function () {
 
             $response = $this->actingAs($ownerA)
                 ->withHeader('X-Tenant-Slug', $tenantA->slug)
-                ->getJson('/api/roles');
+                ->getJson('/api/tenant/roles');
 
             $response->assertStatus(Response::HTTP_OK);
 

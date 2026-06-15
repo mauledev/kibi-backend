@@ -35,9 +35,9 @@ class RevokePermissionFromRoleUseCase
      */
     public function execute(RevokePermissionFromRoleInput $input): void
     {
-        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director'], true)) {
+        if (! in_array($input->actorSlug, ['owner', 'school_manager', 'director', 'superadmin'], true)) {
             throw new HierarchyViolationException(
-                'Only owner, school_manager, or director can manage role permissions.'
+                'Only owner, school_manager, director, or superadmin can manage role permissions.'
             );
         }
 

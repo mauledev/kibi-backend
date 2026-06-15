@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\SchoolMiddleware;
+use App\Http\Middleware\StaffMiddleware;
 use App\Http\Middleware\TenantMiddleware;
 use App\Http\Response\ApiResponse;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => TenantMiddleware::class,
             'school' => SchoolMiddleware::class,
+            'staff' => StaffMiddleware::class,
         ]);
 
         // Trust the load balancer / reverse proxy so $request->ip() resolves to the

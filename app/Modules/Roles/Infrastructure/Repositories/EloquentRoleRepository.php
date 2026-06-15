@@ -21,8 +21,22 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     {
         $models = RoleModel::with('permissions')
             ->where(function ($q) {
-                $q->where('tenant_id', $this->context->tenantId)
-                    ->orWhereNull('tenant_id');
+                // Custom roles — tenant-specific (tenant_id = current tenant)
+                $q->where('tenant_id', $this->context->tenantId);
+
+                // Global tenant-admin roles: owner, school_manager
+                // (tenant_id NULL, no category, not a staff system role)
+                $q->orWhere(function ($q) {
+                    $q->whereNull('tenant_id')
+                        ->where('is_system_role', false)
+                        ->whereNull('category_id');
+                });
+
+                // Global tenant operational roles: tenant_finance, tenant_hr
+                $q->orWhere(function ($q) {
+                    $q->whereNull('tenant_id')
+                        ->whereHas('category', fn ($c) => $c->where('scope', 'tenant'));
+                });
             })
             ->get();
 
@@ -188,6 +202,28 @@ class EloquentRoleRepository implements RoleRepositoryInterface
         DB::table('tenants')
             ->where('id', $tenantId)
             ->update(['custom_roles_limit' => $limit]);
+    }
+
+    /** {@inheritDoc} */
+    public function findBySchool(int $schoolId, int $tenantId): array
+    {
+        $models = RoleModel::with(['permissions', 'category'])
+            ->where(function ($q) use ($schoolId, $tenantId) {
+                // Global school operational roles: director, teacher, etc.
+                // All seeded with tenant_id = NULL and a school-scoped category.
+                $q->whereNull('tenant_id')
+                    ->whereHas('category', fn ($c) => $c->where('scope', 'school'));
+
+                // Custom roles linked to this specific school (tenant-specific)
+                $q->orWhere(function ($q) use ($schoolId, $tenantId) {
+                    $q->where('tenant_id', $tenantId)
+                        ->whereNull('category_id')
+                        ->whereHas('customRoleSchools', fn ($s) => $s->where('school_id', $schoolId));
+                });
+            })
+            ->get();
+
+        return $models->map(fn (RoleModel $m) => $this->toDomain($m))->all();
     }
 
     private function toDomain(RoleModel $model): Role

@@ -28,6 +28,6 @@ class MeSchoolsController extends Controller
     {
         $schools = $useCase->execute($request->user()->accessibleSchoolIds());
 
-        return ApiResponse::success(UserSchoolResource::collection($schools)->resolve());
+        return ApiResponse::success(UserSchoolResource::collection($schools));
     }
 }

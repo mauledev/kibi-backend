@@ -97,19 +97,21 @@ Required on all school-level endpoints. Absent on tenant-level endpoints (e.g. m
 
 ## Authorization
 
-### Owner
+Three bypass mechanisms exist, evaluated in order. All are registered in `AppServiceProvider::registerGates()`.
 
-Owner bypasses all permission checks via `Gate::before`. No permission gates are evaluated for owner requests.
+### 1. Owner bypass — tenant routes (`Gate::before`)
 
-```php
-Gate::before(function (User $user) {
-    if ($user->hasRole('owner')) {
-        return true;
-    }
-});
-```
+The user whose `id` matches `TenantContext::ownerId` is granted every ability unconditionally. Identity comes from `tenants.owner_id`, not from a role assignment. Only active on routes where `TenantMiddleware` has bound `TenantContext`.
 
-### School users
+### 2. Superadmin bypass — staff routes (`Gate::before`)
+
+Any staff user (`is_staff = true`) holding at least one role with `is_system_role = true` is granted every ability unconditionally. Only active on routes where `StaffMiddleware` has bound `StaffContext`.
+
+### 3. Gestor bypass — school level (`Gate::after`)
+
+A user holding an active `school_manager` assignment for the current school (`X-School-Uuid`) is granted every ability within that school's scope. Evaluated in `Gate::after`, so it fires only when the two `Gate::before` bypasses did not match.
+
+### Everyone else — dynamic permission check
 
 Permission checks use the slug convention:
 
@@ -119,13 +121,7 @@ $this->authorize('payment.approve');
 $this->authorize('manage.permissions');
 ```
 
-### Softlinkia staff
-
-Staff roles are checked by slug directly — no permission table is involved:
-
-```php
-$this->authorize('softlinkia.support.l1');
-```
+`Gate::after` loads the union of all active permission slugs from `user_role_assignments` scoped to the current school and checks whether the requested ability is present.
 
 ### Hierarchy enforcement
 
@@ -171,21 +167,39 @@ The Application and Domain layers only ever see integer ids for internal referen
 
 ## Route structure
 
-Routes are split into two groups in `routes/api.php`:
+Routes are split into three groups in `routes/api.php`:
+
+```
+/staff/*         — Staff routes (app.kibi.com). No tenant middleware.
+/auth/*          — Auth flows (both domains). No auth:sanctum on login.
+/tenant/*        — All tenant resources ({tenant_slug}.kibi.com).
+```
 
 ```php
-// Staff routes — app.kibi.com, no tenant middleware
-Route::prefix('staff')->middleware(['auth:sanctum'])->group(function () {
-    // staff-only endpoints
-});
+// Staff routes — no tenant middleware
+Route::prefix('staff')->group(function () { ... });
 
-// Tenant routes — {tenant_slug}.kibi.com
-Route::middleware(['tenant', 'auth:sanctum'])->group(function () {
-    // all school-facing endpoints
+// Public — no tenant middleware, no auth
+Route::get('/auth/tenant-info', ...);
+Route::post('/auth/activate', ...);
+
+// Tenant domain
+Route::middleware('tenant')->group(function () {
+    // Auth flows (no prefix)
+    Route::post('/auth/login', ...);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', ...);
+        Route::post('/auth/logout', ...);
+
+        // All tenant resources under /tenant prefix
+        Route::prefix('tenant')->group(function () {
+            // schools, roles, permissions, users, ...
+        });
+    });
 });
 ```
 
-Authentication endpoints (login, logout) sit outside both groups — no `auth:sanctum` required.
+The three top-level segments cleanly mirror the three user domains: `staff`, `auth`, and `tenant`.
 
 ---
 
@@ -215,14 +229,18 @@ POST   /auth/activate            Activate owner account via signed URL (public, 
 ### Staff
 
 ```
-POST   /staff/auth/login         Authenticate Softlinkia staff
-GET    /staff/auth/me            Return authenticated staff user data
-POST   /staff/auth/logout        Revoke staff token
-GET    /staff/tenants            List all tenants (paginated) with embedded owners
-POST   /staff/tenants            Create a new tenant + owner (requires auth:sanctum)
-GET    /staff/tenants/{uuid}     Get a single tenant with embedded owner
-PUT    /staff/tenants/{uuid}     Update a tenant's name, slug, and status
-DELETE /staff/tenants/{uuid}     Soft-delete a tenant
+POST   /staff/auth/login                                    Authenticate Softlinkia staff
+GET    /staff/auth/me                                       Return authenticated staff user data
+POST   /staff/auth/logout                                   Revoke staff token
+GET    /staff/tenants                                       List all tenants (paginated) with embedded owners
+POST   /staff/tenants                                       Create a new tenant + owner
+GET    /staff/tenants/{uuid}                                Get a single tenant with embedded owner
+PUT    /staff/tenants/{uuid}                                Update a tenant's name, slug, and status
+DELETE /staff/tenants/{uuid}                                Soft-delete a tenant
+GET    /staff/roles                                         List all staff roles with their permissions
+GET    /staff/roles/{uuid}                                  Get a single staff role with its permissions
+POST   /staff/roles/{uuid}/permissions                      Assign a permission to a staff role
+DELETE /staff/roles/{uuid}/permissions/{permission_uuid}    Revoke a permission from a staff role
 ```
 
 `GET /staff/tenants` returns 200 with a paginated list of tenants. Accepts a `page` query parameter (default: 1, page size: 20). Each item includes a compact owner shape (`uuid`, `email`, `full_name`) and a `created_at` ISO 8601 timestamp. The response envelope includes a `meta.pagination` object with `total`, `per_page`, `current_page`, and `last_page`.
@@ -238,14 +256,14 @@ DELETE /staff/tenants/{uuid}     Soft-delete a tenant
 ### Schools
 
 ```
-GET    /schools                          List schools of the current tenant
-POST   /schools                          Create a school
-GET    /schools/{uuid}                   Get a single school
-PUT    /schools/{uuid}                   Update mutable fields (partial)
-POST   /schools/{uuid}/deactivate        Soft-delete a school
+GET    /tenant/schools                          List schools of the current tenant
+POST   /tenant/schools                          Create a school
+GET    /tenant/schools/{uuid}                   Get a single school
+PUT    /tenant/schools/{uuid}                   Update mutable fields (partial)
+POST   /tenant/schools/{uuid}/deactivate        Soft-delete a school
 ```
 
-`GET /schools` accepts an optional `?status=` query param to narrow the result set:
+`GET /tenant/schools` accepts an optional `?status=` query param to narrow the result set:
 
 | Value          | Meaning                                                                                |
 |----------------|----------------------------------------------------------------------------------------|
@@ -259,14 +277,14 @@ This is the canonical pattern for list endpoints that need to expose soft-delete
 ### Users
 
 ```
-GET    /users                   List users in the current tenant (paginated, filterable)
-GET    /users/{uuid}            Get a single user with full detail
-POST   /users                   Invite a tenant user (creates a pending account + sends a magic link)
-PUT    /users/{uuid}            Update a user (not yet implemented — returns 501)
-DELETE /users/{uuid}            Delete a user (not yet implemented — returns 501)
+GET    /tenant/users                   List users in the current tenant (paginated, filterable)
+GET    /tenant/users/{uuid}            Get a single user with full detail
+POST   /tenant/users                   Invite a tenant user (creates a pending account + sends a magic link)
+PUT    /tenant/users/{uuid}            Update a user (not yet implemented — returns 501)
+DELETE /tenant/users/{uuid}            Delete a user (not yet implemented — returns 501)
 ```
 
-`GET /users` returns 200 with a paginated list of tenant users. Authorization requires the `user.view` permission. Accepts optional query parameters:
+`GET /tenant/users` returns 200 with a paginated list of tenant users. Authorization requires the `user.view` permission. Accepts optional query parameters:
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -316,13 +334,13 @@ Response shape:
 }
 ```
 
-`GET /users/{uuid}` returns 200 with the full user detail. Authorization requires `user.view`. Returns 404 when the UUID does not exist within the current tenant.
+`GET /tenant/users/{uuid}` returns 200 with the full user detail. Authorization requires `user.view`. Returns 404 when the UUID does not exist within the current tenant.
 
 Detail response includes the list fields plus: `first_name`, `last_name_paternal`, `last_name_maternal`.
 
 Permission slug used: `user.view` (seeded under `school/director` category — also held by `school_registrar`, `prefect`, `finance`, `hr`, and `academic_coordinator` via their respective category slugs).
 
-`POST /users` **invites** a tenant user. Authorization requires `user.create` (owner bypasses). Body:
+`POST /tenant/users` **invites** a tenant user. Authorization requires `user.create` (owner bypasses). Body:
 
 ```json
 {
@@ -419,8 +437,8 @@ Detail response shape:
 ### Me
 
 ```
-GET    /me/onboarding          Onboarding progress of the authenticated user
-GET    /me/schools             Schools the authenticated user can operate in
+GET    /tenant/me/onboarding          Onboarding progress of the authenticated user
+GET    /tenant/me/schools             Schools the authenticated user can operate in
 ```
 
 `GET /me/schools` returns the schools the authenticated user can operate in, consumed by the client `SchoolGate` to decide the pre-dashboard flow (no schools / one school / pick a school). Access is **strictly role-based**: a school is returned **only if the user holds an active role assignment in it** (`User::accessibleSchoolIds()` — active `user_role_assignments` with a non-null `school_id`). No role in a school = no access. A user with no school-scoped assignment gets `[]` (this includes the owner, whose tenant-wide access is handled by the client gate's owner short-circuit, not by this endpoint). Compact shape:
@@ -445,26 +463,83 @@ The required set lives in `ComputeOnboardingProgressUseCase::requiredFields()` (
 ### Roles and permissions
 
 ```
-GET    /roles                                                        List roles for current tenant
-POST   /roles/custom                                                 Create a custom role (owner and gestor only)
-GET    /roles/{uuid}                                                 Get role with its effective permissions
-PUT    /roles/{uuid}                                                 Update role name (custom roles only)
-DELETE /roles/{uuid}                                                 Delete role (custom roles only)
-GET    /permissions                                                  List permissions (filtered by role category if role_uuid provided)
-POST   /roles/{uuid}/permissions                                     Assign permission to role (category-bound)
-DELETE /roles/{uuid}/permissions/{permission_uuid}                   Revoke permission from role
-POST   /users/{uuid}/roles                                           Assign role to user (owner, gestor, director only)
-DELETE /users/{uuid}/roles/{role_uuid}                               Revoke role from user
-POST   /users/{uuid}/assignments/{assignment_uuid}/denials            Deny a permission for a specific assignment
-DELETE /users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
-PUT    /tenant/custom-roles-limit                                    Configure max custom roles (owner only)
+GET    /tenant/roles                                                          List all roles for current tenant (system + custom)
+POST   /tenant/roles                                                          Create a custom role
+POST   /tenant/roles/custom                                                   Alias — same as POST /tenant/roles
+GET    /tenant/roles/{uuid}                                                   Get role with its permissions
+PUT    /tenant/roles/{uuid}                                                   Update role name (custom roles only)
+DELETE /tenant/roles/{uuid}                                                   Delete role (custom roles only)
+GET    /tenant/permissions                                                     List permissions (filtered by role category if role_uuid provided)
+POST   /tenant/roles/{uuid}/permissions                                       Assign permission to role (category-bound)
+DELETE /tenant/roles/{uuid}/permissions/{permission_uuid}                     Revoke permission from role
+POST   /tenant/users/{uuid}/roles                                             Assign role to user (owner, gestor, director only)
+DELETE /tenant/users/{uuid}/roles/{role_uuid}                                 Revoke role from user
+POST   /tenant/users/{uuid}/assignments/{assignment_uuid}/denials             Deny a permission for a specific assignment
+DELETE /tenant/users/{uuid}/assignments/{assignment_uuid}/denials/{perm_uuid} Restore a denied permission
+PUT    /tenant/custom-roles-limit                                             Configure max custom roles (owner only)
 ```
 
-`POST /roles/custom` creates a custom role (`category_id = NULL`) and assigns it to one or more schools. Requires the tenant's `custom_roles_limit` to be set and not exceeded. Body: `{ "name": "...", "school_uuids": ["..."] }`.
+### Roles and permissions — School scope
 
-`GET /permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+```
+GET    /tenant/schools/{uuid}/roles                                           List roles available in this school
+POST   /tenant/schools/{uuid}/roles                                           Create a custom role scoped to this school
+GET    /tenant/schools/{uuid}/roles/{role_uuid}                               Get a role with its permissions
+PUT    /tenant/schools/{uuid}/roles/{role_uuid}                               Update role name (custom roles only; system roles cannot be updated)
+GET    /tenant/schools/{uuid}/permissions                                     List permissions available for this school
+POST   /tenant/schools/{uuid}/roles/{role_uuid}/permissions                   Assign permission to a role
+DELETE /tenant/schools/{uuid}/roles/{role_uuid}/permissions/{permission_uuid} Revoke permission from a role
+```
 
-`POST /users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
+**No DELETE for school-scoped roles.** Roles belong to the tenant, not to a specific school. To delete a custom role use `DELETE /tenant/roles/{uuid}` (tenant scope). System roles (director, teacher, etc.) can never be deleted.
+
+`POST /tenant/roles` and `POST /tenant/schools/{uuid}/roles` both create custom roles. The tenant-scope version requires `school_uuids` in the body. The school-scope version infers the school from the URL — body only needs `name` (and optional `slug`).
+
+`GET /tenant/permissions` accepts an optional `?role_uuid=` query param. When provided, returns only permissions belonging to that role's category. When absent (or for custom roles), returns all permissions grouped by category.
+
+### Role shape — `bypasses_permissions` and `granted` flag
+
+Every role endpoint (list and detail) includes `bypasses_permissions: bool`.
+
+| Value | Meaning |
+|---|---|
+| `true` | Role has unrestricted access via a server-side bypass. The `permissions` array may be empty and should be ignored. |
+| `false` | Role operates exclusively by explicit grants. `permissions` is the source of truth. |
+
+Roles with `bypasses_permissions: true`: `superadmin` (staff), `owner` (tenant), `school_manager` (school gestor). These mirror the Gate bypasses registered in `AppServiceProvider`.
+
+```json
+{
+  "uuid": "...",
+  "name": "Superadministrador",
+  "slug": "superadmin",
+  "is_system_role": true,
+  "bypasses_permissions": true,
+  "permissions": []
+}
+```
+
+The detail endpoints (`GET .../roles/{uuid}`) additionally return ALL permissions applicable to the role's scope, each with a `granted` boolean. The list endpoints (`GET .../roles`) return only granted permissions, without the flag.
+
+```json
+{
+  "uuid": "...",
+  "name": "Director",
+  "bypasses_permissions": false,
+  "permissions": [
+    { "uuid": "...", "slug": "students.view",   "name": "Ver alumnos",   "granted": true  },
+    { "uuid": "...", "slug": "students.create", "name": "Crear alumnos", "granted": false }
+  ]
+}
+```
+
+**Scope rules for "applicable permissions":**
+- Role with `category_id` set → all permissions in that category.
+- Custom role (`category_id = null`) → all permissions in the system.
+
+This applies identically to the three detail endpoints: `GET /staff/roles/{uuid}`, `GET /tenant/roles/{uuid}`, and `GET /tenant/schools/{uuid}/roles/{role_uuid}`.
+
+`POST /tenant/users/{uuid}/assignments/{assignment_uuid}/denials` subtracts a permission from a specific `user_role_assignments` row. Cannot be applied to owner or gestor assignments. Body: `{ "permission_uuid": "..." }`.
 
 `PUT /tenant/custom-roles-limit` sets `tenants.custom_roles_limit` for the authenticated owner's tenant. Body: `{ "limit": 10 }` (1–50).
 
@@ -473,28 +548,28 @@ PUT    /tenant/custom-roles-limit                                    Configure m
 ### Onboarding
 
 ```
-GET    /onboarding/progress               Return current onboarding progress (auto-bootstraps)
-POST   /onboarding/steps/company          Complete step 1 — company data
-POST   /onboarding/steps/branding         Complete step 2 — branding
-POST   /onboarding/steps/first-school     Complete step 3 — link first school
-POST   /onboarding/steps/skip             501 — not implemented (MVP stub)
-POST   /onboarding/steps/academic-template 501 — not implemented (MVP stub)
-POST   /onboarding/steps/fiscal           501 — not implemented (MVP stub)
-POST   /onboarding/steps/payment          501 — not implemented (MVP stub)
-POST   /onboarding/steps/director         501 — not implemented (MVP stub)
+GET    /tenant/onboarding/progress               Return current onboarding progress (auto-bootstraps)
+POST   /tenant/onboarding/steps/company          Complete step 1 — company data
+POST   /tenant/onboarding/steps/branding         Complete step 2 — branding
+POST   /tenant/onboarding/steps/first-school     Complete step 3 — link first school
+POST   /tenant/onboarding/steps/skip             501 — not implemented (MVP stub)
+POST   /tenant/onboarding/steps/academic-template 501 — not implemented (MVP stub)
+POST   /tenant/onboarding/steps/fiscal           501 — not implemented (MVP stub)
+POST   /tenant/onboarding/steps/payment          501 — not implemented (MVP stub)
+POST   /tenant/onboarding/steps/director         501 — not implemented (MVP stub)
 ```
 
 All onboarding endpoints require `auth:sanctum` + `tenant` middleware. Owner-only access is enforced **inline in the controller** via a private `denyIfNotOwner(Request)` helper that compares `request.user.id` against `TenantContext::ownerId` and returns `403 Forbidden` (`Only the owner can perform onboarding`) when they differ. The check runs at the top of every action and is not extracted to a dedicated middleware because the rule has a single consumer (this controller) and the wizard is a transient flow — extracting it would add indirection without removing repetition elsewhere. If a second owner-only group appears later, promote the helper to `EnsureUserIsTenantOwner` middleware then.
 
 **Wizard closure:** once `progress.status = 'completed'`, the three `POST /onboarding/steps/*` endpoints return `409 Conflict` and reject any write. Post-wizard edits to fiscal data, branding, or the first-school link must go through their respective Settings endpoints (not implemented in MVP — tracked as post-MVP work).
 
-`GET /onboarding/progress` auto-bootstraps a missing record (handles legacy tenants). Returns an `OnboardingProgressResource` with `uuid`, `current_step`, `status` (effective — may be `suspended` when grace period expired), `steps[]`, `grace_period_ends_at`, `is_grace_period_expired`, `can_access_full_panel`, `created_at`, `updated_at`.
+`GET /tenant/onboarding/progress` auto-bootstraps a missing record (handles legacy tenants). Returns an `OnboardingProgressResource` with `uuid`, `current_step`, `status` (effective — may be `suspended` when grace period expired), `steps[]`, `grace_period_ends_at`, `is_grace_period_expired`, `can_access_full_panel`, `created_at`, `updated_at`.
 
-`POST /onboarding/steps/company` body: `business_name`, `rfc` (auto-uppercased), `fiscal_address` (nested object), `primary_contact_name`, `primary_contact_email`, `primary_contact_phone`. Returns 200 with updated progress. Idempotent.
+`POST /tenant/onboarding/steps/company` body: `business_name`, `rfc` (auto-uppercased), `fiscal_address` (nested object), `primary_contact_name`, `primary_contact_email`, `primary_contact_phone`. Returns 200 with updated progress. Idempotent.
 
-`POST /onboarding/steps/branding` body: `logo_url`, `primary_color` (hex), `secondary_color` (hex). Requires step 1 completed (422 if not). Returns 200 with updated progress. Idempotent.
+`POST /tenant/onboarding/steps/branding` body: `logo_url`, `primary_color` (hex), `secondary_color` (hex). Requires step 1 completed (422 if not). Returns 200 with updated progress. Idempotent.
 
-`POST /onboarding/steps/first-school` body: `school_id` (school UUID). Requires step 2 completed (422 if not). Returns 403 if school UUID does not belong to the tenant. Returns 200 with updated progress. Idempotent.
+`POST /tenant/onboarding/steps/first-school` body: `school_id` (school UUID). Requires step 2 completed (422 if not). Returns 403 if school UUID does not belong to the tenant. Returns 200 with updated progress. Idempotent.
 
 `BootstrapOnboardingUseCase` is called inside the `CreateTenantUseCase` transaction after tenant creation, so every new tenant gets an onboarding record immediately.
 

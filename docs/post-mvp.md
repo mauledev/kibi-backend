@@ -160,6 +160,26 @@ Requires touching both middleware classes and every controller that consumes a c
 
 ---
 
+## PM-007 — Rate limiting on public tenant discovery endpoint
+
+**Current behavior (MVP)**
+
+`GET /api/auth/tenant-info` is a public route with no rate limiting. It accepts a tenant slug and returns the tenant name and branding data. It is intentionally public — the frontend calls it before the user authenticates to display the correct login screen.
+
+**Problem at scale**
+
+Without rate limiting, the endpoint can be used to enumerate valid tenant slugs at high speed (scraping the full tenant list by trying common names). This leaks information about which organizations use the platform.
+
+**Recommended solution**
+
+Apply `throttle:30,1` (30 requests per minute per IP) to the route, consistent with how other read-only public endpoints are typically limited. Optionally, log repeated misses (slug not found) as a security event.
+
+**Why deferred**
+
+For MVP the tenant list is small and not sensitive. The fix is a one-line middleware addition, deferred only because it adds no user-facing value at this stage.
+
+---
+
 ## PM-002 — Role mutual exclusions — table-driven enforcement
 
 **Current behavior (MVP)**

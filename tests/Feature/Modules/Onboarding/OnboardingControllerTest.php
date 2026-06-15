@@ -19,7 +19,7 @@ uses(RefreshDatabase::class);
 function completeCompanyStep(TestCase $test, array $overrides = []): void
 {
     $test->actingAs($test->owner)
-        ->postJson('/api/onboarding/steps/company', array_merge([
+        ->postJson('/api/tenant/onboarding/steps/company', array_merge([
             'business_name' => 'Colegio Demo',
             'rfc' => 'ABC123456XYZ',
             'fiscal_address' => [
@@ -46,7 +46,7 @@ function completeCompanyStep(TestCase $test, array $overrides = []): void
 function completeBrandingStep(TestCase $test, array $overrides = []): void
 {
     $test->actingAs($test->owner)
-        ->postJson('/api/onboarding/steps/branding', array_merge([
+        ->postJson('/api/tenant/onboarding/steps/branding', array_merge([
             'logo_url' => 'https://example.com/logo.png',
             'primary_color' => '#FF5733',
             'secondary_color' => '#3366FF',
@@ -60,7 +60,7 @@ function completeBrandingStep(TestCase $test, array $overrides = []): void
 function completeFirstSchoolStep(TestCase $test, string $schoolUuid): void
 {
     $test->actingAs($test->owner)
-        ->postJson('/api/onboarding/steps/first-school', [
+        ->postJson('/api/tenant/onboarding/steps/first-school', [
             'school_id' => $schoolUuid,
         ]);
 }
@@ -79,7 +79,7 @@ describe('OnboardingController', function () {
     describe('GET /api/onboarding/progress', function () {
         it('returns the existing progress for the owner', function () {
             $response = $this->actingAs($this->owner)
-                ->getJson('/api/onboarding/progress');
+                ->getJson('/api/tenant/onboarding/progress');
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -107,7 +107,7 @@ describe('OnboardingController', function () {
             ]);
 
             $this->actingAs($this->owner)
-                ->getJson('/api/onboarding/progress')
+                ->getJson('/api/tenant/onboarding/progress')
                 ->assertStatus(200);
 
             $this->assertDatabaseHas('onboarding_progress', [
@@ -117,7 +117,7 @@ describe('OnboardingController', function () {
 
         it('returns suspended status when grace period expired and not completed', function () {
             // Trigger auto-bootstrap first
-            $this->actingAs($this->owner)->getJson('/api/onboarding/progress');
+            $this->actingAs($this->owner)->getJson('/api/tenant/onboarding/progress');
 
             // Expire the grace period directly in the DB
             DB::table('onboarding_progress')
@@ -125,7 +125,7 @@ describe('OnboardingController', function () {
                 ->update(['grace_period_ends_at' => now()->subDay()]);
 
             $response = $this->actingAs($this->owner)
-                ->getJson('/api/onboarding/progress');
+                ->getJson('/api/tenant/onboarding/progress');
 
             $response->assertStatus(200);
             expect($response->json('data.status'))->toBe('suspended');
@@ -151,13 +151,13 @@ describe('OnboardingController', function () {
                 ->create();
 
             $this->actingAs($nonOwner)
-                ->getJson('/api/onboarding/progress')
+                ->getJson('/api/tenant/onboarding/progress')
                 ->assertStatus(403)
                 ->assertJsonPath('message', 'Only the owner can perform onboarding');
         });
 
         it('returns 401 for unauthenticated requests', function () {
-            $this->getJson('/api/onboarding/progress')
+            $this->getJson('/api/tenant/onboarding/progress')
                 ->assertStatus(401);
         });
     });
@@ -169,7 +169,7 @@ describe('OnboardingController', function () {
     describe('POST /api/onboarding/steps/company', function () {
         it('completes step 1 and advances current_step to 2', function () {
             $response = $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Colegio Demo',
                     'rfc' => 'ABC123456XYZ',
                     'fiscal_address' => [
@@ -225,7 +225,7 @@ describe('OnboardingController', function () {
         it('is idempotent: re-submitting after completion updates tenant data but keeps completed_at', function () {
             // First submission
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'First Name',
                     'rfc' => 'ABC123456XYZ',
                     'fiscal_address' => [
@@ -254,7 +254,7 @@ describe('OnboardingController', function () {
 
             // Second submission with different data
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Second Name',
                     'rfc' => 'XYZ987654ABC',
                     'fiscal_address' => [
@@ -292,7 +292,7 @@ describe('OnboardingController', function () {
 
         it('returns 422 for invalid RFC format', function () {
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Colegio Demo',
                     'rfc' => 'invalid',
                     'fiscal_address' => [
@@ -315,7 +315,7 @@ describe('OnboardingController', function () {
 
         it('returns 422 for invalid email', function () {
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Colegio Demo',
                     'rfc' => 'ABC123456XYZ',
                     'fiscal_address' => [
@@ -349,7 +349,7 @@ describe('OnboardingController', function () {
                 ->create();
 
             $this->actingAs($nonOwner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Colegio Demo',
                     'rfc' => 'ABC123456XYZ',
                     'fiscal_address' => [
@@ -380,7 +380,7 @@ describe('OnboardingController', function () {
             completeCompanyStep($this);
 
             $response = $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo.png',
                     'primary_color' => '#FF5733',
                     'secondary_color' => '#3366FF',
@@ -421,10 +421,10 @@ describe('OnboardingController', function () {
 
         it('returns 422 when current_step is still 1 (out of order)', function () {
             // Do NOT complete step 1 — step is still 1
-            $this->actingAs($this->owner)->getJson('/api/onboarding/progress'); // bootstrap
+            $this->actingAs($this->owner)->getJson('/api/tenant/onboarding/progress'); // bootstrap
 
             $response = $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo.png',
                     'primary_color' => '#FF5733',
                     'secondary_color' => '#3366FF',
@@ -438,7 +438,7 @@ describe('OnboardingController', function () {
             completeCompanyStep($this);
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo.png',
                     'primary_color' => '#GGGGGG',
                     'secondary_color' => '#3366FF',
@@ -451,7 +451,7 @@ describe('OnboardingController', function () {
             completeCompanyStep($this);
 
             $response = $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'primary_color' => '#FF5733',
                     'secondary_color' => '#3366FF',
                 ]);
@@ -470,7 +470,7 @@ describe('OnboardingController', function () {
             completeCompanyStep($this);
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo.png',
                     'primary_color' => '#FF5733',
                     'secondary_color' => '#3366FF',
@@ -492,7 +492,7 @@ describe('OnboardingController', function () {
 
             // First branding submission
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo-v1.png',
                     'primary_color' => '#FF5733',
                     'secondary_color' => '#3366FF',
@@ -509,7 +509,7 @@ describe('OnboardingController', function () {
 
             // Second branding submission with different logo
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://example.com/logo-v2.png',
                     'primary_color' => '#AABBCC',
                     'secondary_color' => '#112233',
@@ -542,7 +542,7 @@ describe('OnboardingController', function () {
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
             $response = $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/first-school', [
+                ->postJson('/api/tenant/onboarding/steps/first-school', [
                     'school_id' => $school->uuid,
                 ]);
 
@@ -577,7 +577,7 @@ describe('OnboardingController', function () {
             $foreignSchool = SchoolModel::factory()->for($otherTenant)->create();
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/first-school', [
+                ->postJson('/api/tenant/onboarding/steps/first-school', [
                     'school_id' => $foreignSchool->uuid,
                 ])
                 ->assertStatus(403)
@@ -591,7 +591,7 @@ describe('OnboardingController', function () {
             $school = SchoolModel::factory()->for($this->tenant)->create();
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/first-school', [
+                ->postJson('/api/tenant/onboarding/steps/first-school', [
                     'school_id' => $school->uuid,
                 ])
                 ->assertStatus(422)
@@ -603,7 +603,7 @@ describe('OnboardingController', function () {
             completeBrandingStep($this);
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/first-school', [
+                ->postJson('/api/tenant/onboarding/steps/first-school', [
                     'school_id' => 'not-a-valid-uuid',
                 ])
                 ->assertStatus(422)
@@ -633,7 +633,7 @@ describe('OnboardingController', function () {
             $before = DB::table('tenants')->where('id', $this->tenant->id)->first();
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/company', [
+                ->postJson('/api/tenant/onboarding/steps/company', [
                     'business_name' => 'Attempted Override',
                     'rfc' => 'ZZZ999999XYZ',
                     'fiscal_address' => [
@@ -662,7 +662,7 @@ describe('OnboardingController', function () {
             $before = DB::table('tenants')->where('id', $this->tenant->id)->value('branding');
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/branding', [
+                ->postJson('/api/tenant/onboarding/steps/branding', [
                     'logo_url' => 'https://attacker.example.com/logo.png',
                     'primary_color' => '#000000',
                     'secondary_color' => '#FFFFFF',
@@ -677,7 +677,7 @@ describe('OnboardingController', function () {
             $newSchool = SchoolModel::factory()->for($this->tenant)->create();
 
             $this->actingAs($this->owner)
-                ->postJson('/api/onboarding/steps/first-school', [
+                ->postJson('/api/tenant/onboarding/steps/first-school', [
                     'school_id' => $newSchool->uuid,
                 ])
                 ->assertStatus(409);

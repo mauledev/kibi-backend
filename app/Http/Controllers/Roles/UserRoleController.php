@@ -43,7 +43,7 @@ class UserRoleController extends Controller
                 schoolUuid: $request->validated('school_uuid'),
             ));
 
-            return ApiResponse::created((new UserRoleAssignmentResource($assignment))->resolve());
+            return ApiResponse::created((new UserRoleAssignmentResource($assignment)));
         } catch (UserNotFoundException) {
             return ApiResponse::notFound('User not found');
         } catch (RoleNotFoundException $e) {
@@ -78,7 +78,7 @@ class UserRoleController extends Controller
             ));
 
             return ApiResponse::success(
-                (new UserRoleAssignmentResource($assignment))->resolve(),
+                (new UserRoleAssignmentResource($assignment)),
                 'Role revoked from user'
             );
         } catch (UserNotFoundException) {
