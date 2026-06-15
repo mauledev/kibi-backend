@@ -1,6 +1,7 @@
 <?php
 
 use App\Common\Audit\AuditLoggerInterface;
+use App\Common\Audit\Events\RoleAuditEvent;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Entities\User;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserInput;
@@ -172,7 +173,7 @@ describe('RevokeRoleFromUserUseCase', function () {
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->assignmentRepo->shouldReceive('findActiveByUserAndRole')->once()->with(20, 10, null)->andReturn($active);
         $this->assignmentRepo->shouldReceive('revoke')->once()->with(50)->andReturn($revoked);
-        $this->audit->shouldReceive('log')->once()->with('role.revoke', 1, 50, null, Mockery::type('array'));
+        $this->audit->shouldReceive('log')->once()->with(RoleAuditEvent::ROLE_REVOKE, 1, 50, null, Mockery::type('array'));
 
         $result = $this->useCase->execute($input);
 
