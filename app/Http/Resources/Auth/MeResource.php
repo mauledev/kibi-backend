@@ -32,6 +32,7 @@ class MeResource extends JsonResource
                 'hierarchy_level' => $role->getHierarchyLevel(),
             ], $output->roles),
             'permissions' => $output->permissions,
+            'must_accept_policy' => $output->mustAcceptPolicy,
         ];
     }
 }

@@ -58,6 +58,8 @@ function makeSuperadmin(User $user): void
         'school_id' => null,
         'assigned_at' => now(),
     ]);
+
+    acceptPurFor($user);
 }
 
 describe('POST /api/staff/personnel', function () {

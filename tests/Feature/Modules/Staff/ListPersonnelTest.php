@@ -22,6 +22,8 @@ describe('GET /api/staff/personnel', function () {
             'school_id' => null,
             'assigned_at' => now(),
         ]);
+
+        acceptPurFor($this->superadmin);
     });
 
     it('returns 401 when unauthenticated', function () {

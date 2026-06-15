@@ -23,5 +23,8 @@ class LoginOutput
         public readonly ?string $token,
         public readonly array $roles = [],
         public readonly array $permissions = [],
+        // True when the user must accept the Responsible Use Policy before the
+        // app grants access (SCRUM-520). Derived from roles + acceptance record.
+        public readonly bool $mustAcceptPolicy = false,
     ) {}
 }
