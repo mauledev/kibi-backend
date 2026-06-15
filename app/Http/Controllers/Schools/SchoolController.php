@@ -44,7 +44,7 @@ class SchoolController extends Controller
             statusFilter: $request->statusFilter(),
         ));
 
-        return ApiResponse::success(SchoolResource::collection($schools)->resolve());
+        return ApiResponse::success(SchoolResource::collection($schools));
     }
 
     /**
@@ -57,7 +57,7 @@ class SchoolController extends Controller
         try {
             $school = $useCase->execute(new GetSchoolInput($uuid));
 
-            return ApiResponse::success((new SchoolResource($school))->resolve());
+            return ApiResponse::success((new SchoolResource($school)));
         } catch (SchoolNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
@@ -74,7 +74,7 @@ class SchoolController extends Controller
                 schoolId: app(SchoolContext::class)->schoolId,
             ));
 
-            return ApiResponse::success((new SchoolResource($school))->resolve());
+            return ApiResponse::success((new SchoolResource($school)));
         } catch (SchoolNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
@@ -96,7 +96,7 @@ class SchoolController extends Controller
                 phone: $request->validated('phone'),
             ));
 
-            return ApiResponse::created((new SchoolResource($school))->resolve());
+            return ApiResponse::created((new SchoolResource($school)));
         } catch (SchoolAlreadyExistsException $e) {
             return ApiResponse::conflict($e->getMessage());
         }
@@ -125,7 +125,7 @@ class SchoolController extends Controller
                 address: $request->input('address'),
             ));
 
-            return ApiResponse::success((new SchoolResource($school))->resolve());
+            return ApiResponse::success((new SchoolResource($school)));
         } catch (SchoolNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }

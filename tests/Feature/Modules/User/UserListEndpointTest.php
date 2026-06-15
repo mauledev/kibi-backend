@@ -62,13 +62,13 @@ describe('User endpoints', function () {
     describe('authentication and authorization', function () {
         it('GET /users returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users')
+                ->getJson('/api/tenant/users')
                 ->assertStatus(401);
         });
 
         it('GET /users/{uuid} returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users/00000000-0000-0000-0000-000000000000')
+                ->getJson('/api/tenant/users/00000000-0000-0000-0000-000000000000')
                 ->assertStatus(401);
         });
 
@@ -82,7 +82,7 @@ describe('User endpoints', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users')
+                ->getJson('/api/tenant/users')
                 ->assertStatus(403);
         });
 
@@ -97,14 +97,14 @@ describe('User endpoints', function () {
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$target->uuid}")
+                ->getJson("/api/tenant/users/{$target->uuid}")
                 ->assertStatus(403);
         });
 
         it('owner bypasses permission check on GET /users', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users')
+                ->getJson('/api/tenant/users')
                 ->assertStatus(200);
         });
 
@@ -113,7 +113,7 @@ describe('User endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$target->uuid}")
+                ->getJson("/api/tenant/users/{$target->uuid}")
                 ->assertStatus(200);
         });
     });
@@ -125,7 +125,7 @@ describe('User endpoints', function () {
         it('returns 200 with paginated envelope containing meta.pagination and data', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -153,7 +153,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
 
@@ -183,7 +183,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?q=Búsqueda');
+                ->getJson('/api/tenant/users?q=Búsqueda');
 
             $response->assertStatus(200);
 
@@ -205,7 +205,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?filter[role]=student_ep_role');
+                ->getJson('/api/tenant/users?filter[role]=student_ep_role');
 
             $response->assertStatus(200);
 
@@ -224,7 +224,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?filter[role]=none');
+                ->getJson('/api/tenant/users?filter[role]=none');
 
             $response->assertStatus(200);
 
@@ -246,7 +246,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?filter[role]=none');
+                ->getJson('/api/tenant/users?filter[role]=none');
 
             $response->assertStatus(200);
 
@@ -266,7 +266,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?filter[status]=inactive');
+                ->getJson('/api/tenant/users?filter[status]=inactive');
 
             $response->assertStatus(200);
 
@@ -292,7 +292,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
 
@@ -306,7 +306,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
 
@@ -323,7 +323,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?per_page=2&page=1');
+                ->getJson('/api/tenant/users?per_page=2&page=1');
 
             $response->assertStatus(200);
 
@@ -349,7 +349,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
             $emails = array_column($response->json('data'), 'email');
@@ -379,7 +379,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($gestor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
             $emails = array_column($response->json('data'), 'email');
@@ -406,7 +406,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($director)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
             $emails = array_column($response->json('data'), 'email');
@@ -430,7 +430,7 @@ describe('User endpoints', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users')
+                ->getJson('/api/tenant/users')
                 ->assertStatus(403);
         });
     });
@@ -450,7 +450,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$user->uuid}");
+                ->getJson("/api/tenant/users/{$user->uuid}");
 
             $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -479,7 +479,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$user->uuid}");
+                ->getJson("/api/tenant/users/{$user->uuid}");
 
             $response->assertStatus(200);
             expect($response->json('data'))->not->toHaveKey('id');
@@ -489,7 +489,7 @@ describe('User endpoints', function () {
         it('returns 404 for a uuid that does not exist', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users/00000000-0000-0000-0000-000000000000')
+                ->getJson('/api/tenant/users/00000000-0000-0000-0000-000000000000')
                 ->assertStatus(404);
         });
 
@@ -499,7 +499,7 @@ describe('User endpoints', function () {
 
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$foreignUser->uuid}")
+                ->getJson("/api/tenant/users/{$foreignUser->uuid}")
                 ->assertStatus(404);
         });
 
@@ -515,7 +515,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$user->uuid}");
+                ->getJson("/api/tenant/users/{$user->uuid}");
 
             $response->assertStatus(200);
 
@@ -539,7 +539,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson("/api/users/{$user->uuid}");
+                ->getJson("/api/tenant/users/{$user->uuid}");
 
             $response->assertStatus(200);
 
@@ -558,7 +558,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users');
+                ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
 

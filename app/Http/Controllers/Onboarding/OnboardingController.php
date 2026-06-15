@@ -42,7 +42,7 @@ class OnboardingController extends Controller
 
         $progress = $useCase->execute(new GetOnboardingProgressInput($tenantId));
 
-        return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+        return ApiResponse::success((new OnboardingProgressResource($progress)));
     }
 
     /**
@@ -70,7 +70,7 @@ class OnboardingController extends Controller
                 primaryContactPhone: $request->validated('primary_contact_phone'),
             ));
 
-            return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+            return ApiResponse::success((new OnboardingProgressResource($progress)));
         } catch (OnboardingAlreadyCompletedException $e) {
             return ApiResponse::conflict($e->getMessage());
         }
@@ -98,7 +98,7 @@ class OnboardingController extends Controller
                 secondaryColor: $request->validated('secondary_color'),
             ));
 
-            return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+            return ApiResponse::success((new OnboardingProgressResource($progress)));
         } catch (OnboardingAlreadyCompletedException $e) {
             return ApiResponse::conflict($e->getMessage());
         } catch (StepOutOfOrderException $e) {
@@ -126,7 +126,7 @@ class OnboardingController extends Controller
                 schoolUuid: $request->validated('school_id'),
             ));
 
-            return ApiResponse::success((new OnboardingProgressResource($progress))->resolve());
+            return ApiResponse::success((new OnboardingProgressResource($progress)));
         } catch (OnboardingAlreadyCompletedException $e) {
             return ApiResponse::conflict($e->getMessage());
         } catch (StepOutOfOrderException $e) {

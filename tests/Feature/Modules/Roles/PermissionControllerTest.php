@@ -11,37 +11,34 @@ use Symfony\Component\HttpFoundation\Response;
 
 uses(RefreshDatabase::class);
 
+function pcAssignRole(User $user, RoleModel $role): UserRoleAssignment
+{
+    return UserRoleAssignment::factory()
+        ->forUser($user)
+        ->forRole($role)
+        ->active()
+        ->create();
+}
+
+function pcGrantPermission(RoleModel $role, string $slug): PermissionModel
+{
+    $category = PermissionCategory::factory()->system()->create();
+    $permission = PermissionModel::factory()->withSlug($slug)->create(['category_id' => $category->id]);
+    $role->permissions()->attach($permission->id);
+
+    return $permission;
+}
+
 describe('PermissionController', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
-        // The tenant owner is the user whose id matches TenantContext::ownerId.
         $this->owner = User::find($this->tenant->owner_id);
-        // No level-1 role needed for PermissionController — no hierarchy checks
-        // are involved in GET /api/permissions.
     });
 
-    function pcAssignRole(User $user, RoleModel $role): UserRoleAssignment
-    {
-        return UserRoleAssignment::factory()
-            ->forUser($user)
-            ->forRole($role)
-            ->active()
-            ->create();
-    }
-
-    function pcGrantPermission(RoleModel $role, string $slug): PermissionModel
-    {
-        $category = PermissionCategory::factory()->system()->create();
-        $permission = PermissionModel::factory()->withSlug($slug)->create(['category_id' => $category->id]);
-        $role->permissions()->attach($permission->id);
-
-        return $permission;
-    }
-
-    describe('GET /api/permissions', function () {
+    describe('GET /api/tenant/permissions', function () {
         it('returns 401 when unauthenticated', function () {
             $this->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(Response::HTTP_UNAUTHORIZED);
         });
 
@@ -49,11 +46,10 @@ describe('PermissionController', function () {
             $user = User::factory()->create();
             $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'no_perm_view']);
             pcAssignRole($user, $role);
-            // No manage.permissions granted
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(Response::HTTP_FORBIDDEN);
         });
 
@@ -63,28 +59,23 @@ describe('PermissionController', function () {
             pcAssignRole($user, $actorRole);
             pcGrantPermission($actorRole, 'manage.permissions');
 
-            // Create a system permission to list
             $category = PermissionCategory::factory()->system()->create();
             PermissionModel::factory()->withSlug('grade.view')->create(['category_id' => $category->id]);
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions');
+                ->getJson('/api/tenant/permissions');
 
             $response->assertStatus(Response::HTTP_OK)
-                ->assertJsonStructure([
-                    'success',
-                    'data',
-                ]);
+                ->assertJsonStructure(['success', 'data']);
 
-            $data = $response->json('data');
-            expect($data)->toBeArray();
+            expect($response->json('data'))->toBeArray();
         });
 
         it('owner bypasses permission check and can list permissions', function () {
             $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions')
+                ->getJson('/api/tenant/permissions')
                 ->assertStatus(Response::HTTP_OK);
         });
 
@@ -99,20 +90,13 @@ describe('PermissionController', function () {
 
             $response = $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/permissions');
+                ->getJson('/api/tenant/permissions');
 
             $response->assertStatus(Response::HTTP_OK);
 
             $data = $response->json('data');
-
-            if (count($data) > 0) {
-                $permId = $data[0]['id'] ?? null;
-                if ($permId !== null) {
-                    // Must be UUID format, not an integer
-                    expect(is_string($permId))->toBeTrue();
-                    expect(preg_match('/^[0-9a-f\-]{36}$/i', $permId))->toBe(1);
-                }
-            }
+            expect($data)->not->toBeEmpty();
+            expect(preg_match('/^[0-9a-f\-]{36}$/i', $data[0]['uuid']))->toBe(1);
         });
     });
 });

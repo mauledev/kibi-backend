@@ -122,6 +122,12 @@ class EloquentGlobalRoleRepository implements RoleRepositoryInterface
         throw new RuntimeException('EloquentGlobalRoleRepository::detachPermission() is not supported without TenantContext.');
     }
 
+    /** {@inheritDoc} */
+    public function findBySchool(int $schoolId, int $tenantId): array
+    {
+        throw new RuntimeException('EloquentGlobalRoleRepository::findBySchool() is not supported without TenantContext.');
+    }
+
     private function toDomain(RoleModel $model): Role
     {
         $permissions = $model->relationLoaded('permissions')

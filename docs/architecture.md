@@ -265,15 +265,15 @@ HTTP Request ({tenant_slug}.kibi.com)
 
 There are six distinct role types across both systems (see `docs/database.md` — Role types table). Authority for tenant-admin roles (owner, gestor) is determined by their reserved slug, not by permission checks.
 
-### Owner
+### Gate bypasses
 
-Owner is above the permission system. A `Gate::before` bypass applies globally for the user whose `id` matches `TenantContext::ownerId`. The owner identity comes directly from `tenants.owner_id` — no `user_role_assignments` row is needed or consulted for this check.
+`Gate::before` runs two mutually exclusive bypasses, selected by which context is bound in the container:
 
-The bypass is skipped entirely on staff routes because `TenantContext` is never bound in the container for those requests (the gate checks `app()->bound(TenantContext::class)` before resolving it).
+**Owner bypass (tenant routes)** — `TenantMiddleware` binds `TenantContext`. When the gate sees `TenantContext` is bound, it grants full access to the user whose `id` matches `TenantContext::ownerId`. The owner identity comes directly from `tenants.owner_id` — no `user_role_assignments` row is consulted for this check. Owner never sees a permissions UI; all permission management flows downward from Owner → Gestor → Director. Assigning the `owner` role via `AssignRoleToUserUseCase` is blocked by `OwnerRoleAssignmentException` — the owner bypass is determined solely by `tenants.owner_id`.
 
-Owner never sees a permissions UI. All permission management flows downward from Owner → Gestor → Director.
+**Superadmin bypass (staff routes)** — `StaffMiddleware` binds `StaffContext`. When the gate sees `StaffContext` is bound, it grants full access to any staff user (`is_staff = true`) who holds at least one active role with `is_system_role = true`. The check uses `User::hasActiveSystemRole()`, which reuses the cached `activeAssignments()` result. This is the runtime purpose of `is_system_role`: it marks which staff roles carry full authority, without hardcoding the slug `superadmin` in the gate.
 
-The `owner` role slug is kept in the seeder for hierarchy reference purposes, but assigning it via `AssignRoleToUserUseCase` is blocked by a domain guard (`OwnerRoleAssignmentException`). The owner bypass is determined solely by `tenants.owner_id`, not by role assignment.
+Both bypasses are completely isolated: `TenantContext` is never bound on staff routes, `StaffContext` is never bound on tenant routes.
 
 ### Role authority — hardcoded actor rules
 

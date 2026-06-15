@@ -26,7 +26,7 @@ describe('DeleteRoleUseCase', function () {
             id: $overrides['id'] ?? 10,
             uuid: $overrides['uuid'] ?? 'role-uuid',
             tenantId: $overrides['tenantId'] ?? 1,
-            categoryId: null,
+            categoryId: $overrides['categoryId'] ?? null,
             name: $overrides['name'] ?? 'Coordinador',
             slug: $overrides['slug'] ?? 'coordinador',
             hierarchyLevel: $overrides['hierarchyLevel'] ?? 5,
@@ -65,7 +65,8 @@ describe('DeleteRoleUseCase', function () {
     });
 
     it('throws SystemRoleViolationException when trying to delete a system role', function () {
-        $role = deleteRoleEntity(['isSystemRole' => true]);
+        // Realistic: tenant system roles (director, teacher) always have a categoryId set.
+        $role = deleteRoleEntity(['isSystemRole' => true, 'categoryId' => 1]);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
 
@@ -75,7 +76,8 @@ describe('DeleteRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when director tries to delete school_manager role', function () {
+    it('throws SystemRoleViolationException when director tries to delete school_manager role', function () {
+        // school_manager is not a custom role — blocked before any hierarchy check.
         $role = deleteRoleEntity(['slug' => 'school_manager']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
@@ -83,10 +85,11 @@ describe('DeleteRoleUseCase', function () {
         $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
+            ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws HierarchyViolationException when director tries to delete owner role', function () {
+    it('throws SystemRoleViolationException when director tries to delete owner role', function () {
+        // owner is not a custom role — blocked before any hierarchy check.
         $role = deleteRoleEntity(['slug' => 'owner']);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
@@ -94,7 +97,7 @@ describe('DeleteRoleUseCase', function () {
         $input = new DeleteRoleInput(actorUserId: 1, actorSlug: 'director', uuid: 'role-uuid');
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(HierarchyViolationException::class);
+            ->toThrow(SystemRoleViolationException::class);
     });
 
     it('deletes the role and writes audit log when owner deletes any custom role', function () {
@@ -134,7 +137,7 @@ describe('DeleteRoleUseCase', function () {
     });
 
     it('never calls delete when system role check fails', function () {
-        $role = deleteRoleEntity(['isSystemRole' => true]);
+        $role = deleteRoleEntity(['isSystemRole' => true, 'categoryId' => 1]);
 
         $this->roleRepo->shouldReceive('findByUuid')->once()->andReturn($role);
         $this->roleRepo->shouldNotReceive('delete');

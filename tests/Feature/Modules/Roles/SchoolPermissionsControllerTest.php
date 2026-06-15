@@ -20,7 +20,7 @@ function spAssignRole(User $user, RoleModel $role, ?int $schoolId = null): UserR
         ->create(['school_id' => $schoolId]);
 }
 
-describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
+describe('GET /api/tenant/schools/{uuid}/permissions?role_uuid=X', function () {
     beforeEach(function () {
         $this->tenant = Tenant::factory()->create();
         $this->owner = User::find($this->tenant->owner_id);
@@ -50,7 +50,7 @@ describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
 
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->getJson("/api/schools/{$this->school->uuid}/permissions?role_uuid={$directorRole->uuid}");
+            ->getJson("/api/tenant/schools/{$this->school->uuid}/permissions?role_uuid={$directorRole->uuid}");
 
         $response->assertStatus(200);
 
@@ -76,7 +76,7 @@ describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
 
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->getJson("/api/schools/{$this->school->uuid}/permissions?role_uuid={$customRole->uuid}");
+            ->getJson("/api/tenant/schools/{$this->school->uuid}/permissions?role_uuid={$customRole->uuid}");
 
         $response->assertStatus(200);
 
@@ -89,7 +89,7 @@ describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
     it('returns 404 when role does not exist', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->getJson("/api/schools/{$this->school->uuid}/permissions?role_uuid=00000000-0000-0000-0000-000000000000")
+            ->getJson("/api/tenant/schools/{$this->school->uuid}/permissions?role_uuid=00000000-0000-0000-0000-000000000000")
             ->assertStatus(404);
     });
 
@@ -98,14 +98,14 @@ describe('GET /api/schools/{uuid}/permissions?role_uuid=X', function () {
 
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->getJson("/api/schools/00000000-0000-0000-0000-000000000000/permissions?role_uuid={$role->uuid}")
+            ->getJson("/api/tenant/schools/00000000-0000-0000-0000-000000000000/permissions?role_uuid={$role->uuid}")
             ->assertStatus(404);
     });
 
     it('returns 422 when role_uuid query param is missing', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->getJson("/api/schools/{$this->school->uuid}/permissions")
+            ->getJson("/api/tenant/schools/{$this->school->uuid}/permissions")
             ->assertStatus(422);
     });
 });

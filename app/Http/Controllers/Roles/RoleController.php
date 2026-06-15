@@ -37,7 +37,7 @@ class RoleController extends Controller
 
         $roles = $useCase->execute(new ListRolesInput);
 
-        return ApiResponse::success(RoleResource::collection($roles)->resolve());
+        return ApiResponse::success(RoleResource::collection($roles));
     }
 
     /**
@@ -60,7 +60,7 @@ class RoleController extends Controller
                 slug: $request->validated('slug'),
             ));
 
-            return ApiResponse::created((new RoleResource($role))->resolve());
+            return ApiResponse::created((new RoleResource($role)));
         } catch (HierarchyViolationException $e) {
             return ApiResponse::forbidden($e->getMessage());
         } catch (CustomRoleLimitExceededException $e) {
@@ -78,7 +78,7 @@ class RoleController extends Controller
         try {
             $role = $useCase->execute(new GetRoleInput($uuid));
 
-            return ApiResponse::success((new RoleResource($role))->resolve());
+            return ApiResponse::success((new RoleResource($role)));
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         }
@@ -102,7 +102,7 @@ class RoleController extends Controller
                 name: $request->validated('name'),
             ));
 
-            return ApiResponse::success((new RoleResource($role))->resolve());
+            return ApiResponse::success((new RoleResource($role)));
         } catch (RoleNotFoundException $e) {
             return ApiResponse::notFound($e->getMessage());
         } catch (HierarchyViolationException $e) {

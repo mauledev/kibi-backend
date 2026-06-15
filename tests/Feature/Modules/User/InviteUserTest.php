@@ -40,7 +40,7 @@ describe('POST /api/users (invite)', function () {
     });
 
     it('returns 401 when unauthenticated', function () {
-        $this->postJson('/api/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
+        $this->postJson('/api/tenant/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
             ->assertStatus(401);
     });
 
@@ -49,7 +49,7 @@ describe('POST /api/users (invite)', function () {
 
         $response = $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/users', inviteUserPayload($this->school->uuid, $this->role->uuid));
+            ->postJson('/api/tenant/users', inviteUserPayload($this->school->uuid, $this->role->uuid));
 
         $response->assertStatus(201);
         $response->assertJsonPath('data.email', 'nuevo@example.com');
@@ -67,7 +67,7 @@ describe('POST /api/users (invite)', function () {
 
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
+            ->postJson('/api/tenant/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
             ->assertStatus(201);
 
         $invited = User::where('email', 'nuevo@example.com')->firstOrFail();
@@ -88,7 +88,7 @@ describe('POST /api/users (invite)', function () {
 
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
+            ->postJson('/api/tenant/users', inviteUserPayload($this->school->uuid, $this->role->uuid))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['email' => 'validation.unique']);
     });
@@ -96,7 +96,7 @@ describe('POST /api/users (invite)', function () {
     it('returns 422 when assignments are missing', function () {
         $this->actingAs($this->owner)
             ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-            ->postJson('/api/users', [
+            ->postJson('/api/tenant/users', [
                 'email' => 'x@example.com',
                 'first_name' => 'X',
                 'last_name_paternal' => 'Y',

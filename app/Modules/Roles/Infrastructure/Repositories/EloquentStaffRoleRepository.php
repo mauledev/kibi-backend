@@ -183,4 +183,10 @@ class EloquentStaffRoleRepository implements RoleRepositoryInterface
     {
         throw new \RuntimeException('EloquentStaffRoleRepository::setCustomRolesLimit() is not applicable for staff roles.');
     }
+
+    /** {@inheritDoc} */
+    public function findBySchool(int $schoolId, int $tenantId): array
+    {
+        return [];
+    }
 }
