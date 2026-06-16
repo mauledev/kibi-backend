@@ -157,6 +157,43 @@ class DevSeeder extends Seeder
         );
 
         // -------------------------------------------------------
+        // Demo director — has user.create + user.view
+        // Login: POST /api/auth/login  (header X-Tenant-Slug: demo)
+        // -------------------------------------------------------
+        $directorUser = User::firstOrCreate(
+            ['email' => 'director@colegiodemo.mx'],
+            [
+                'uuid' => (string) Str::uuid(),
+                'tenant_id' => $tenant->id,
+                'is_staff' => false,
+                'first_name' => 'Director',
+                'last_name_paternal' => 'Demo',
+                'last_name_maternal' => null,
+                'password_hash' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'status' => 'active',
+            ]
+        );
+
+        $directorUser->tenant_id = $tenant->id;
+        $directorUser->save();
+
+        $directorRole = Role::firstOrCreate(
+            ['slug' => 'director', 'tenant_id' => null],
+            ['name' => 'Director', 'hierarchy_level' => 5, 'is_system_role' => false],
+        );
+
+        UserRoleAssignment::firstOrCreate(
+            [
+                'user_id' => $directorUser->id,
+                'role_id' => $directorRole->id,
+                'school_id' => $demoSchool->id,
+                'revoked_at' => null,
+            ],
+            ['assigned_at' => now(), 'assigned_by' => null],
+        );
+
+        // -------------------------------------------------------
         // Demo students — enrolled in demo-escuela
         // -------------------------------------------------------
         $studentRole = Role::firstOrCreate(
