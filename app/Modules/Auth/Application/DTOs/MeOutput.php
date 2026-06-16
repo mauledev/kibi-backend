@@ -20,5 +20,8 @@ class MeOutput
         public readonly bool $isStaff,
         public readonly array $roles = [],
         public readonly array $permissions = [],
+        // True when the user must accept the Responsible Use Policy before the
+        // app grants access. Derived from roles + acceptance record.
+        public readonly bool $mustAcceptPolicy = false,
     ) {}
 }

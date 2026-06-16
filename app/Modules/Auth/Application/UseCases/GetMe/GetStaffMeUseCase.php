@@ -3,6 +3,7 @@
 namespace App\Modules\Auth\Application\UseCases\GetMe;
 
 use App\Modules\Auth\Application\DTOs\MeOutput;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\UserNotFoundException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
@@ -13,6 +14,7 @@ class GetStaffMeUseCase
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly RoleRepositoryInterface $roles,
+        private readonly PolicyAcceptanceChecker $policy,
     ) {}
 
     /**
@@ -38,7 +40,17 @@ class GetStaffMeUseCase
             isStaff: $user->isStaff(),
             roles: $roles,
             permissions: $this->extractPermissionSlugs($roles),
+            mustAcceptPolicy: $this->policy->mustAccept($userId, $this->roleSlugs($roles)),
         );
+    }
+
+    /**
+     * @param  array<Role>  $roles
+     * @return array<string>
+     */
+    private function roleSlugs(array $roles): array
+    {
+        return array_map(static fn (Role $role): string => $role->getSlug(), $roles);
     }
 
     /**

@@ -33,6 +33,7 @@ class LoginResource extends JsonResource
             ], $output->roles),
             'permissions' => $output->permissions,
             'token' => $output->token,
+            'must_accept_policy' => $output->mustAcceptPolicy,
         ];
     }
 }

@@ -18,8 +18,13 @@ class LoginOutput
         public readonly ?string $lastNameMaternal,
         public readonly string $fullName,
         public readonly bool $isStaff,
-        public readonly string $token,
+        // Null when a session is intentionally withheld (e.g. activation of a
+        // user whose role requires 2FA — they must sign in to complete 2FA).
+        public readonly ?string $token,
         public readonly array $roles = [],
         public readonly array $permissions = [],
+        // True when the user must accept the Responsible Use Policy before the
+        // app grants access. Derived from roles + acceptance record.
+        public readonly bool $mustAcceptPolicy = false,
     ) {}
 }

@@ -27,6 +27,7 @@ class RoleResource extends JsonResource
             'hierarchy_level' => $role->getHierarchyLevel(),
             'is_system_role' => $role->isSystemRole(),
             'bypasses_permissions' => $role->bypassesPermissions(),
+            'requires_2fa' => $role->requiresTwoFactor(),
             'permissions' => $this->resolvePermissions($role),
             'created_at' => $role->getCreatedAt()->format('c'),
         ];

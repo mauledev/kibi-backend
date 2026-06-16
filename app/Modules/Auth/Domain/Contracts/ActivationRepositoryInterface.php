@@ -18,10 +18,12 @@ interface ActivationRepositoryInterface
     public function findPendingByUuid(string $uuid): ?User;
 
     /**
-     * Activate the user account and the associated tenant in one shot.
+     * Activate the user account, and the associated tenant when there is one.
      *
-     * Sets users.password_hash, users.email_verified_at = now(), and
-     * tenants.status = 'active' for the tenant the user belongs to.
+     * Sets users.password_hash and users.email_verified_at = now(). When
+     * $tenantId is provided (tenant owner activation) it also sets
+     * tenants.status = 'active'. For Softlinkia staff users pass null —
+     * there is no tenant to activate.
      */
-    public function activate(int $userId, string $passwordHash, int $tenantId): void;
+    public function activate(int $userId, string $passwordHash, ?int $tenantId): void;
 }

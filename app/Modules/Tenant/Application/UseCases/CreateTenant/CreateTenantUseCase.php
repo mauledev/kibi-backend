@@ -13,6 +13,8 @@ use App\Modules\Tenant\Domain\Exceptions\TenantSlugAlreadyExistsException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 
+use function Illuminate\Support\defer;
+
 class CreateTenantUseCase
 {
     public function __construct(
@@ -90,10 +92,11 @@ class CreateTenantUseCase
         $frontendUrl = $baseUrlWithTenant.'/auth/magic';
         $activationUrl = $query ? "{$frontendUrl}?{$query}" : $frontendUrl;
 
-        $this->mailer->sendActivation(
+        // Send the activation email after the response is flushed (see CreatePersonnel).
+        defer(fn () => $this->mailer->sendActivation(
             to: $input->ownerEmail,
             activationUrl: $activationUrl,
-        );
+        ));
 
         return $tenant;
     }

@@ -62,6 +62,44 @@ class DevSeeder extends Seeder
         }
 
         // -------------------------------------------------------
+        // Backoffice Superadmins — TWO dedicated example accounts with the
+        // `superadmin` role. Two are needed for the dual-control ceremony:
+        // one proposes a new superadmin and a DIFFERENT one approves it
+        // (proposer != approver).
+        // Login: POST /api/staff/auth/login  (password: "password")
+        //   superadmin@kibi.com   · superadmin2@kibi.com
+        // -------------------------------------------------------
+        $superadminRole = Role::where('slug', 'superadmin')->whereNull('tenant_id')->first();
+
+        $superadminAccounts = [
+            ['email' => 'superadmin@kibi.com', 'first_name' => 'Super', 'last_name_paternal' => 'Admin'],
+            ['email' => 'superadmin2@kibi.com', 'first_name' => 'Super', 'last_name_paternal' => 'Admin Dos'],
+        ];
+
+        foreach ($superadminAccounts as $account) {
+            $superadmin = User::firstOrCreate(
+                ['email' => $account['email']],
+                [
+                    'is_staff' => true,
+                    'first_name' => $account['first_name'],
+                    'last_name_paternal' => $account['last_name_paternal'],
+                    'last_name_maternal' => null,
+                    'password_hash' => Hash::make('password'),
+                    'status' => 'active',
+                ]
+            );
+
+            if ($superadminRole !== null) {
+                UserRoleAssignment::firstOrCreate([
+                    'user_id' => $superadmin->id,
+                    'role_id' => $superadminRole->id,
+                    'school_id' => null,
+                    'revoked_at' => null,
+                ]);
+            }
+        }
+
+        // -------------------------------------------------------
         // Demo tenant — for testing tenant auth flow
         // Login: POST /api/auth/login  (header X-Tenant-Slug: demo)
         // -------------------------------------------------------

@@ -57,6 +57,25 @@ class RolesAndPermissionsSeeder extends Seeder
             ->value('id');
 
         $permissions = [
+            // staff/finance — Softlinkia treasury (SaaS billing tenant → Softlinkia, distinct from school payment.*)
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'View SaaS billing',          'slug' => 'billing.view'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Approve SaaS payments',      'slug' => 'billing.approve'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Refund SaaS payments',       'slug' => 'billing.refund'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Review SaaS payments',       'slug' => 'billing.review'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Return payment to operator', 'slug' => 'billing.return'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'View billing metrics',       'slug' => 'billing.metrics'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Generate Owner remittances', 'slug' => 'remittance.create'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'Assign batches to operators', 'slug' => 'batch.assign'],
+            ['scope' => 'staff', 'category' => 'finance', 'name' => 'View audit log',             'slug' => 'audit.view'],
+
+            // staff/support — Softlinkia support (tickets + temporary tenant linking)
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'View tickets',               'slug' => 'ticket.view'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Create tickets',             'slug' => 'ticket.create'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Resolve tickets',            'slug' => 'ticket.resolve'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Escalate tickets',           'slug' => 'ticket.escalate'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'Temporary tenant linking',   'slug' => 'tenant.impersonate'],
+            ['scope' => 'staff', 'category' => 'support', 'name' => 'View tenants',               'slug' => 'tenant.view'],
+
             // school/director — full school management
             ['scope' => 'school', 'category' => 'director', 'name' => 'View schools',           'slug' => 'school.view'],
             ['scope' => 'school', 'category' => 'director', 'name' => 'Update schools',         'slug' => 'school.update'],
@@ -167,6 +186,36 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => 'superadmin',
                 'hierarchy_level' => 1,
                 'is_system_role' => true,
+                'requires_2fa' => true,
+            ],
+
+            // Softlinkia staff operational roles — is_system_role = true, tenant_id = null,
+            // bound to a staff-scoped category. Permissions managed via role_permissions.
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'finance'),
+                'name' => 'Tesorería Líder',
+                'slug' => 'leader',
+                'hierarchy_level' => 2,
+                'is_system_role' => true,
+                'requires_2fa' => true,
+            ],
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'finance'),
+                'name' => 'Tesorería Operador',
+                'slug' => 'operator',
+                'hierarchy_level' => 3,
+                'is_system_role' => true,
+            ],
+            [
+                'tenant_id' => null,
+                'category_id' => $catId('staff', 'support'),
+                'name' => 'Soporte',
+                'slug' => 'support',
+                'hierarchy_level' => 3,
+                'is_system_role' => true,
+                'requires_2fa' => true,
             ],
 
             // Tenant-admin — no category, authority by Gate bypass / slug
@@ -301,6 +350,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'slug' => $role['slug'],
                 'hierarchy_level' => $role['hierarchy_level'],
                 'is_system_role' => $role['is_system_role'],
+                'requires_2fa' => $role['requires_2fa'] ?? false,
                 'created_at' => now(),
             ]);
         }
@@ -323,6 +373,25 @@ class RolesAndPermissionsSeeder extends Seeder
         };
 
         // owner and school_manager have no role_permissions — authority is handled by Gate bypass.
+
+        // Softlinkia staff operational roles
+        $assign('operator', [
+            'billing.view', 'billing.approve',
+            'remittance.create',
+        ]);
+
+        $assign('leader', [
+            'billing.view', 'billing.approve',
+            'remittance.create',
+            'billing.refund', 'billing.review', 'billing.return',
+            'batch.assign', 'billing.metrics',
+            'audit.view',
+        ]);
+
+        $assign('support', [
+            'ticket.view', 'ticket.create', 'ticket.resolve', 'ticket.escalate',
+            'tenant.impersonate', 'tenant.view',
+        ]);
 
         $assign('director', [
             'school.view', 'school.update',

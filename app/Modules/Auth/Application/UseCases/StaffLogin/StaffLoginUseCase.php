@@ -5,27 +5,36 @@ namespace App\Modules\Auth\Application\UseCases\StaffLogin;
 use App\Common\Audit\AuditLoggerInterface;
 use App\Modules\Auth\Application\DTOs\LoginInput;
 use App\Modules\Auth\Application\DTOs\LoginOutput;
+use App\Modules\Auth\Application\DTOs\TwoFactorChallenge;
 use App\Modules\Auth\Application\Support\DummyPasswordHash;
-use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorChallengeRepositoryInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use App\Modules\Roles\Domain\Contracts\RoleRepositoryInterface;
-use App\Modules\Roles\Domain\Entities\Role;
 use Illuminate\Support\Facades\Hash;
 
 class StaffLoginUseCase
 {
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
-        private readonly TokenServiceInterface $tokens,
         private readonly RoleRepositoryInterface $roles,
+        private readonly IssueStaffSessionUseCase $issueSession,
+        private readonly TwoFactorRepositoryInterface $twoFactor,
+        private readonly TwoFactorChallengeRepositoryInterface $challenges,
         private readonly AuditLoggerInterface $audit,
     ) {}
 
     /**
+     * Authenticate a staff member.
+     *
+     * Returns a {@see LoginOutput} when the session is fully issued, or a
+     * {@see TwoFactorChallenge} when credentials are valid but the role requires
+     * a second factor (the client must then complete the 2FA step).
+     *
      * @throws InvalidCredentialsException
      */
-    public function execute(LoginInput $input): LoginOutput
+    public function execute(LoginInput $input): LoginOutput|TwoFactorChallenge
     {
         $user = $this->userRepository->findByEmail($input->email);
 
@@ -55,27 +64,21 @@ class StaffLoginUseCase
             throw new InvalidCredentialsException;
         }
 
-        $roles = $this->roles->findActiveRolesForUser($user->getId());
+        $userId = $user->getId();
 
-        $this->audit->log(
-            action: 'auth.login',
-            userId: $user->getId(),
-            tenantId: $input->tenantId,
-            structAfter: ['ip' => $input->ip],
-        );
+        if ($this->requiresTwoFactor($userId)) {
+            $status = $this->twoFactor->isConfirmed($userId) ? 'required' : 'setup_required';
 
-        return new LoginOutput(
-            uuid: $user->getUuid(),
-            email: $user->getEmail(),
-            firstName: $user->getFirstName(),
-            lastNamePaternal: $user->getLastNamePaternal(),
-            lastNameMaternal: $user->getLastNameMaternal(),
-            fullName: $user->getFullName(),
-            isStaff: true,
-            token: $this->tokens->generate($user->getId()),
-            roles: $roles,
-            permissions: $this->extractPermissionSlugs($roles),
-        );
+            return new TwoFactorChallenge(
+                status: $status,
+                challengeToken: $this->challenges->issue($userId),
+            );
+        }
+
+        // Session issuance (token + LoginOutput + must_accept_policy + the success
+        // `auth.login` audit) lives in IssueStaffSessionUseCase — the single
+        // session-minting point, shared with the 2FA completion endpoints.
+        return $this->issueSession->execute($userId);
     }
 
     private function logFailed(LoginInput $input, ?int $userId, ?string $reason = null): void
@@ -95,18 +98,22 @@ class StaffLoginUseCase
     }
 
     /**
-     * @param  array<Role>  $roles
-     * @return list<string>
+     * A login needs a second factor when the user already has 2FA enabled
+     * (opt-in or previously enrolled) OR any of their active roles mandates it
+     * (the `roles.requires_2fa` flag — single source of truth).
      */
-    private function extractPermissionSlugs(array $roles): array
+    private function requiresTwoFactor(int $userId): bool
     {
-        $slugs = [];
-        foreach ($roles as $role) {
-            foreach ($role->getPermissions() as $permission) {
-                $slugs[$permission->getSlug()] = true;
+        if ($this->twoFactor->isConfirmed($userId)) {
+            return true;
+        }
+
+        foreach ($this->roles->findActiveRolesForUser($userId) as $role) {
+            if ($role->requiresTwoFactor()) {
+                return true;
             }
         }
 
-        return array_keys($slugs);
+        return false;
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PolicyAcceptanceController;
 use App\Http\Controllers\Me\MeOnboardingController;
 use App\Http\Controllers\Me\MeSchoolsController;
 use App\Http\Controllers\Onboarding\OnboardingController;
@@ -13,8 +14,10 @@ use App\Http\Controllers\Roles\UserRoleController;
 use App\Http\Controllers\Schools\RoleController as SchoolRoleController;
 use App\Http\Controllers\Schools\RolePermissionController as SchoolRolePermissionController;
 use App\Http\Controllers\Schools\SchoolController;
+use App\Http\Controllers\Staff\PersonnelController;
 use App\Http\Controllers\Staff\RoleController as StaffRoleController;
 use App\Http\Controllers\Staff\RolePermissionController as StaffRolePermissionController;
+use App\Http\Controllers\Staff\SuperadminApprovalController;
 use App\Http\Controllers\Staff\TenantController;
 use App\Http\Controllers\Student\StudentController;
 use App\Http\Controllers\Treasury\PaymentController;
@@ -41,25 +44,51 @@ Route::prefix('staff')->group(function () {
     // Public
     Route::post('/auth/login', [AuthController::class, 'staffLogin'])->middleware('throttle:login')->name('staff.auth.login');
 
+    // Public — 2FA login step (guarded by an opaque challenge token, not a session)
+    Route::post('/auth/2fa/setup', [AuthController::class, 'twoFactorSetup'])->middleware('throttle:5,15')->name('staff.auth.2fa.setup');
+    Route::post('/auth/2fa/confirm', [AuthController::class, 'twoFactorConfirm'])->middleware('throttle:5,15')->name('staff.auth.2fa.confirm');
+    Route::post('/auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])->middleware('throttle:5,15')->name('staff.auth.2fa.challenge');
+
     // Authenticated
     Route::middleware(['auth:sanctum', 'staff'])->group(function () {
+        // Always reachable, even while the Responsible Use Policy gate is pending:
+        // the user needs their session and a way to accept the policy.
         Route::get('/auth/me', [AuthController::class, 'staffMe'])->name('staff.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('staff.auth.logout');
+        Route::post('/auth/policy/accept', [PolicyAcceptanceController::class, 'accept'])->name('staff.auth.policy.accept');
 
-        Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
+        // App endpoints — blocked until the Responsible Use Policy is accepted.
+        Route::middleware('policy.accepted')->group(function () {
+            Route::apiResource('tenants', TenantController::class)->names('staff.tenants');
 
-        // Treasury — payment validation (Superadmin operates this in MVP)
-        Route::get('/treasury/payments', [PaymentController::class, 'index'])->name('staff.treasury.payments.index');
-        Route::get('/treasury/payments/{uuid}', [PaymentController::class, 'show'])->name('staff.treasury.payments.show');
-        Route::post('/treasury/payments/{uuid}/approve', [PaymentController::class, 'approve'])->name('staff.treasury.payments.approve');
-        Route::post('/treasury/payments/{uuid}/reject', [PaymentController::class, 'reject'])->name('staff.treasury.payments.reject');
-        // Staff role management
-        Route::get('/roles', [StaffRoleController::class, 'index'])->name('staff.roles.index');
-        Route::get('/roles/{uuid}', [StaffRoleController::class, 'show'])->name('staff.roles.show');
-        Route::post('/roles/{uuid}/permissions', [StaffRolePermissionController::class, 'store'])
-            ->name('staff.roles.permissions.store');
-        Route::delete('/roles/{uuid}/permissions/{permission_uuid}', [StaffRolePermissionController::class, 'destroy'])
-            ->name('staff.roles.permissions.destroy');
+            // Treasury — payment validation (Superadmin operates this in MVP)
+            Route::get('/treasury/payments', [PaymentController::class, 'index'])->name('staff.treasury.payments.index');
+            Route::get('/treasury/payments/{uuid}', [PaymentController::class, 'show'])->name('staff.treasury.payments.show');
+            Route::post('/treasury/payments/{uuid}/approve', [PaymentController::class, 'approve'])->name('staff.treasury.payments.approve');
+            Route::post('/treasury/payments/{uuid}/reject', [PaymentController::class, 'reject'])->name('staff.treasury.payments.reject');
+
+            // Staff role management
+            Route::get('/roles', [StaffRoleController::class, 'index'])->name('staff.roles.index');
+            Route::get('/roles/{uuid}', [StaffRoleController::class, 'show'])->name('staff.roles.show');
+            Route::post('/roles/{uuid}/permissions', [StaffRolePermissionController::class, 'store'])
+                ->name('staff.roles.permissions.store');
+            Route::delete('/roles/{uuid}/permissions/{permission_uuid}', [StaffRolePermissionController::class, 'destroy'])
+                ->name('staff.roles.permissions.destroy');
+
+            // Backoffice staff personnel — Superadmin only (explicit check; no Gate on staff routes)
+            Route::middleware('staff.superadmin')->group(function () {
+                Route::get('/personnel', [PersonnelController::class, 'index'])->name('staff.personnel.index');
+                Route::get('/personnel/{uuid}', [PersonnelController::class, 'show'])->name('staff.personnel.show');
+                Route::post('/personnel', [PersonnelController::class, 'store'])->name('staff.personnel.store');
+
+                // Superadmin dual-control creation ceremony
+                Route::get('/superadmin/approvals', [SuperadminApprovalController::class, 'index'])->name('staff.superadmin.approvals.index');
+                Route::post('/superadmin/approvals', [SuperadminApprovalController::class, 'store'])->name('staff.superadmin.approvals.store');
+                Route::get('/superadmin/approvals/{uuid}', [SuperadminApprovalController::class, 'show'])->name('staff.superadmin.approvals.show');
+                Route::post('/superadmin/approvals/{uuid}/approve', [SuperadminApprovalController::class, 'approve'])->name('staff.superadmin.approvals.approve');
+                Route::post('/superadmin/approvals/{uuid}/reject', [SuperadminApprovalController::class, 'reject'])->name('staff.superadmin.approvals.reject');
+            });
+        });
     });
 });
 

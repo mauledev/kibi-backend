@@ -15,22 +15,34 @@ use App\Http\Controllers\Staff\RoleController;
 use App\Http\Controllers\Staff\RolePermissionController;
 use App\Http\Middleware\TenantMiddleware;
 use App\Models\User;
+use App\Modules\Auth\Application\Services\PolicyAcceptanceChecker;
+use App\Modules\Auth\Application\UseCases\AcceptPolicy\AcceptPolicyUseCase;
 use App\Modules\Auth\Application\UseCases\ActivateAccount\ActivateAccountUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetMeUseCase;
 use App\Modules\Auth\Application\UseCases\GetMe\GetStaffMeUseCase;
 use App\Modules\Auth\Application\UseCases\Login\LoginUseCase;
 use App\Modules\Auth\Application\UseCases\OAuthLogin\OAuthLoginUseCase;
+use App\Modules\Auth\Application\UseCases\StaffLogin\IssueStaffSessionUseCase;
 use App\Modules\Auth\Application\UseCases\StaffLogin\StaffLoginUseCase;
+use App\Modules\Auth\Application\UseCases\TwoFactorLogin\StartTwoFactorSetupUseCase;
 use App\Modules\Auth\Domain\Contracts\ActivationRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\GlobalUserRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\OAuthProviderInterface;
+use App\Modules\Auth\Domain\Contracts\PolicyAcceptanceRepositoryInterface;
 use App\Modules\Auth\Domain\Contracts\TokenServiceInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorChallengeRepositoryInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorRepositoryInterface;
+use App\Modules\Auth\Domain\Contracts\TwoFactorServiceInterface;
 use App\Modules\Auth\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Auth\Infrastructure\Gateways\StubOAuthProvider;
+use App\Modules\Auth\Infrastructure\Repositories\CacheTwoFactorChallengeRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentActivationRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentGlobalUserRepository;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentPolicyAcceptanceRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentStaffUserRepository;
+use App\Modules\Auth\Infrastructure\Repositories\EloquentTwoFactorRepository;
 use App\Modules\Auth\Infrastructure\Repositories\EloquentUserRepository;
+use App\Modules\Auth\Infrastructure\Services\Google2faService;
 use App\Modules\Auth\Infrastructure\Services\SanctumTokenService;
 use App\Modules\Onboarding\Domain\Contracts\OnboardingRepositoryInterface;
 use App\Modules\Onboarding\Infrastructure\Repositories\EloquentOnboardingRepository;
@@ -50,6 +62,14 @@ use App\Modules\Roles\Infrastructure\Repositories\EloquentRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentSchoolRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentStaffRoleRepository;
 use App\Modules\Roles\Infrastructure\Repositories\EloquentUserRoleAssignmentRepository;
+use App\Modules\Staff\Application\UseCases\ApproveSuperadminCreation\ApproveSuperadminCreationUseCase;
+use App\Modules\Staff\Application\UseCases\CreatePersonnel\CreatePersonnelUseCase;
+use App\Modules\Staff\Domain\Contracts\StaffPersonnelReadRepositoryInterface;
+use App\Modules\Staff\Domain\Contracts\StaffWorkScheduleRepositoryInterface;
+use App\Modules\Staff\Domain\Contracts\SuperadminApprovalRepositoryInterface;
+use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffPersonnelReadRepository;
+use App\Modules\Staff\Infrastructure\Repositories\EloquentStaffWorkScheduleRepository;
+use App\Modules\Staff\Infrastructure\Repositories\EloquentSuperadminApprovalRepository;
 use App\Modules\Student\Domain\Contracts\StudentRepositoryInterface;
 use App\Modules\Student\Infrastructure\Repositories\EloquentStudentRepository;
 use App\Modules\Tenant\Application\UseCases\CreateTenant\CreateTenantUseCase;
@@ -94,6 +114,43 @@ class AppServiceProvider extends ServiceProvider
             ->needs(UserRoleAssignmentRepositoryInterface::class)
             ->give(EloquentUserRoleAssignmentRepository::class);
 
+        // --- Staff module ---
+        $this->app->bind(
+            StaffWorkScheduleRepositoryInterface::class,
+            EloquentStaffWorkScheduleRepository::class
+        );
+
+        $this->app->bind(
+            StaffPersonnelReadRepositoryInterface::class,
+            EloquentStaffPersonnelReadRepository::class
+        );
+
+        // CreatePersonnelUseCase runs on staff routes (no TenantContext): resolve the
+        // staff-scoped role repo (is_system_role = true) and the assignment repo directly.
+        $this->app->when(CreatePersonnelUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentStaffRoleRepository::class);
+
+        $this->app->when(CreatePersonnelUseCase::class)
+            ->needs(UserRoleAssignmentRepositoryInterface::class)
+            ->give(EloquentUserRoleAssignmentRepository::class);
+
+        // Superadmin dual-control creation
+        $this->app->bind(
+            SuperadminApprovalRepositoryInterface::class,
+            EloquentSuperadminApprovalRepository::class
+        );
+
+        // ApproveSuperadminCreationUseCase runs on staff routes (no TenantContext):
+        // same contextual bindings as CreatePersonnelUseCase.
+        $this->app->when(ApproveSuperadminCreationUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentStaffRoleRepository::class);
+
+        $this->app->when(ApproveSuperadminCreationUseCase::class)
+            ->needs(UserRoleAssignmentRepositoryInterface::class)
+            ->give(EloquentUserRoleAssignmentRepository::class);
+
         // ActivateAccountUseCase — uses global role repo (no TenantContext available during activation)
         $this->app->when(ActivateAccountUseCase::class)
             ->needs(RoleRepositoryInterface::class)
@@ -102,6 +159,38 @@ class AppServiceProvider extends ServiceProvider
         // --- Auth module ---
         $this->app->bind(TokenServiceInterface::class, SanctumTokenService::class);
         $this->app->bind(OAuthProviderInterface::class, StubOAuthProvider::class);
+
+        // Responsible Use Policy (PUR) acceptance
+        $this->app->bind(
+            PolicyAcceptanceRepositoryInterface::class,
+            EloquentPolicyAcceptanceRepository::class,
+        );
+
+        // Checker reads version + required roles from config once (single source).
+        $this->app->singleton(PolicyAcceptanceChecker::class, fn ($app) => new PolicyAcceptanceChecker(
+            $app->make(PolicyAcceptanceRepositoryInterface::class),
+            (string) config('policies.pur.version'),
+            (array) config('policies.pur.required_roles'),
+        ));
+
+        $this->app->when(AcceptPolicyUseCase::class)
+            ->needs('$version')
+            ->giveConfig('policies.pur.version');
+
+        // Two-factor (TOTP) base — reusable engine + persistence
+        $this->app->bind(
+            TwoFactorServiceInterface::class,
+            Google2faService::class,
+        );
+        $this->app->bind(
+            TwoFactorRepositoryInterface::class,
+            EloquentTwoFactorRepository::class,
+        );
+        // Short-lived login challenge store (cache-backed, TTL from config)
+        $this->app->bind(
+            TwoFactorChallengeRepositoryInterface::class,
+            fn () => new CacheTwoFactorChallengeRepository((int) config('twofactor.challenge_ttl', 600)),
+        );
 
         // Tenant login — scoped by TenantContext
         $this->app->when(LoginUseCase::class)
@@ -121,6 +210,24 @@ class AppServiceProvider extends ServiceProvider
         $this->app->when(StaffLoginUseCase::class)
             ->needs(RoleRepositoryInterface::class)
             ->give(EloquentStaffRoleRepository::class);
+
+        // Staff session issuer — reused by the 2FA completion endpoints
+        $this->app->when(IssueStaffSessionUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentStaffUserRepository::class);
+
+        $this->app->when(IssueStaffSessionUseCase::class)
+            ->needs(RoleRepositoryInterface::class)
+            ->give(EloquentStaffRoleRepository::class);
+
+        // Staff 2FA enrollment at first login
+        $this->app->when(StartTwoFactorSetupUseCase::class)
+            ->needs(UserRepositoryInterface::class)
+            ->give(EloquentStaffUserRepository::class);
+
+        $this->app->when(StartTwoFactorSetupUseCase::class)
+            ->needs('$issuer')
+            ->giveConfig('twofactor.issuer');
 
         // Get me — tenant
         $this->app->when(GetMeUseCase::class)

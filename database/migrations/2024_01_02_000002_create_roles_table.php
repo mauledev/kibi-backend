@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('slug', 100)->notNull();
             $table->smallInteger('hierarchy_level')->notNull();
             $table->boolean('is_system_role')->default(false);
+            // true ⇒ holding this role forces 2FA at login (single source of truth; see docs/two-factor.md).
+            $table->boolean('requires_2fa')->default(false);
             $table->timestampTz('created_at')->useCurrent();
             $table->timestampTz('deleted_at')->nullable();
 

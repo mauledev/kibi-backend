@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsurePolicyAccepted;
+use App\Http\Middleware\EnsureStaffSuperadmin;
 use App\Http\Middleware\SchoolMiddleware;
 use App\Http\Middleware\StaffMiddleware;
 use App\Http\Middleware\TenantMiddleware;
@@ -23,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => TenantMiddleware::class,
             'school' => SchoolMiddleware::class,
             'staff' => StaffMiddleware::class,
+            'staff.superadmin' => EnsureStaffSuperadmin::class,
+            'policy.accepted' => EnsurePolicyAccepted::class,
         ]);
 
         // Trust the load balancer / reverse proxy so $request->ip() resolves to the

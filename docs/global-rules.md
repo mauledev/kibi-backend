@@ -92,7 +92,7 @@ All response messages (success, error, exception defaults) must be written in **
 
 - Owner bypasses all permission checks via `Gate::before` — the gate checks `$user->hasRole('owner')` against `user_role_assignments`. Never add manual owner checks inside UseCases.
 - The `owner` role is assigned to the tenant owner via `user_role_assignments` — `AssignRoleToUserUseCase` blocks re-assigning it with `OwnerRoleAssignmentException`
-- Softlinkia staff permissions are fixed in code — never add `role_permissions` rows for roles where `is_system_role = true`
+- Softlinkia staff operational roles (`operator`, `leader` → category `staff/finance`; `support` → category `staff/support`) manage permissions via `role_permissions`, like any other operational role, within their staff-scoped category bounds. The only staff role without `role_permissions` is `superadmin` (no `category_id`); its authority comes from an explicit superadmin check on staff routes, not from the permission tables.
 - Hierarchy checks (role assignment, permission granting) live in the UseCase layer — never in Controllers or Repositories
 - `teacher_subject_groups` is the source of truth for teacher operational scope — never derive teacher access from `user_role_assignments` alone
 

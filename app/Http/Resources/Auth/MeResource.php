@@ -18,7 +18,7 @@ class MeResource extends JsonResource
         $output = $this->resource;
 
         return [
-            'id' => $output->uuid,
+            'uuid' => $output->uuid,
             'email' => $output->email,
             'first_name' => $output->firstName,
             'last_name_paternal' => $output->lastNamePaternal,
@@ -32,6 +32,7 @@ class MeResource extends JsonResource
                 'hierarchy_level' => $role->getHierarchyLevel(),
             ], $output->roles),
             'permissions' => $output->permissions,
+            'must_accept_policy' => $output->mustAcceptPolicy,
         ];
     }
 }

@@ -41,6 +41,30 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
     }
 
     /** {@inheritDoc} */
+    public function createPendingStaff(
+        string $email,
+        string $firstName,
+        string $lastNamePaternal,
+        ?string $lastNameMaternal,
+        ?string $phone,
+    ): User {
+        $model = UserModel::create([
+            'is_staff' => true,
+            'tenant_id' => null,
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name_paternal' => $lastNamePaternal,
+            'last_name_maternal' => $lastNameMaternal,
+            'phone' => $phone,
+            'password_hash' => null,
+            'email_verified_at' => null,
+            'status' => 'active',
+        ]);
+
+        return $this->toDomain($model);
+    }
+
+    /** {@inheritDoc} */
     public function setTenantId(int $userId, int $tenantId): void
     {
         UserModel::where('id', $userId)->update(['tenant_id' => $tenantId]);

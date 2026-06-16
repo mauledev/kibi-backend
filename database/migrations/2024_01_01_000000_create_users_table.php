@@ -23,6 +23,12 @@ return new class extends Migration
             $table->string('last_name_maternal', 100)->nullable();
             $table->string('phone', 30)->nullable();
             $table->string('status', 20)->default('active');
+            // Two-factor authentication (TOTP). Secret and recovery codes are
+            // encrypted at rest via the model's `encrypted` casts. NULL = not enrolled;
+            // two_factor_confirmed_at NULL = enrolled but not yet confirmed.
+            $table->text('two_factor_secret')->nullable();
+            $table->timestampTz('two_factor_confirmed_at')->nullable();
+            $table->text('two_factor_recovery_codes')->nullable();
             $table->timestampsTz();
             $table->softDeletesTz();
 
