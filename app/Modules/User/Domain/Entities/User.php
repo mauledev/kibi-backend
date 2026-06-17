@@ -32,8 +32,7 @@ class User
         private readonly DateTime $createdAt,
         private readonly ?DateTime $emailVerifiedAt,
         private readonly array $roles = [],
-    ) {
-    }
+    ) {}
 
     /** Return the internal surrogate key — used only within Infrastructure for FK lookups. */
     public function getId(): int

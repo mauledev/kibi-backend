@@ -14,9 +14,9 @@ namespace App\Modules\User\Application\UseCases\GetUserStats;
  * @param  array<int, string>  $roleSlugs  Role slugs that define the directory scope.
  * @param  bool  $isOwner  True when the actor is the tenant owner (tenant-wide visibility).
  * @param  array<int, int>  $accessibleSchoolIds  School IDs the actor holds an active assignment in.
- *                                                 Ignored when $isOwner is true.
+ *                                                Ignored when $isOwner is true.
  * @param  int|null  $requestedSchoolId  School selected via X-School-Uuid (already resolved to an
- *                                        internal id and verified to belong to the tenant), or null.
+ *                                       internal id and verified to belong to the tenant), or null.
  */
 final readonly class GetUserStatsInput
 {

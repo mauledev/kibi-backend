@@ -31,8 +31,7 @@ class EloquentUserRepository implements UserRepositoryInterface
 {
     public function __construct(
         private readonly TenantContext $context,
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -63,7 +62,7 @@ class EloquentUserRepository implements UserRepositoryInterface
 
         return [
             'items' => array_map(
-                fn(UserModel $m) => $this->toDomain($m),
+                fn (UserModel $m) => $this->toDomain($m),
                 $paginator->items()
             ),
             'total' => $paginator->total(),
@@ -206,7 +205,7 @@ class EloquentUserRepository implements UserRepositoryInterface
         $hasRoleFilter = count($roleSlugs) > 0;
         $hasSchoolFilter = $schoolIds !== null;
 
-        if (!$hasRoleFilter && !$hasSchoolFilter) {
+        if (! $hasRoleFilter && ! $hasSchoolFilter) {
             return;
         }
 

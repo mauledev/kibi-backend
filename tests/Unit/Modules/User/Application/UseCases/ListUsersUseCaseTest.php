@@ -32,6 +32,7 @@ describe('ListUsersUseCase', function () {
             phone: null,
             status: $overrides['status'] ?? 'active',
             createdAt: new DateTime,
+            emailVerifiedAt: null,
             roles: [],
         );
     }

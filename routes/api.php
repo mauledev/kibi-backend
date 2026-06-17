@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/health', fn() => ApiResponse::success(['status' => 'ok']));
+Route::get('/health', fn () => ApiResponse::success(['status' => 'ok']));
 
 /*
 |--------------------------------------------------------------------------
@@ -118,10 +118,14 @@ Route::middleware('tenant')->group(function () {
 
         // All tenant resources are prefixed with /tenant
         Route::prefix('tenant')->group(function () {
-            Route::apiResource('users', UserController::class);
+            // Must be registered before the apiResource so it is not
+            // captured by the users/{user} wildcard route.
             Route::get('/users/stats', [UserController::class, 'stats'])
                 ->middleware('school')
                 ->name('users.stats');
+            // 'school' binds SchoolContext from the optional X-School-Uuid header
+            // (no-op when absent) so index/show can apply the active-school scope.
+            Route::apiResource('users', UserController::class)->middleware('school');
 
             // Current user shortcuts
             Route::get('/me/onboarding', [MeOnboardingController::class, 'show'])->name('me.onboarding.show');

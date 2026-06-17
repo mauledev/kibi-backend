@@ -34,6 +34,7 @@ describe('GetUserUseCase', function () {
             phone: null,
             status: $overrides['status'] ?? 'active',
             createdAt: new DateTime,
+            emailVerifiedAt: null,
             roles: $overrides['roles'] ?? [],
         );
     }

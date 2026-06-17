@@ -21,6 +21,9 @@ describe('User entity', function () {
             phone: array_key_exists('phone', $overrides) ? $overrides['phone'] : null,
             status: $overrides['status'] ?? 'active',
             createdAt: $overrides['createdAt'] ?? new DateTime,
+            emailVerifiedAt: array_key_exists('emailVerifiedAt', $overrides)
+                ? $overrides['emailVerifiedAt']
+                : null,
             roles: $overrides['roles'] ?? [],
         );
     }

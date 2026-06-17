@@ -287,7 +287,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users?filter[status]=pending');
+                ->getJson('/api/tenant/users?filter[status]=pending');
 
             $response->assertStatus(200);
 
@@ -601,7 +601,7 @@ describe('User endpoints', function () {
 
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users/stats?filter[role]=stats_role');
+                ->getJson('/api/tenant/users/stats?filter[role]=stats_role');
 
             $response->assertStatus(200)
                 ->assertJsonStructure(['success', 'data' => ['total', 'pending']]);
@@ -623,7 +623,7 @@ describe('User endpoints', function () {
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
                 ->withHeader('X-School-Uuid', $schoolA->uuid)
-                ->getJson('/api/users/stats?filter[role]=stats_school_role');
+                ->getJson('/api/tenant/users/stats?filter[role]=stats_school_role');
 
             $response->assertStatus(200);
             expect($response->json('data.total'))->toBe(1);
@@ -635,7 +635,7 @@ describe('User endpoints', function () {
 
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
-                ->getJson('/api/users/stats')
+                ->getJson('/api/tenant/users/stats')
                 ->assertStatus(403);
         });
     });

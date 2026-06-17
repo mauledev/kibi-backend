@@ -22,7 +22,7 @@ final readonly class UserStatsCriteria
      *                                           - null  → no school restriction (tenant-wide; owner).
      *                                           - []    → no accessible school → counts are zero.
      *                                           - [ids] → restrict to users with an active assignment
-     *                                                     in any of these schools.
+     *                                           in any of these schools.
      */
     public function __construct(
         public array $roleSlugs = [],

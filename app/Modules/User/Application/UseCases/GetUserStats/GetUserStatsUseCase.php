@@ -40,7 +40,7 @@ final class GetUserStatsUseCase
      * Translate the actor's authority into the concrete school scope. Mirrors
      * ListUsersUseCase so both endpoints scope identically.
      *
-     * @return array<int, int>|null  null → tenant-wide; [] → none; [ids] → restricted.
+     * @return array<int, int>|null null → tenant-wide; [] → none; [ids] → restricted.
      *
      * @throws SchoolAccessDeniedException
      */
