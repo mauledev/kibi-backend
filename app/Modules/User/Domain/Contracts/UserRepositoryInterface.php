@@ -3,6 +3,7 @@
 namespace App\Modules\User\Domain\Contracts;
 
 use App\Modules\User\Domain\Criteria\UserListCriteria;
+use App\Modules\User\Domain\Criteria\UserStatsCriteria;
 use App\Modules\User\Domain\Entities\User;
 
 /**
@@ -39,4 +40,18 @@ interface UserRepositoryInterface
      * Implementations must eager-load active role assignments with role and school.
      */
     public function findByUuid(string $uuid): ?User;
+
+    /**
+     * Aggregate counts for the directory stats cards, within the given scope.
+     *
+     * Tenant scope and is_staff = false are applied before any criteria filter.
+     * No rows are loaded — implementations issue COUNT queries only.
+     *
+     * `pending` counts users with an unverified email (email_verified_at IS NULL),
+     * mirroring the virtual `pending` status the API exposes for invited-not-yet-
+     * activated accounts.
+     *
+     * @return array{total: int, pending: int}
+     */
+    public function getStats(UserStatsCriteria $criteria): array;
 }

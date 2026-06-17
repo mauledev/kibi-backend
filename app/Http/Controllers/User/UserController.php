@@ -10,6 +10,7 @@ use App\Http\Requests\User\ListUsersRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\User\UserDetailResource;
 use App\Http\Resources\User\UserListResource;
+use App\Http\Resources\User\UserStatsResource;
 use App\Http\Response\ApiResponse;
 use App\Models\Tenant as TenantModel;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
@@ -18,6 +19,8 @@ use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\User\Application\UseCases\GetUser\GetUserInput;
 use App\Modules\User\Application\UseCases\GetUser\GetUserUseCase;
+use App\Modules\User\Application\UseCases\GetUserStats\GetUserStatsInput;
+use App\Modules\User\Application\UseCases\GetUserStats\GetUserStatsUseCase;
 use App\Modules\User\Application\UseCases\InviteUser\InviteUserInput;
 use App\Modules\User\Application\UseCases\InviteUser\InviteUserUseCase;
 use App\Modules\User\Application\UseCases\ListUsers\ListUsersInput;
@@ -98,6 +101,43 @@ class UserController extends Controller
         ];
 
         return ApiResponse::paginated($items, $pagination);
+    }
+
+    /**
+     * Directory stats for the cards (total users, pending invitations).
+     *
+     * GET /users/stats
+     * Accepts the same `filter[role]` scope as the list (the client sends the
+     * directory's non-family role slugs). School visibility is authority-driven,
+     * identical to index: the X-School-Uuid header narrows to the active school.
+     *
+     * Responds 200 with `{ total, pending }`.
+     * Responds 403 when the user lacks 'user.view' or requests a school outside their access.
+     */
+    public function stats(ListUsersRequest $request, GetUserStatsUseCase $useCase, TenantContext $tenant): JsonResponse
+    {
+        $this->authorize('user.view');
+
+        $actor = $request->user();
+
+        $isOwner = $tenant->ownerId === $actor->id;
+
+        $requestedSchoolId = app()->bound(SchoolContext::class)
+            ? app(SchoolContext::class)->schoolId
+            : null;
+
+        try {
+            $stats = $useCase->execute(new GetUserStatsInput(
+                roleSlugs: $request->roleSlugs(),
+                isOwner: $isOwner,
+                accessibleSchoolIds: $isOwner ? [] : $actor->accessibleSchoolIds(),
+                requestedSchoolId: $requestedSchoolId,
+            ));
+        } catch (SchoolAccessDeniedException $e) {
+            return ApiResponse::forbidden($e->getMessage());
+        }
+
+        return ApiResponse::success((new UserStatsResource($stats))->resolve());
     }
 
     /**

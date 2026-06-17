@@ -29,7 +29,7 @@ class ListUsersRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:255'],
             'filter' => ['nullable', 'array'],
             'filter.role' => ['nullable'],
-            'filter.status' => ['nullable', 'string', 'in:active,inactive,suspended'],
+            'filter.status' => ['nullable', 'string', 'in:active,inactive,suspended,pending'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];

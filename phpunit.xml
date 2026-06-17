@@ -24,6 +24,12 @@
              entries below, tests run against kibi_db and RefreshDatabase WIPES the
              dev database. force="true" is required to override the existing values. -->
         <env name="APP_ENV" value="testing" force="true"/>
+        <!-- A dotless host makes TenantMiddleware::resolveSlug() use the
+             X-Tenant-Slug header (its local/test fallback) instead of treating
+             the first DNS label as the slug. The dev .env APP_URL is a real
+             multi-tenant host (demo.kibi.test), which would otherwise resolve
+             every test request to the "demo" tenant and 404. -->
+        <env name="APP_URL" value="http://localhost" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>
         <env name="DB_CONNECTION" value="pgsql" force="true"/>
@@ -31,6 +37,7 @@
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
         <server name="APP_ENV" value="testing" force="true"/>
+        <server name="APP_URL" value="http://localhost" force="true"/>
         <server name="BCRYPT_ROUNDS" value="4" force="true"/>
         <server name="CACHE_STORE" value="array" force="true"/>
         <server name="DB_CONNECTION" value="pgsql" force="true"/>

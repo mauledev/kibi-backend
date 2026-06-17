@@ -32,7 +32,7 @@ class UserListResource extends JsonResource
             'full_name' => $user->getFullName(),
             'email' => $user->getEmail(),
             'phone' => $user->getPhone(),
-            'status' => $user->getStatus(),
+            'status' => ! $user->getEmailVerifiedAt() ? 'pending' : $user->getStatus(),
             'roles' => array_map(
                 fn (RoleAssignment $role): array => [
                     'role_uuid' => $role->roleUuid,
@@ -43,6 +43,7 @@ class UserListResource extends JsonResource
                 $user->getRoles()
             ),
             'created_at' => $user->getCreatedAt()->format('c'),
+            'email_verified_at' => $user->getEmailVerifiedAt()?->format('c') ?? null,
         ];
     }
 }

@@ -30,6 +30,7 @@ class User
         private readonly ?string $phone,
         private readonly string $status,
         private readonly DateTime $createdAt,
+        private readonly ?DateTime $emailVerifiedAt,
         private readonly array $roles = [],
     ) {}
 
@@ -85,6 +86,12 @@ class User
     public function getCreatedAt(): DateTime
     {
         return $this->createdAt;
+    }
+
+    /** Summary of getEmailVerifiedAt */
+    public function getEmailVerifiedAt(): ?DateTime
+    {
+        return $this->emailVerifiedAt;
     }
 
     /**

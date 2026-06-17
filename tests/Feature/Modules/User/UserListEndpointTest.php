@@ -1,6 +1,5 @@
 <?php
 
-use App\Common\School\SchoolContext;
 use App\Models\Permission as PermissionModel;
 use App\Models\PermissionCategory;
 use App\Models\Role as RoleModel;
@@ -275,6 +274,28 @@ describe('User endpoints', function () {
             expect($emails)->not->toContain('active_status@example.com');
         });
 
+        it('filters by filter[status]=pending matching unverified emails (virtual status)', function () {
+            // `pending` is virtual: it means email_verified_at IS NULL, not a status column value.
+            userEndpointCreateTenantUser($this->tenant, [
+                'email' => 'verified_user@example.com',
+                'email_verified_at' => now(),
+            ]);
+            userEndpointCreateTenantUser($this->tenant, [
+                'email' => 'pending_user@example.com',
+                'email_verified_at' => null,
+            ]);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->getJson('/api/tenant/users?filter[status]=pending');
+
+            $response->assertStatus(200);
+
+            $emails = array_column($response->json('data'), 'email');
+            expect($emails)->toContain('pending_user@example.com');
+            expect($emails)->not->toContain('verified_user@example.com');
+        });
+
         it('scopes list to the school when X-School-Uuid header is provided', function () {
             $school = School::factory()->forTenant($this->tenant)->create();
             $role = RoleModel::factory()->forTenant($this->tenant)->create(['slug' => 'school_ep_role']);
@@ -286,12 +307,9 @@ describe('User endpoints', function () {
             userEndpointAssignRole($inSchool, $role, $school->id);
             userEndpointAssignRole($notInSchool, $role, $otherSchool->id);
 
-            // Manually bind SchoolContext — the school middleware is not on this route group,
-            // but the controller reads SchoolContext from the container.
-            app()->instance(SchoolContext::class, new SchoolContext(schoolId: $school->id));
-
             $response = $this->actingAs($this->owner)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->withHeader('X-School-Uuid', $school->uuid)
                 ->getJson('/api/tenant/users');
 
             $response->assertStatus(200);
@@ -426,10 +444,9 @@ describe('User endpoints', function () {
             $actor = userEndpointCreateTenantUser($this->tenant, ['email' => 'tenant_actor@example.com']);
             userEndpointAssignRole($actor, $tenantRole, null);
 
-            app()->instance(SchoolContext::class, new SchoolContext(schoolId: $school->id));
-
             $this->actingAs($actor)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->withHeader('X-School-Uuid', $school->uuid)
                 ->getJson('/api/tenant/users')
                 ->assertStatus(403);
         });
@@ -564,6 +581,62 @@ describe('User endpoints', function () {
 
             $emails = array_column($response->json('data'), 'email');
             expect($emails)->not->toContain('tenant_b_user@example.com');
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // GET /users/stats — directory stats cards (total + pending)
+    // -------------------------------------------------------------------------
+    describe('GET /users/stats', function () {
+        it('returns total and pending counts for the directory scope', function () {
+            $role = RoleModel::factory()->forTenant($this->tenant)->create(['slug' => 'stats_role']);
+
+            // 2 verified + 1 unverified (pending), all within the role scope.
+            $a = userEndpointCreateTenantUser($this->tenant, ['email' => 'sv_a@example.com', 'email_verified_at' => now()]);
+            $b = userEndpointCreateTenantUser($this->tenant, ['email' => 'sv_b@example.com', 'email_verified_at' => now()]);
+            $pending = userEndpointCreateTenantUser($this->tenant, ['email' => 'sp@example.com', 'email_verified_at' => null]);
+            userEndpointAssignRole($a, $role);
+            userEndpointAssignRole($b, $role);
+            userEndpointAssignRole($pending, $role);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->getJson('/api/tenant/users/stats?filter[role]=stats_role');
+
+            $response->assertStatus(200)
+                ->assertJsonStructure(['success', 'data' => ['total', 'pending']]);
+
+            expect($response->json('data.total'))->toBe(3);
+            expect($response->json('data.pending'))->toBe(1);
+        });
+
+        it('scopes the counts to the active school via X-School-Uuid', function () {
+            $role = RoleModel::factory()->forTenant($this->tenant)->create(['slug' => 'stats_school_role']);
+            $schoolA = School::factory()->forTenant($this->tenant)->create();
+            $schoolB = School::factory()->forTenant($this->tenant)->create();
+
+            $inA = userEndpointCreateTenantUser($this->tenant, ['email' => 'stat_in_a@example.com', 'email_verified_at' => null]);
+            $inB = userEndpointCreateTenantUser($this->tenant, ['email' => 'stat_in_b@example.com', 'email_verified_at' => null]);
+            userEndpointAssignRole($inA, $role, $schoolA->id);
+            userEndpointAssignRole($inB, $role, $schoolB->id);
+
+            $response = $this->actingAs($this->owner)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->withHeader('X-School-Uuid', $schoolA->uuid)
+                ->getJson('/api/tenant/users/stats?filter[role]=stats_school_role');
+
+            $response->assertStatus(200);
+            expect($response->json('data.total'))->toBe(1);
+            expect($response->json('data.pending'))->toBe(1);
+        });
+
+        it('returns 403 when the actor lacks user.view', function () {
+            $actor = userEndpointCreateTenantUser($this->tenant);
+
+            $this->actingAs($actor)
+                ->withHeader('X-Tenant-Slug', $this->tenant->slug)
+                ->getJson('/api/tenant/users/stats')
+                ->assertStatus(403);
         });
     });
 });
