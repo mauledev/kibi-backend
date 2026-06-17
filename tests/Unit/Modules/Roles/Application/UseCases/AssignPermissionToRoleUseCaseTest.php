@@ -165,9 +165,7 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->once()
             ->andReturn($permission);
 
-        $this->permissionRepo->shouldReceive('findCategoryScope')
-            ->andReturn('school');
-
+        // Role is a custom role (tenantId set, categoryId null, non-reserved slug) → category check skipped.
         $this->roleRepo->shouldReceive('attachPermission')
             ->once()
             ->with($role->getId(), $permission->getId());
@@ -202,9 +200,7 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->once()
             ->andReturn($permission);
 
-        $this->permissionRepo->shouldReceive('findCategoryScope')
-            ->andReturn('school');
-
+        // Role is a custom role → category check skipped.
         $this->roleRepo->shouldNotReceive('attachPermission');
         $this->audit->shouldNotReceive('log');
 

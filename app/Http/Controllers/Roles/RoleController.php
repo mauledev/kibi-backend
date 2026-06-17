@@ -23,6 +23,7 @@ use App\Modules\Roles\Domain\Exceptions\CustomRoleLimitExceededException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,7 +34,7 @@ class RoleController extends Controller
      */
     public function index(Request $request, ListRolesUseCase $useCase): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         $roles = $useCase->execute(new ListRolesInput);
 
@@ -45,7 +46,7 @@ class RoleController extends Controller
      */
     public function store(CreateRoleRequest $request, CreateRoleUseCase $useCase, TenantContext $context): JsonResponse
     {
-        $this->authorize('roles.custom.create');
+        $this->authorize(PermissionSlug::CUSTOM_ROLE_CREATE->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -73,7 +74,7 @@ class RoleController extends Controller
      */
     public function show(Request $request, string $uuid, GetRoleUseCase $useCase): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         try {
             $role = $useCase->execute(new GetRoleInput($uuid));
@@ -89,7 +90,7 @@ class RoleController extends Controller
      */
     public function update(UpdateRoleRequest $request, string $uuid, UpdateRoleUseCase $useCase): JsonResponse
     {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -115,7 +116,7 @@ class RoleController extends Controller
      */
     public function destroy(Request $request, string $uuid, DeleteRoleUseCase $useCase): JsonResponse
     {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

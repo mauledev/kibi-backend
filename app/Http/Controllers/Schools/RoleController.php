@@ -22,6 +22,7 @@ use App\Modules\Roles\Domain\Exceptions\CustomRoleLimitExceededException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,7 +40,7 @@ class RoleController extends Controller
         SchoolRepositoryInterface $schoolRepository,
         TenantContext $context,
     ): JsonResponse {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         $schoolId = $schoolRepository->findIdByUuid($uuid);
 
@@ -69,7 +70,7 @@ class RoleController extends Controller
         TenantContext $context,
         ListSchoolRolesUseCase $listUseCase,
     ): JsonResponse {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         $schoolId = $schoolRepository->findIdByUuid($uuid);
 
@@ -114,7 +115,7 @@ class RoleController extends Controller
         SchoolRepositoryInterface $schoolRepository,
         TenantContext $context,
     ): JsonResponse {
-        $this->authorize('roles.custom.create');
+        $this->authorize(PermissionSlug::CUSTOM_ROLE_CREATE->value);
 
         $schoolId = $schoolRepository->findIdByUuid($uuid);
 
@@ -155,7 +156,7 @@ class RoleController extends Controller
         TenantContext $context,
         ListSchoolRolesUseCase $listUseCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         $schoolId = $schoolRepository->findIdByUuid($uuid);
 

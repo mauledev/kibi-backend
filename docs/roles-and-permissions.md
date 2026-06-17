@@ -253,15 +253,33 @@ The same role, the same user, different effective permissions per school.
 
 ---
 
+## Permission slug convention
+
+All permission slugs follow the `{model}.{verb}` format — they are **role-agnostic**. The same `grade.view` record is assigned to director, teacher, student, and tutor roles; the slug does not change per role.
+
+**Correct:** `grade.view`, `payment.create`, `user.suspend`
+**Wrong:** `teacher.grade.view`, `finance.payment.create`
+
+**Exception — compound model nouns:** when the model is a two-word concept, use `snake_case` for the model segment: `custom_role.create`, `custom_role.update`, `custom_role.delete`. The word order follows natural English (adjective + noun), not the inverse. This is the only case where a model segment contains an underscore.
+
+The category on a permission determines which roles can hold it:
+
+- A role can hold permissions from its **own category** (e.g. `school/director` permissions for the `director` role).
+- A role can also hold permissions from the **`common` category of the same scope** (e.g. `school/common` permissions for any `school/*` role).
+- Permissions that need to be accessible by multiple school roles — such as `user.view`, `grade.view`, `group.view`, and `announcement.view` — live in `school/common`.
+- `ListPermissionsUseCase` returns the role's category permissions plus the `common` category of the same scope, never the full scope.
+
+---
+
 ## Key rules to remember
 
 1. **Permissions come from roles.** You cannot grant a permission directly to a user — you assign them a role that carries the permission.
 
 2. **Denials only subtract.** You cannot grant a permission that the role does not already have. Denials only remove permissions the role provides.
 
-3. **Category bounds prevent permission creep.** You cannot add a finance permission to a teacher role. Use the finance role instead.
+3. **Category bounds prevent cross-role permission creep.** A role can only receive permissions from its own category or from the `common` category of the same scope (e.g. `school/common` for any `school/*` role). You cannot give a `school/teacher` role a `school/finance` permission — the teacher would need a second finance role assignment instead.
 
-4. **Custom roles are the escape hatch.** When a role needs permissions that span multiple categories, create a custom role. They have no category restriction.
+4. **Custom roles are the escape hatch.** When a role needs permissions that span multiple scopes, create a custom role. They skip all category and scope checks.
 
 5. **The owner is above the permission system.** The owner's access is determined by `tenants.owner_id`, not by role assignments or permission checks. The Gate bypasses all checks for the owner.
 
@@ -269,7 +287,7 @@ The same role, the same user, different effective permissions per school.
 
 7. **Gestores have all permissions in their schools.** Their authority comes from their slug, not from `role_permissions` rows.
 
-7. **School context is always required for school-level operations.** Send `X-School-Uuid` on every request that operates within a school. Absent header = tenant-level context only.
+8. **School context is always required for school-level operations.** Send `X-School-Uuid` on every request that operates within a school. Absent header = tenant-level context only.
 
 ---
 
@@ -277,9 +295,9 @@ The same role, the same user, different effective permissions per school.
 
 | Table | Purpose |
 |---|---|
-| `roles` | Role definitions. `category_id` bounds permissions. `is_system_role` marks Softlinkia staff roles. |
-| `permission_categories` | Global categories pre-seeded by Softlinkia. `scope` (`staff`/`tenant`/`school`) prevents name collisions across contexts. |
-| `permissions` | Individual permission slugs, each belonging to one category. |
+| `roles` | Role definitions. `category_id` bounds which scope of permissions the role can receive. `is_system_role` marks Softlinkia staff roles. |
+| `permission_categories` | Global categories pre-seeded by Softlinkia. `scope` (`staff`/`tenant`/`school`) is the critical field for assignment validation. |
+| `permissions` | Individual permission slugs (`{model}.{verb}`), each belonging to one category. Permissions shared across multiple roles within a scope live in `school/common` or `tenant/common`. Slug is globally unique. |
 | `role_permissions` | Which permissions a role holds. Subject to category bounds. Tenant-level — same for all schools. |
 | `custom_role_schools` | Which schools a custom role is available in. Created alongside the custom role. |
 | `user_role_assignments` | Which role a user holds in which school. One row per user+role+school. |

@@ -98,9 +98,9 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    // --- Scope mismatch guard ---
+    // --- Category mismatch guard ---
 
-    it('throws HierarchyViolationException when permission scope does not match role scope', function () {
+    it('throws HierarchyViolationException when permission category differs from role category and is not common', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'owner',
@@ -108,27 +108,75 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             permissionUuid: 'perm-uuid',
         );
 
-        // School-scoped role (categoryId = 5, scope = 'school')
+        // School-scoped role (categoryId = 5 → 'school/director')
         $role = v2PermRole(['categoryId' => 5, 'slug' => 'director']);
 
         $this->roleRepo->shouldReceive('findByUuid')->with('role-uuid')->andReturn($role);
 
-        // Staff-scoped permission (categoryId = 99, scope = 'staff')
-        $permission = v2Perm('support.ticket.view', 99);
+        // Permission from a different category that is not 'common' (categoryId = 99 → 'school/finance')
+        $permission = v2Perm('payment.approve', 99);
 
         $this->permissionRepo->shouldReceive('findByUuid')->with('perm-uuid')->andReturn($permission);
-
-        // Role category = 'school', permission category = 'staff' → mismatch
-        $this->permissionRepo->shouldReceive('findCategoryScope')->with(5)->andReturn('school');
-        $this->permissionRepo->shouldReceive('findCategoryScope')->with(99)->andReturn('staff');
+        $this->permissionRepo->shouldReceive('findCategoryName')->with(99)->andReturn('finance');
 
         expect(fn () => $this->useCase->execute($input))
             ->toThrow(HierarchyViolationException::class);
     });
 
-    // --- Matching scope ---
+    it('throws HierarchyViolationException when permission is in common category but different scope', function () {
+        $input = new AssignPermissionToRoleInput(
+            actorUserId: 1,
+            actorSlug: 'owner',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
+        );
 
-    it('succeeds when permission and role have matching scope', function () {
+        // School-scoped role (categoryId = 5 → 'school/director')
+        $role = v2PermRole(['categoryId' => 5, 'slug' => 'director']);
+
+        $this->roleRepo->shouldReceive('findByUuid')->with('role-uuid')->andReturn($role);
+
+        // Permission in 'tenant/common' (categoryId = 88) — same name but different scope
+        $permission = v2Perm('user.view', 88);
+
+        $this->permissionRepo->shouldReceive('findByUuid')->with('perm-uuid')->andReturn($permission);
+        $this->permissionRepo->shouldReceive('findCategoryName')->with(88)->andReturn('common');
+        $this->permissionRepo->shouldReceive('findCategoryScope')->with(5)->andReturn('school');
+        $this->permissionRepo->shouldReceive('findCategoryScope')->with(88)->andReturn('tenant');
+
+        expect(fn () => $this->useCase->execute($input))
+            ->toThrow(HierarchyViolationException::class);
+    });
+
+    it('succeeds when permission is in the common category of the same scope', function () {
+        $input = new AssignPermissionToRoleInput(
+            actorUserId: 1,
+            actorSlug: 'owner',
+            roleUuid: 'role-uuid',
+            permissionUuid: 'perm-uuid',
+        );
+
+        // School-scoped role (categoryId = 5 → 'school/director')
+        $role = v2PermRole(['categoryId' => 5, 'slug' => 'director']);
+
+        // Permission in 'school/common' (categoryId = 77)
+        $permission = v2Perm('user.view', 77);
+
+        $this->roleRepo->shouldReceive('findByUuid')->with('role-uuid')->andReturn($role);
+        $this->permissionRepo->shouldReceive('findByUuid')->with('perm-uuid')->andReturn($permission);
+        $this->permissionRepo->shouldReceive('findCategoryName')->with(77)->andReturn('common');
+        $this->permissionRepo->shouldReceive('findCategoryScope')->with(5)->andReturn('school');
+        $this->permissionRepo->shouldReceive('findCategoryScope')->with(77)->andReturn('school');
+
+        $this->roleRepo->shouldReceive('attachPermission')->once()->with($role->getId(), $permission->getId());
+        $this->audit->shouldReceive('log')->once();
+
+        $this->useCase->execute($input);
+    });
+
+    // --- Same category (exact match) ---
+
+    it('succeeds when permission and role share the same category', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'owner',
@@ -142,8 +190,7 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
         $this->roleRepo->shouldReceive('findByUuid')->with('role-uuid')->andReturn($role);
         $this->permissionRepo->shouldReceive('findByUuid')->with('perm-uuid')->andReturn($permission);
 
-        $this->permissionRepo->shouldReceive('findCategoryScope')->andReturn('school');
-
+        // Same categoryId → no findCategoryName or findCategoryScope calls needed.
         $this->roleRepo->shouldReceive('attachPermission')
             ->once()
             ->with($role->getId(), $permission->getId());

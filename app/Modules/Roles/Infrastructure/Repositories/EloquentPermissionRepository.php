@@ -77,6 +77,32 @@ class EloquentPermissionRepository implements PermissionRepositoryInterface
         return $models->map(fn (PermissionModel $m) => $this->toDomain($m))->all();
     }
 
+    /** {@inheritDoc} */
+    public function findCategoryName(int $categoryId): ?string
+    {
+        return PermissionCategory::find($categoryId)?->name;
+    }
+
+    /** {@inheritDoc} */
+    public function findByCategoryIdOrCommon(int $categoryId): array
+    {
+        $category = PermissionCategory::find($categoryId);
+
+        if ($category === null) {
+            return [];
+        }
+
+        $commonId = PermissionCategory::where('scope', $category->scope)
+            ->where('name', 'common')
+            ->value('id');
+
+        $ids = array_values(array_filter([$categoryId, $commonId]));
+
+        $models = PermissionModel::whereIn('category_id', $ids)->get();
+
+        return $models->map(fn (PermissionModel $m) => $this->toDomain($m))->all();
+    }
+
     private function toDomain(PermissionModel $model): Permission
     {
         return new Permission(

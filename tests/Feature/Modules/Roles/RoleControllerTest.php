@@ -117,7 +117,7 @@ describe('RoleController', function () {
             Tenant::where('id', $this->tenant->id)->update(['custom_roles_limit' => 5]);
         });
 
-        it('returns 403 when user lacks roles.custom.create permission', function () {
+        it('returns 403 when user lacks custom_role.create permission', function () {
             $user = User::factory()->create();
             $role = RoleModel::factory()->forTenant($this->tenant)->atLevel(5)->create(['slug' => 'rc_some_role']);
             assignRole($user, $role);
@@ -152,7 +152,7 @@ describe('RoleController', function () {
             $user = User::factory()->create();
             $actorRole = RoleModel::factory()->forTenant($this->tenant)->atLevel(4)->create(['slug' => 'director_actor']);
             assignRole($user, $actorRole);
-            grantPermission($actorRole, 'roles.custom.create');
+            grantPermission($actorRole, 'custom_role.create');
 
             $this->actingAs($user)
                 ->withHeader('X-Tenant-Slug', $this->tenant->slug)

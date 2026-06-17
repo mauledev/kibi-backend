@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Common\School\SchoolContext;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\User\CreateUserRequest;
@@ -65,7 +66,7 @@ class UserController extends Controller
      */
     public function index(ListUsersRequest $request, ListUsersUseCase $useCase, TenantContext $tenant): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
 
@@ -116,7 +117,7 @@ class UserController extends Controller
      */
     public function stats(ListUsersRequest $request, GetUserStatsUseCase $useCase, TenantContext $tenant): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
 
@@ -151,7 +152,7 @@ class UserController extends Controller
      */
     public function show(string $uuid, GetUserUseCase $useCase): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         try {
             $user = $useCase->execute(new GetUserInput(uuid: $uuid));
@@ -180,7 +181,7 @@ class UserController extends Controller
         InviteUserUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.create');
+        $this->authorize(PermissionSlug::USER_CREATE->value);
 
         $actor = $request->user();
 

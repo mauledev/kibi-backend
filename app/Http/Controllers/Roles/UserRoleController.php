@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\AssignRoleToUserRequest;
 use App\Http\Requests\Roles\RevokeRoleFromUserRequest;
 use App\Http\Resources\Roles\UserRoleAssignmentResource;
@@ -29,7 +30,7 @@ class UserRoleController extends Controller
         string $uuid,
         AssignRoleToUserUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('role.assign');
+        $this->authorize(PermissionSlug::ROLE_ASSIGN->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -63,7 +64,7 @@ class UserRoleController extends Controller
         string $role_uuid,
         RevokeRoleFromUserUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('role.revoke');
+        $this->authorize(PermissionSlug::ROLE_REVOKE->value);
 
         /** @var User $actor */
         $actor = $request->user();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\ListPermissionsRequest;
 use App\Http\Requests\Roles\ListSchoolPermissionsRequest;
 use App\Http\Resources\Roles\PermissionResource;
@@ -23,7 +24,7 @@ class PermissionController extends Controller
      */
     public function index(ListPermissionsRequest $request, ListPermissionsUseCase $useCase): JsonResponse
     {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         try {
             $permissions = $useCase->execute($request->validated('role_uuid'));
@@ -46,7 +47,7 @@ class PermissionController extends Controller
         GetSchoolUseCase $getSchool,
         ListPermissionsUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         try {
             $getSchool->execute(new GetSchoolInput($uuid));

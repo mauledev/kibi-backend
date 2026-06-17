@@ -607,26 +607,31 @@ Table audit_logs {
 
 ## Seeded system data
 
-`RolesAndPermissionsSeeder` (runs always, before `DevSeeder`) inserts:
+`RolesAndPermissionsSeeder` is a coordinator that delegates to two focused seeders in order:
 
-- **Permission categories** — seeded with three scopes:
-  - `staff` scope: `support`, `finance` (for Softlinkia staff operational roles)
-  - `tenant` scope: `finance`, `hr` (for tenant-level operational roles, e.g. tenant billing manager)
-  - `school` scope: `director`, `academic_coordinator`, `school_registrar`, `prefect`, `finance`, `hr`, `teacher`, `student`, `tutor`
-- **System permissions**: seeded per category. Each permission belongs to exactly one category. Administrative permissions (e.g. `user.create`, `user.suspend`, `permissions.manage`, `roles.custom.create`) are seeded alongside the first modules that need them.
-- **Staff roles** (`tenant_id = NULL`, `is_system_role = true`):
-  - Superadmin — no `category_id`, authority via an explicit superadmin check on staff routes.
-  - Tesorería Operador (`operator`), Tesorería Líder (`leader`) — `category_id` pointing to `staff/finance`.
-  - Soporte (`support`) — `category_id` pointing to `staff/support`.
-  - **Staff permission slugs**: `staff/finance` → `billing.view/approve/refund/review/return/metrics`, `remittance.create`, `batch.assign`, `audit.view`; `staff/support` → `ticket.view/create/resolve/escalate`, `tenant.impersonate`, `tenant.view`.
-- **Tenant-admin roles** (`is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), School Manager (all permissions in assigned schools, authority by slug). Neither holds `role_permissions` rows — their authority is entirely Gate-driven.
-- **Tenant operational roles** (`is_system_role = false`, `category_id` of scope `tenant`): Tenant Finance (`tenant_finance`), Tenant HR (`tenant_hr`).
-- **School operational roles** (`is_system_role = false`, `category_id` of scope `school`): Director, Academic Coordinator, School Registrar, Prefect, Finance, HR, Teacher, Student, Tutor. Each role has its own exclusive category — cross-category permissions require assigning a second role.
-- **Default role_permissions**: each operational role (staff, tenant, or school) receives the permissions that belong to its category. These are the defaults — authorized actors can adjust them within category bounds.
+| Seeder | Scope | Responsibility |
+|---|---|---|
+| `StaffSeeder` | `staff` | Softlinkia internal categories, permissions, roles, and role_permissions |
+| `TenantSchoolSeeder` | `tenant` + `school` | Tenant and school categories, permissions, roles, and role_permissions |
 
-Re-running the seeder is safe — all inserts use `insertOrIgnore`.
+Each seeder follows the same internal sequence: categories → permissions → roles → role_permissions. They can also be run independently (e.g. `$this->seed(StaffSeeder::class)` in tests that only need staff context).
 
-Re-running the seeder is safe — all inserts use `insertOrIgnore`.
+**Permission categories seeded:**
+- `staff` scope: `support`, `finance`
+- `tenant` scope: `finance`, `hr`
+- `school` scope: `director`, `academic_coordinator`, `prefect`, `finance`, `hr`, `teacher`, `student`, `tutor`
+
+**System permissions**: all school-scope permissions live in the `school/director` category and are shared across all school roles via scope-based lookup. See `docs/roles-and-permissions.md` for the permission slug convention (`{model}.{verb}`).
+
+**Staff roles** (`tenant_id = NULL`, `is_system_role = true`): Superadmin (no category, Gate bypass), Treasury Leader (`leader`), Treasury Operator (`operator`), Support — all with `category_id` pointing to their `staff/*` category.
+
+**Tenant-admin roles** (`is_system_role = false`, `category_id = NULL`): Owner (Gate bypass), School Manager (authority by slug). Neither holds `role_permissions` rows.
+
+**Tenant operational roles**: Tenant Finance (`tenant_finance`), Tenant HR (`tenant_hr`).
+
+**School operational roles**: Director, Academic Coordinator, School Registrar, Prefect, Finance, HR, Teacher, Student, Tutor.
+
+Re-running any seeder is safe — all inserts use `insertOrIgnore`.
 
 ---
 

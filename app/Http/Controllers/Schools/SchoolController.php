@@ -23,6 +23,7 @@ use App\Modules\Schools\Application\UseCases\UpdateSchool\UpdateSchoolInput;
 use App\Modules\Schools\Application\UseCases\UpdateSchool\UpdateSchoolUseCase;
 use App\Modules\Schools\Domain\Exceptions\SchoolAlreadyExistsException;
 use App\Modules\Schools\Domain\Exceptions\SchoolNotFoundException;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,7 @@ class SchoolController extends Controller
      */
     public function index(ListSchoolsRequest $request, ListSchoolsUseCase $useCase): JsonResponse
     {
-        $this->authorize('school.view');
+        $this->authorize(PermissionSlug::SCHOOL_VIEW->value);
 
         $schools = $useCase->execute(new ListSchoolsInput(
             statusFilter: $request->statusFilter(),
@@ -52,7 +53,7 @@ class SchoolController extends Controller
      */
     public function show(Request $request, string $uuid, GetSchoolUseCase $useCase): JsonResponse
     {
-        $this->authorize('school.view');
+        $this->authorize(PermissionSlug::SCHOOL_VIEW->value);
 
         try {
             $school = $useCase->execute(new GetSchoolInput($uuid));
@@ -85,11 +86,16 @@ class SchoolController extends Controller
      */
     public function store(CreateSchoolRequest $request, CreateSchoolUseCase $useCase): JsonResponse
     {
-        $this->authorize('school.create');
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        if ($actor->resolveActorSlug() !== 'owner') {
+            return ApiResponse::forbidden('Solo el owner puede crear escuelas.');
+        }
 
         try {
             $school = $useCase->execute(new CreateSchoolInput(
-                actorUserId: $request->user()->id,
+                actorUserId: $actor->id,
                 name: $request->validated('name'),
                 slug: $request->validated('slug'),
                 address: $request->validated('address'),
@@ -111,7 +117,7 @@ class SchoolController extends Controller
         string $uuid,
         UpdateSchoolUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('school.update');
+        $this->authorize(PermissionSlug::SCHOOL_UPDATE->value);
 
         try {
             $school = $useCase->execute(new UpdateSchoolInput(
@@ -141,7 +147,7 @@ class SchoolController extends Controller
         string $uuid,
         DeactivateSchoolUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('school.update');
+        $this->authorize(PermissionSlug::SCHOOL_UPDATE->value);
 
         try {
             $useCase->execute(new DeactivateSchoolInput(

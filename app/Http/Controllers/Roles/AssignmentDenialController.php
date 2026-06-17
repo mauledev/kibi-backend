@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\DenyPermissionRequest;
 use App\Http\Response\ApiResponse;
 use App\Models\User;
@@ -28,7 +29,7 @@ class AssignmentDenialController extends Controller
         string $assignment_uuid,
         DenyPermissionFromAssignmentUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -64,7 +65,7 @@ class AssignmentDenialController extends Controller
         string $permission_uuid,
         RestorePermissionToAssignmentUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tutor;
 
 use App\Common\School\SchoolContext;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\Tutor\CreateTutorRequest;
@@ -67,7 +68,7 @@ class TutorController extends Controller
         ListTutorsUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
         $isOwner = $tenant->ownerId === $actor->id;
@@ -106,7 +107,7 @@ class TutorController extends Controller
      */
     public function show(string $uuid, GetTutorUseCase $useCase): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         try {
             $tutor = $useCase->execute(new GetTutorInput(userUuid: $uuid));
@@ -136,7 +137,7 @@ class TutorController extends Controller
         CreateTutorUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.create');
+        $this->authorize(PermissionSlug::USER_CREATE->value);
 
         $schoolUuid = app()->bound(SchoolContext::class)
             ? School::where('id', app(SchoolContext::class)->schoolId)->value('uuid')
@@ -191,7 +192,7 @@ class TutorController extends Controller
         UpdateTutorRequest $request,
         UpdateTutorUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('user.update');
+        $this->authorize(PermissionSlug::USER_UPDATE->value);
 
         try {
             $tutor = $useCase->execute(new UpdateTutorInput(
@@ -229,7 +230,7 @@ class TutorController extends Controller
         LinkTutorToStudentUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.create');
+        $this->authorize(PermissionSlug::USER_CREATE->value);
 
         $tenantSlug = TenantModel::find($tenant->tenantId)->slug ?? '';
 

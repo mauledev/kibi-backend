@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Common\Tenant\TenantContext;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Controller;
 use App\Http\Requests\Roles\UpdateCustomRoleLimitRequest;
 use App\Http\Response\ApiResponse;
@@ -23,7 +24,7 @@ class CustomRoleLimitController extends Controller
         TenantContext $context,
         ConfigureCustomRoleLimitUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

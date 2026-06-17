@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controller;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Resources\Roles\RoleResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Roles\Application\UseCases\GetRole\GetRoleInput;
@@ -25,7 +26,7 @@ class RoleController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         $roles = $this->listRolesUseCase->execute(new ListRolesInput);
 
@@ -37,7 +38,7 @@ class RoleController extends Controller
      */
     public function show(Request $request, string $uuid): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         try {
             $role = $this->getRoleUseCase->execute(new GetRoleInput($uuid));

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Common\School\SchoolContext;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Controller;
 use App\Http\Requests\Roles\AssignPermissionRequest;
 use App\Http\Response\ApiResponse;
@@ -28,7 +29,7 @@ class RolePermissionController extends Controller
         string $uuid,
         AssignPermissionToRoleUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -65,7 +66,7 @@ class RolePermissionController extends Controller
         string $permission_uuid,
         RevokePermissionFromRoleUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
