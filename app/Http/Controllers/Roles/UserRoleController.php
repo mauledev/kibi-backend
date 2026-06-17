@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\AssignRoleToUserRequest;
 use App\Http\Requests\Roles\RevokeRoleFromUserRequest;
 use App\Http\Resources\Roles\UserRoleAssignmentResource;
@@ -14,6 +13,7 @@ use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserInpu
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserInput;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;

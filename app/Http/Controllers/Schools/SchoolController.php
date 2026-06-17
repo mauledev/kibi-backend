@@ -9,6 +9,8 @@ use App\Http\Requests\Schools\ListSchoolsRequest;
 use App\Http\Requests\Schools\UpdateSchoolRequest;
 use App\Http\Resources\Schools\SchoolResource;
 use App\Http\Response\ApiResponse;
+use App\Models\User;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolInput;
 use App\Modules\Schools\Application\UseCases\CreateSchool\CreateSchoolUseCase;
 use App\Modules\Schools\Application\UseCases\DeactivateSchool\DeactivateSchoolInput;
@@ -23,7 +25,6 @@ use App\Modules\Schools\Application\UseCases\UpdateSchool\UpdateSchoolInput;
 use App\Modules\Schools\Application\UseCases\UpdateSchool\UpdateSchoolUseCase;
 use App\Modules\Schools\Domain\Exceptions\SchoolAlreadyExistsException;
 use App\Modules\Schools\Domain\Exceptions\SchoolNotFoundException;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -86,7 +87,7 @@ class SchoolController extends Controller
      */
     public function store(CreateSchoolRequest $request, CreateSchoolUseCase $useCase): JsonResponse
     {
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = $request->user();
 
         if ($actor->resolveActorSlug() !== 'owner') {

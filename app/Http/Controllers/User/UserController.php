@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\User;
 
 use App\Common\School\SchoolContext;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\User\CreateUserRequest;
@@ -14,6 +13,7 @@ use App\Http\Resources\User\UserListResource;
 use App\Http\Resources\User\UserStatsResource;
 use App\Http\Response\ApiResponse;
 use App\Models\Tenant as TenantModel;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;

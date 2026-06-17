@@ -50,7 +50,7 @@ class TenantSchoolSeeder extends Seeder
 
     private function seedPermissions(): void
     {
-        $catId = fn(string $scope, string $name): int => (int) DB::table('permission_categories')
+        $catId = fn (string $scope, string $name): int => (int) DB::table('permission_categories')
             ->where('scope', $scope)
             ->where('name', $name)
             ->value('id');
@@ -112,7 +112,7 @@ class TenantSchoolSeeder extends Seeder
 
     private function seedRoles(): void
     {
-        $catId = fn(string $scope, string $name): ?int => DB::table('permission_categories')
+        $catId = fn (string $scope, string $name): ?int => DB::table('permission_categories')
             ->where('scope', $scope)
             ->where('name', $name)
             ->value('id');
@@ -233,8 +233,8 @@ class TenantSchoolSeeder extends Seeder
 
     private function seedRolePermissions(): void
     {
-        $permissionId = fn(string $slug): int => (int) DB::table('permissions')->where('slug', $slug)->value('id');
-        $roleId = fn(string $slug): int => (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
+        $permissionId = fn (string $slug): int => (int) DB::table('permissions')->where('slug', $slug)->value('id');
+        $roleId = fn (string $slug): int => (int) DB::table('roles')->where('slug', $slug)->whereNull('tenant_id')->value('id');
 
         $assign = function (string $roleSlug, array $permissionSlugs) use ($roleId, $permissionId): void {
             $rid = $roleId($roleSlug);

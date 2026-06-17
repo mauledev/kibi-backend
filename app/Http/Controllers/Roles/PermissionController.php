@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\ListPermissionsRequest;
 use App\Http\Requests\Roles\ListSchoolPermissionsRequest;
 use App\Http\Resources\Roles\PermissionResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Roles\Application\UseCases\ListPermissions\ListPermissionsUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolInput;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolUseCase;

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Common\Tenant\TenantContext;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Controller;
 use App\Http\Requests\Roles\UpdateCustomRoleLimitRequest;
 use App\Http\Response\ApiResponse;
 use App\Models\User;
 use App\Modules\Roles\Application\UseCases\ConfigureCustomRoleLimit\ConfigureCustomRoleLimitInput;
 use App\Modules\Roles\Application\UseCases\ConfigureCustomRoleLimit\ConfigureCustomRoleLimitUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use InvalidArgumentException;
 

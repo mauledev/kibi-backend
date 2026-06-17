@@ -19,11 +19,11 @@ use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesInput;
 use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleInput;
 use App\Modules\Roles\Application\UseCases\UpdateRole\UpdateRoleUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\CustomRoleLimitExceededException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

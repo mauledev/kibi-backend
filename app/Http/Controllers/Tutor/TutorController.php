@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Tutor;
 
 use App\Common\School\SchoolContext;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Common\Tenant\TenantContext;
 use App\Http\Controller;
 use App\Http\Requests\Tutor\CreateTutorRequest;
@@ -14,6 +13,7 @@ use App\Http\Resources\Tutor\TutorListResource;
 use App\Http\Response\ApiResponse;
 use App\Models\School;
 use App\Models\Tenant as TenantModel;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;

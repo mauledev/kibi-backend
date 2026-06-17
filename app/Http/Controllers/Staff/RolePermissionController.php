@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controller;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\AssignPermissionRequest;
 use App\Http\Response\ApiResponse;
 use App\Models\User;
@@ -11,6 +10,7 @@ use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissi
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleInput;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;

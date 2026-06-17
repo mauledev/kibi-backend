@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Roles;
 
 use App\Http\Controller;
-use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Http\Requests\Roles\DenyPermissionRequest;
 use App\Http\Response\ApiResponse;
 use App\Models\User;
@@ -11,6 +10,7 @@ use App\Modules\Roles\Application\UseCases\DenyPermissionFromAssignment\DenyPerm
 use App\Modules\Roles\Application\UseCases\DenyPermissionFromAssignment\DenyPermissionFromAssignmentUseCase;
 use App\Modules\Roles\Application\UseCases\RestorePermissionToAssignment\RestorePermissionToAssignmentInput;
 use App\Modules\Roles\Application\UseCases\RestorePermissionToAssignment\RestorePermissionToAssignmentUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
