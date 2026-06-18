@@ -26,6 +26,7 @@ return [
 
     'allowed_origins_patterns' => [
         '#^https?://[^.]+\.localhost(:\d+)?$#',   // local dev wildcard subdomains
+        '#^https://kibi-frontend[^.]*\.vercel\.app$#', // Vercel preview and production deployments
     ],
 
     'allowed_headers' => ['Content-Type', 'Authorization', 'Accept', 'X-Tenant-Slug', 'X-School-Uuid'],
