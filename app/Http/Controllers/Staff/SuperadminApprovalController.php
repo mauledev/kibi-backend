@@ -121,6 +121,7 @@ class SuperadminApprovalController extends Controller
             $approval = $useCase->execute(new ApproveSuperadminCreationInput(
                 requestUuid: $uuid,
                 approvedBy: (int) $request->user()->id,
+                approvedByUuid: (string) $request->user()->uuid,
                 code: $request->validated('code'),
             ));
 
@@ -151,6 +152,7 @@ class SuperadminApprovalController extends Controller
             $approval = $useCase->execute(new RejectSuperadminCreationInput(
                 requestUuid: $uuid,
                 rejectedBy: (int) $request->user()->id,
+                rejectedByUuid: (string) $request->user()->uuid,
                 reason: $request->validated('reason'),
             ));
 

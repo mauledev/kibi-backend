@@ -81,7 +81,9 @@ describe('DeactivateSchoolUseCase', function () {
                 expect($action)->toBe('school.deactivate');
                 expect($userId)->toBe(42);
                 expect($entityId)->toBe(7);
-                expect($structBefore)->toBe(['deleted_at' => null]);
+                expect($structBefore['uuid'])->toBe('uuid-1');
+                expect($structBefore['deleted_at'])->toBeNull();
+                expect($structAfter['uuid'])->toBe('uuid-1');
                 expect($structAfter['deleted_at'])->toBeString()->not->toBeEmpty();
 
                 return true;

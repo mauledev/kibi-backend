@@ -59,8 +59,8 @@ class DenyPermissionFromAssignmentUseCase
                 userId: $input->actorUserId,
                 entityId: $assignment->getId(),
                 structAfter: [
-                    'assignment_id' => $assignment->getId(),
-                    'permission_id' => $permission->getId(),
+                    'uuid' => $input->assignmentUuid,
+                    'permission_uuid' => $input->permissionUuid,
                     'permission_slug' => $permission->getSlug(),
                 ],
             );

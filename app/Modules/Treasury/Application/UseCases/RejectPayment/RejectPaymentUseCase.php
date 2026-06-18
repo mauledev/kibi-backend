@@ -49,6 +49,7 @@ final class RejectPaymentUseCase
             schoolId: $updated->getSchoolId(),
             structBefore: ['status' => PaymentStatus::Pending->value],
             structAfter: [
+                'uuid' => $updated->getUuid(),
                 'status' => PaymentStatus::Rejected->value,
                 'reason' => $input->reason->value,
             ],

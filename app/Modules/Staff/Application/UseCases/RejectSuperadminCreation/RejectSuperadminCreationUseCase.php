@@ -79,10 +79,10 @@ class RejectSuperadminCreationUseCase
                 userId: $input->rejectedBy,
                 entityId: $locked->getId(),
                 structAfter: [
-                    'request_uuid' => $locked->getUuid(),
+                    'uuid' => $locked->getUuid(),
                     'reason' => $input->reason,
-                    'proposed_by' => $locked->getProposedBy()->getId(),
-                    'rejected_by' => $input->rejectedBy,
+                    'proposed_by_uuid' => $locked->getProposedBy()->getUuid(),
+                    'rejected_by_uuid' => $input->rejectedByUuid,
                 ],
             );
 

@@ -7,6 +7,7 @@ class ApproveSuperadminCreationInput
     public function __construct(
         public readonly string $requestUuid,
         public readonly int $approvedBy,
+        public readonly string $approvedByUuid,
         public readonly string $code,
     ) {}
 }

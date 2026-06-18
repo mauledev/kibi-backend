@@ -78,10 +78,11 @@ class RevokeRoleFromUserUseCase
             userId: $actor?->getId(),
             entityId: $assignment->getId(),
             structBefore: [
-                'user_id' => $targetUser->getId(),
-                'role_id' => $role->getId(),
+                'uuid' => $assignment->getUuid(),
+                'assigned_user_uuid' => $targetUser->getUuid(),
+                'role_uuid' => $role->getUuid(),
                 'role_slug' => $role->getSlug(),
-                'school_id' => $schoolId,
+                'school_uuid' => $input->schoolUuid,
             ],
         );
 

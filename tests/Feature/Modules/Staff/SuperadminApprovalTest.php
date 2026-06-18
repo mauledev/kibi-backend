@@ -251,9 +251,9 @@ describe('POST /api/staff/superadmin/approvals/{uuid}/approve', function () {
         $struct = json_decode((string) $auditRow->struct_after, true);
 
         expect($struct['severity'])->toBe('CRITICAL')
-            ->and($struct['proposed_by'])->toBe($this->proposer->id)
-            ->and($struct['approved_by'])->toBe($this->approver->id)
-            ->and($struct['user_uuid'])->toBe($created->uuid)
+            ->and($struct['uuid'])->toBe($created->uuid)
+            ->and($struct['proposed_by_uuid'])->toBe($this->proposer->uuid)
+            ->and($struct['approved_by_uuid'])->toBe($this->approver->uuid)
             ->and($struct['role'])->toBe('superadmin');
     });
 

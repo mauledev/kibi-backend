@@ -55,7 +55,6 @@ class DeleteRoleUseCase
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: [
-                'id' => $role->getId(),
                 'uuid' => $role->getUuid(),
                 'name' => $role->getName(),
                 'slug' => $role->getSlug(),

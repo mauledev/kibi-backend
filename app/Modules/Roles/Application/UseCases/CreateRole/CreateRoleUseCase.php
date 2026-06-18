@@ -79,10 +79,7 @@ class CreateRoleUseCase
     private function roleToArray(Role $role): array
     {
         return [
-            'id' => $role->getId(),
             'uuid' => $role->getUuid(),
-            'tenant_id' => $role->getTenantId(),
-            'category_id' => $role->getCategoryId(),
             'name' => $role->getName(),
             'slug' => $role->getSlug(),
             'hierarchy_level' => $role->getHierarchyLevel(),

@@ -39,6 +39,44 @@ $this->audit->log(AuthAuditEvent::LOGIN, userId: $user->getId());
 
 ---
 
+## Tenant & school attribution
+
+Every `audit_logs` row carries `tenant_id` and `school_id` so the trail can be segmented per institution. **The writer derives both from the request-scoped container context — callers do not pass them by hand.**
+
+- `AuditLogger::log()` falls back to `TenantContext` and `SchoolContext` (bound per-request by `TenantMiddleware` / `SchoolMiddleware`) whenever the caller omits `tenantId` / `schoolId`.
+- An explicit argument always wins over the derived context. Pass one only when the audited entity belongs to a tenant/school other than the current request context (e.g. a value already loaded from the affected row).
+- On **staff routes** no `TenantContext` is bound, so `tenant_id` stays `null` — a **controlled null**: staff/superadmin actions (`superadmin.*`, `staff.access_denied`) are not tenant-scoped by design. Likewise `school_id` is `null` on tenant-level requests that send no `X-School-Uuid` header.
+
+This centralization means a new UseCase emitting an event automatically attributes it to the right institution without any extra wiring — there is nothing to forget.
+
+> Enforced by `tests/Feature/Common/Audit/AuditLoggerTest` (the *tenant/school attribution from request context* group).
+
+---
+
+## Struct payloads: identify entities by UUID
+
+`struct_before` / `struct_after` are `jsonb` snapshots of the affected state. **They identify entities by their public `uuid`, never by internal numeric ids** — the same rule the API follows (`docs/api.md`). The audit trail is append-only and feeds a future reports module, so the snapshot must stay readable even after the entity is deleted and must expose only public identifiers.
+
+Two keys, one rule:
+
+| Key | For | Example |
+|---|---|---|
+| `uuid` | The **affected entity** — the one `entity_id` points to | `payment.reject` → `{"uuid": "<payment-uuid>", "status": "rejected"}` |
+| `{relation}_uuid` | Any **other referenced entity** | `role.assign` → `{"uuid": "<assignment-uuid>", "assigned_user_uuid": "…", "role_uuid": "…"}` |
+
+- The affected entity is **always** `uuid` — whether or not other entities are present. This keeps the access pattern uniform: the reports module reads `struct->>'uuid'` to resolve the audited entity for *every* event. Every **other** referenced entity is named with `{relation}_uuid` (e.g. `permission.deny` → `{"uuid": "<assignment-uuid>", "permission_uuid": "…"}`).
+- `entity_id` (internal id, indexed) stays as the canonical pointer in its own column — it is *not* part of the struct. The struct carries the public `uuid` of that same entity plus non-identity state fields (status, name, `deleted_at`, reason, amounts, …).
+- Do **not** put internal ids (`id`, `tenant_id`, `*_id`) inside structs. Replace them with the `uuid` equivalent.
+- The reports module reads `struct_after->>'uuid'` (or `->>'{relation}_uuid'`) to resolve entities — no join to internal ids.
+
+**Controlled exceptions** (left without a struct uuid on purpose):
+- Session/security events with no domain entity: `auth.login`, `auth.login_failed`, `auth.logout`, `auth.oauth_login`, `policy.accepted` (the actor is already in the `user_id` column).
+- Scalar-config or step events whose "entity" is not a domain object: `tenant.custom_roles_limit.update`, `onboarding.step_completed`.
+
+When a struct needs to reference an actor that arrives as a raw int (not loaded as an entity), pass their `uuid` down through the UseCase input from the controller's authenticated user rather than storing the id — e.g. `superadmin.create` carries both dual-control signatures as `proposed_by_uuid` and `approved_by_uuid`.
+
+---
+
 ## What IS audited
 
 Any action that mutates a domain entity or carries compliance/security weight:
@@ -76,5 +114,5 @@ Any action that mutates a domain entity or carries compliance/security weight:
 1. Find the module enum in `app/Common/Audit/Events/` (or create `<Module>AuditEvent.php` implementing `AuditEvent`).
 2. Add a `case NAME = 'model.verb';` following the convention.
 3. If you created a new enum, register it in `AuditEventRegistry::modules()`.
-4. Emit it from the mutation UseCase: `$this->audit->log(<Module>AuditEvent::NAME, userId: …, entityId: …, structBefore: …, structAfter: …)`.
+4. Emit it from the mutation UseCase: `$this->audit->log(<Module>AuditEvent::NAME, userId: …, entityId: …, structBefore: …, structAfter: …)`. Do **not** pass `tenantId` / `schoolId` — they are derived from the request context automatically (see *Tenant & school attribution*); pass them only to override with a different institution. Identify entities in the structs by `uuid` / `{relation}_uuid`, never by internal id (see *Struct payloads: identify entities by UUID*).
 5. `composer quality` and the registry test must stay green.
