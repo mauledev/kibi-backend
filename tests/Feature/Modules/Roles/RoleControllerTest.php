@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -188,7 +189,14 @@ describe('RoleController', function () {
             $this->assertDatabaseHas('audit_logs', [
                 'action' => 'role.create',
                 'user_id' => $this->owner->id,
+                // Derived end-to-end from TenantContext (bound by TenantMiddleware),
+                // not passed by the caller — proves the attribution fix over the real HTTP stack.
+                'tenant_id' => $this->tenant->id,
             ]);
+
+            // Guard against the original bug: the row must NOT be left with a null tenant.
+            expect(DB::table('audit_logs')->where('action', 'role.create')->value('tenant_id'))
+                ->not->toBeNull();
         });
 
         it('response uses uuid not internal id', function () {
