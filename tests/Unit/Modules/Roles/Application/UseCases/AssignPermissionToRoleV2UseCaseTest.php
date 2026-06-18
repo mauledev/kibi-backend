@@ -80,7 +80,7 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws SystemRoleViolationException when trying to manage permissions on school_manager role', function () {
+    it('succeeds when owner assigns a permission from tenant/school_manager category to school_manager role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'owner',
@@ -88,14 +88,15 @@ describe('AssignPermissionToRoleUseCase — scope and system-role guards (redesi
             permissionUuid: 'perm-uuid',
         );
 
-        $gestorRole = v2PermRole(['slug' => 'school_manager', 'categoryId' => null]);
+        $gestorRole = v2PermRole(['slug' => 'school_manager', 'categoryId' => 10]);
+        $permission = v2Perm('school.create', 10);
 
-        $this->roleRepo->shouldReceive('findByUuid')
-            ->with('gestor-uuid')
-            ->andReturn($gestorRole);
+        $this->roleRepo->shouldReceive('findByUuid')->with('gestor-uuid')->andReturn($gestorRole);
+        $this->permissionRepo->shouldReceive('findByUuid')->with('perm-uuid')->andReturn($permission);
+        $this->roleRepo->shouldReceive('attachPermission')->once()->with($gestorRole->getId(), $permission->getId());
+        $this->audit->shouldReceive('log')->once();
 
-        expect(fn () => $this->useCase->execute($input))
-            ->toThrow(SystemRoleViolationException::class);
+        $this->useCase->execute($input);
     });
 
     // --- Category mismatch guard ---

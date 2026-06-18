@@ -55,12 +55,13 @@ A user may have `invoices.delete` in School B but not in School A — the header
 |---|---|---|---|---|
 | Staff — Superadmin | NULL | — (no category) | true | Softlinkia seeder |
 | Staff — operational (support, finance) | NULL | `staff` | true | Softlinkia seeder |
-| Tenant-admin (owner, school_manager) | tenant id | — (no category) | false | Softlinkia seeder |
+| Tenant-admin (owner) | tenant id | — (no category) | false | Softlinkia seeder |
+| Tenant-admin (school_manager) | tenant id | `tenant` (`school_manager` category) | false | Softlinkia seeder |
 | Tenant operational (tenant finance, tenant HR…) | tenant id | `tenant` | false | Softlinkia seeder |
 | School operational (director, teacher, school finance…) | tenant id | `school` | false | Softlinkia seeder |
 | Custom | tenant id | — (no category) | false | Owner or school_manager |
 
-Custom roles are identified at runtime by: `tenant_id IS NOT NULL AND category_id IS NULL AND slug NOT IN ('owner', 'school_manager')`.
+Custom roles are identified at runtime by: `tenant_id IS NOT NULL AND category_id IS NULL AND slug NOT IN ('owner')`.
 
 `is_system_role = true` marks Softlinkia staff roles only — it protects them from deletion. It does not imply that permissions are managed in code: Superadmin has no category and uses a Gate bypass, while support and finance staff roles use `role_permissions` like any other operational role.
 

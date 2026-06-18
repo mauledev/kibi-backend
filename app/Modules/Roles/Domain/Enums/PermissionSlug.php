@@ -16,6 +16,7 @@ enum PermissionSlug: string
     case CUSTOM_ROLE_DELETE = 'custom_role.delete';
 
     // --- Schools ---
+    case SCHOOL_CREATE = 'school.create';
     case SCHOOL_VIEW = 'school.view';
     case SCHOOL_UPDATE = 'school.update';
 

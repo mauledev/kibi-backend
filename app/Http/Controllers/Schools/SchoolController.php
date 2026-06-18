@@ -87,12 +87,10 @@ class SchoolController extends Controller
      */
     public function store(CreateSchoolRequest $request, CreateSchoolUseCase $useCase): JsonResponse
     {
+        $this->authorize(PermissionSlug::SCHOOL_CREATE->value);
+
         /** @var User $actor */
         $actor = $request->user();
-
-        if ($actor->resolveActorSlug() !== 'owner') {
-            return ApiResponse::forbidden('Solo el owner puede crear escuelas.');
-        }
 
         try {
             $school = $useCase->execute(new CreateSchoolInput(
