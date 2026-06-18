@@ -59,8 +59,7 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
     /** {@inheritDoc} */
     public function save(User $user): User
     {
-        $model = UserModel::create([
-            'is_staff' => true,
+        $model = (new UserModel([
             'email' => $user->getEmail(),
             'first_name' => $user->getFirstName(),
             'last_name_paternal' => $user->getLastNamePaternal(),
@@ -69,7 +68,9 @@ class EloquentStaffUserRepository implements UserRepositoryInterface
             'google_id' => $user->getGoogleId(),
             'microsoft_id' => $user->getMicrosoftId(),
             'status' => $user->getStatus(),
-        ]);
+        ]))->markAsStaff();
+
+        $model->save();
 
         return $this->toDomain($model);
     }

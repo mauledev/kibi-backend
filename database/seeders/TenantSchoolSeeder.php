@@ -22,6 +22,7 @@ class TenantSchoolSeeder extends Seeder
             // Tenant scope — tenant-level operational roles
             ['scope' => 'tenant', 'name' => 'finance'],
             ['scope' => 'tenant', 'name' => 'hr'],
+            ['scope' => 'tenant', 'name' => 'school_manager'],
             // Permissions readable by any tenant/* role
             ['scope' => 'tenant', 'name' => 'common'],
 
@@ -56,6 +57,9 @@ class TenantSchoolSeeder extends Seeder
             ->value('id');
 
         $permissions = [
+            // tenant/school_manager
+            ['scope' => 'tenant', 'category' => 'school_manager', 'name' => 'Create schools', 'slug' => 'school.create'],
+
             // school/director
             ['scope' => 'school', 'category' => 'director', 'name' => 'Manage permissions',  'slug' => 'manage.permissions'],
             ['scope' => 'school', 'category' => 'director', 'name' => 'Create custom roles', 'slug' => 'custom_role.create'],
@@ -127,7 +131,7 @@ class TenantSchoolSeeder extends Seeder
                 'is_system_role' => false,
             ],
             [
-                'category_id' => null,
+                'category_id' => $catId('tenant', 'school_manager'),
                 'name' => 'School Manager',
                 'slug' => 'school_manager',
                 'hierarchy_level' => 3,

@@ -49,7 +49,6 @@ class User extends Authenticatable
     protected $fillable = [
         'uuid',
         'tenant_id',
-        'is_staff',
         'email',
         'email_verified_at',
         'password_hash',
@@ -75,6 +74,14 @@ class User extends Authenticatable
         'two_factor_secret' => 'encrypted',
         'two_factor_recovery_codes' => 'encrypted:array',
     ];
+
+    /** Promote this user to staff. Only write path for is_staff — not in $fillable. */
+    public function markAsStaff(): static
+    {
+        $this->is_staff = true;
+
+        return $this;
+    }
 
     /** Whether the user has completed two-factor (TOTP) enrollment. */
     public function hasTwoFactorEnabled(): bool

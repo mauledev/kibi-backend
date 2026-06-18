@@ -279,3 +279,58 @@ When picking up the full workflow post-MVP:
 4. Implement the Mercado Pago webhook controller with idempotency via `webhook_logs` (request_id deduplication).
 5. Split the `is_staff` gate into granular permission slugs once Softlinkia roles need fine-grained delegation (e.g. Líder cannot timbrar CFDI, Operador can).
 6. The CFDI piece (RF-182..189i) belongs in a dedicated Facturación module that consumes Treasury's approved payments rather than living inside Treasury itself.
+
+---
+
+## PM-008 — Staff route isolation via `is_staff` flag
+
+**Current behavior (MVP)**
+
+Staff route protection relies on two layers:
+
+1. `StaffMiddleware` checks `$user->is_staff === true` on every request to a staff route.
+2. `StaffLoginUseCase` enforces `isStaff()` after credential validation, so a tenant user cannot obtain a staff session in the first place.
+
+There is no token-level distinction between staff and tenant sessions. Sanctum tokens are issued without abilities (`createToken('api')`), so a staff token and a tenant token are structurally identical. The separation is enforced at the user record level, not at the token level.
+
+Additionally, `is_staff` is present in `User::$fillable`. All user creation paths go through UseCases that assign fields explicitly, so the flag cannot be set via mass assignment in practice — but the model does not enforce this at the framework level.
+
+**Problem at scale**
+
+- If any UserUseCase were ever written to pass raw request data to `fill()`, a malicious actor could self-escalate to staff by including `is_staff=true` in the request body.
+- A compromised or misconfigured token issuance path (e.g. a future OAuth flow for staff) could issue a valid Sanctum token for a non-staff user that passes `auth:sanctum` and then depends solely on the `is_staff` database flag to be blocked by `StaffMiddleware`.
+- There is no cryptographic or claim-level guarantee that a token presented to a staff route was issued by the staff login flow.
+
+**Recommended solution**
+
+Issue Sanctum tokens with explicit abilities that encode the session context:
+
+```php
+// Staff login
+$user->createToken('api', ['staff'], expiresAt: now()->addHours(24));
+
+// Tenant login
+$user->createToken('api', ['tenant'], expiresAt: now()->addHours(24));
+```
+
+`StaffMiddleware` would then check both the ability and the flag:
+
+```php
+if (! $request->user()->tokenCan('staff') || ! $user->is_staff) {
+    return ApiResponse::forbidden('Access restricted to staff users');
+}
+```
+
+This means a tenant token is cryptographically rejected on staff routes even if the `is_staff` flag were somehow modified, because the token itself encodes `['tenant']` and `tokenCan('staff')` returns false.
+
+As a complementary hardening measure, remove `is_staff` from `User::$fillable` and replace it with a dedicated `markAsStaff()` method that is the only write path for the flag.
+
+**Partially resolved**
+
+The mass-assignment vector was closed: `is_staff` was removed from `User::$fillable` and a dedicated `User::markAsStaff()` method was introduced as the only write path for the flag. `EloquentStaffUserRepository::save()` and `UserFactory::staff()` were updated to use it. The DB default (`false`) covers the tenant creation path in `EloquentUserRepository`.
+
+The token-level isolation (Sanctum abilities) remains deferred.
+
+**Why the token part is deferred**
+
+Adding token abilities requires touching both login UseCases, both token service calls, and all feature tests that call `actingAs()` with staff users — non-trivial scope for a security hardening that has no known active exploit path.

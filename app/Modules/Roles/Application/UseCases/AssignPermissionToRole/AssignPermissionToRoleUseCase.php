@@ -15,7 +15,7 @@ use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
 
 class AssignPermissionToRoleUseCase
 {
-    private const PROTECTED_SLUGS = ['superadmin', 'owner', 'school_manager'];
+    private const PROTECTED_SLUGS = ['superadmin', 'owner'];
 
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
@@ -27,7 +27,7 @@ class AssignPermissionToRoleUseCase
      * Assign a permission to a role.
      *
      * Rules:
-     * - The target role cannot be superadmin, owner, or school_manager.
+     * - The target role cannot be superadmin or owner.
      * - Actor slug must be owner (any role), school_manager (roles in their schools),
      *   or director (roles in their school, not gestor/owner roles).
      * - Permission category scope must match the role category scope (skipped for custom roles).

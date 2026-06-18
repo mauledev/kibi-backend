@@ -104,7 +104,7 @@ describe('AssignPermissionToRoleUseCase', function () {
             ->toThrow(SystemRoleViolationException::class);
     });
 
-    it('throws SystemRoleViolationException when director tries to manage school_manager role', function () {
+    it('throws HierarchyViolationException when director tries to manage school_manager role', function () {
         $input = new AssignPermissionToRoleInput(
             actorUserId: 1,
             actorSlug: 'director',
@@ -112,15 +112,14 @@ describe('AssignPermissionToRoleUseCase', function () {
             permissionUuid: 'perm-uuid',
         );
 
-        // school_manager is in PROTECTED_SLUGS — SystemRoleViolationException fires first
-        $role = makeRoleEntity(['slug' => 'school_manager', 'categoryId' => null]);
+        $role = makeRoleEntity(['slug' => 'school_manager', 'categoryId' => 10]);
 
         $this->roleRepo->shouldReceive('findByUuid')
             ->once()
             ->andReturn($role);
 
         expect(fn () => $this->useCase->execute($input))
-            ->toThrow(SystemRoleViolationException::class);
+            ->toThrow(HierarchyViolationException::class);
     });
 
     it('throws PermissionNotFoundException when permission does not exist', function () {

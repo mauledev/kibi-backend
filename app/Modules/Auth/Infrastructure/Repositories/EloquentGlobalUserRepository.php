@@ -26,7 +26,6 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
         ?string $lastNameMaternal,
     ): User {
         $model = UserModel::create([
-            'is_staff' => false,
             'tenant_id' => null,
             'email' => $email,
             'first_name' => $firstName,
@@ -48,8 +47,7 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
         ?string $lastNameMaternal,
         ?string $phone,
     ): User {
-        $model = UserModel::create([
-            'is_staff' => true,
+        $model = (new UserModel([
             'tenant_id' => null,
             'email' => $email,
             'first_name' => $firstName,
@@ -59,7 +57,9 @@ class EloquentGlobalUserRepository implements GlobalUserRepositoryInterface
             'password_hash' => null,
             'email_verified_at' => null,
             'status' => 'active',
-        ]);
+        ]))->markAsStaff();
+
+        $model->save();
 
         return $this->toDomain($model);
     }
