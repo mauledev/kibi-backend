@@ -146,11 +146,11 @@ class ApproveSuperadminCreationUseCase
                 entityId: $user->getId(),
                 structAfter: [
                     'severity' => 'CRITICAL',
+                    'uuid' => $user->getUuid(),
                     'request_uuid' => $locked->getUuid(),
-                    'proposed_by' => $locked->getProposedBy()->getId(),
-                    'approved_by' => $input->approvedBy,
+                    'proposed_by_uuid' => $locked->getProposedBy()->getUuid(),
+                    'approved_by_uuid' => $input->approvedByUuid,
                     'candidate_email' => $locked->getCandidateEmail(),
-                    'user_uuid' => $user->getUuid(),
                     'role' => self::SUPERADMIN_ROLE_SLUG,
                 ],
             );

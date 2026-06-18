@@ -51,9 +51,7 @@ final class CreateSchoolUseCase
     private function schoolToArray(School $school): array
     {
         return [
-            'id' => $school->getId(),
             'uuid' => $school->getUuid(),
-            'tenant_id' => $school->getTenantId(),
             'name' => $school->getName(),
             'slug' => $school->getSlug(),
             'address' => $school->getAddress(),

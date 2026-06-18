@@ -44,8 +44,8 @@ class RestorePermissionToAssignmentUseCase
             userId: $input->actorUserId,
             entityId: $assignment->getId(),
             structAfter: [
-                'assignment_id' => $assignment->getId(),
-                'permission_id' => $permission->getId(),
+                'uuid' => $assignment->getUuid(),
+                'permission_uuid' => $permission->getUuid(),
                 'permission_slug' => $permission->getSlug(),
             ],
         );

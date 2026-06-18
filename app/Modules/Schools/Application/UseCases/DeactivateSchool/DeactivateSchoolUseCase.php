@@ -34,8 +34,8 @@ final class DeactivateSchoolUseCase
             action: 'school.deactivate',
             userId: $input->actorUserId,
             entityId: $school->getId(),
-            structBefore: ['deleted_at' => null],
-            structAfter: ['deleted_at' => (new \DateTimeImmutable)->format('c')],
+            structBefore: ['uuid' => $school->getUuid(), 'deleted_at' => null],
+            structAfter: ['uuid' => $school->getUuid(), 'deleted_at' => (new \DateTimeImmutable)->format('c')],
         );
     }
 }

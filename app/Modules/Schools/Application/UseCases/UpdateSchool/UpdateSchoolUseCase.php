@@ -62,7 +62,6 @@ final class UpdateSchoolUseCase
     private function schoolToArray(School $school): array
     {
         return [
-            'id' => $school->getId(),
             'uuid' => $school->getUuid(),
             'name' => $school->getName(),
             'slug' => $school->getSlug(),

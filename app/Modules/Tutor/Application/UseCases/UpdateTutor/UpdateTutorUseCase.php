@@ -50,11 +50,13 @@ final class UpdateTutorUseCase
             userId: $updated->getUserId(),
             entityId: $updated->getId(),
             structBefore: [
+                'uuid' => $tutor->getUuid(),
                 'full_name' => $tutor->getFullName(),
                 'phone' => $tutor->getPhone(),
                 'occupation' => $tutor->getOccupation(),
             ],
             structAfter: [
+                'uuid' => $updated->getUuid(),
                 'full_name' => $updated->getFullName(),
                 'phone' => $updated->getPhone(),
                 'occupation' => $updated->getOccupation(),

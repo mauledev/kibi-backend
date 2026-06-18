@@ -71,9 +71,9 @@ class RevokePermissionFromRoleUseCase
             userId: $input->actorUserId,
             entityId: $role->getId(),
             structBefore: [
-                'role_id' => $role->getId(),
+                'uuid' => $role->getUuid(),
                 'role_slug' => $role->getSlug(),
-                'permission_id' => $permission->getId(),
+                'permission_uuid' => $permission->getUuid(),
                 'permission_slug' => $permission->getSlug(),
             ],
         );

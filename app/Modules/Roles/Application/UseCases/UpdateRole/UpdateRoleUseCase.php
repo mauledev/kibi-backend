@@ -76,7 +76,6 @@ class UpdateRoleUseCase
     private function roleToArray(Role $role): array
     {
         return [
-            'id' => $role->getId(),
             'uuid' => $role->getUuid(),
             'name' => $role->getName(),
             'slug' => $role->getSlug(),
