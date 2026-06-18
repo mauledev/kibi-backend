@@ -47,8 +47,15 @@ class TenantMiddleware
         // when there is no real subdomain (e.g. localhost:8000)
         $host = $request->getHost();
 
-        if (! str_contains($host, '.') && (app()->isLocal() || app()->runningUnitTests())) {
+        // Accept X-Tenant-Slug header when there is no real subdomain (local dev,
+        // unit tests, or single-domain deployments like Railway staging).
+        if (! str_contains($host, '.') || app()->isLocal() || app()->runningUnitTests()) {
             return $request->header('X-Tenant-Slug', '');
+        }
+
+        $headerSlug = $request->header('X-Tenant-Slug', '');
+        if ($headerSlug !== '') {
+            return $headerSlug;
         }
 
         return explode('.', $host)[0];
