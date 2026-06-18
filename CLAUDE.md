@@ -110,11 +110,28 @@ Composer scripts call binaries explicitly: `@php vendor/bin/pint`, `@php vendor/
 | `APP_KEY is already present in the environment` | Variable is hardcoded in `docker-compose.yml`; use `env_file: .env` instead |
 | `Unable to set application key` | Same as above |
 
+## Testing after changes
+
+After completing any task that modifies code, run the tests for the affected classes and any tests that could be impacted:
+
+```bash
+# Run tests for a specific module
+docker-compose exec app php artisan test tests/Unit/Modules/Auth
+docker-compose exec app php artisan test tests/Feature/Modules/Schools
+
+# Run all unit tests (fast — ~10s)
+docker-compose exec app php artisan test --filter=Unit
+```
+
+Use the narrowest scope that covers the change — a single directory when only one module is touched, broader when the change crosses module boundaries (e.g. a shared model, a Gate rule, a middleware). If tests fail, fix them before reporting the task as done.
+
 ## Git hooks (Husky)
 
-`npm install` registers Husky via the `prepare` script. The pre-commit hook runs `scripts/quality-check.sh`:
+`npm install` registers Husky via the `prepare` script. Two hooks run automatically:
 
-1. If Docker is available and the `app` container is **Up** → `docker compose exec app composer quality`
-2. Otherwise → local `composer quality`
+- **pre-commit** (`scripts/quality-check.sh`) — runs `composer quality` (Pint + PHPStan)
+- **pre-push** (`scripts/unit-tests.sh`) — runs all unit tests
 
-Emergency bypass only: `git commit --no-verify` (not recommended).
+Both scripts detect whether Docker is available and run inside the container if so.
+
+Emergency bypass only: `git commit --no-verify` / `git push --no-verify` (not recommended).

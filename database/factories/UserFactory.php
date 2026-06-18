@@ -19,7 +19,6 @@ class UserFactory extends Factory
     {
         return [
             'uuid' => (string) Str::uuid(),
-            'is_staff' => false,
             'email' => fake()->unique()->safeEmail(),
             'password_hash' => Hash::make('password'),
             'first_name' => fake()->firstName(),
@@ -32,7 +31,13 @@ class UserFactory extends Factory
 
     public function staff(): static
     {
-        return $this->state(fn () => ['is_staff' => true]);
+        return $this
+            ->afterMaking(function (User $user): void {
+                $user->markAsStaff();
+            })
+            ->afterCreating(function (User $user): void {
+                $user->markAsStaff()->save();
+            });
     }
 
     public function inactive(): static

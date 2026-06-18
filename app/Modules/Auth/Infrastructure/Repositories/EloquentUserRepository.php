@@ -67,7 +67,6 @@ class EloquentUserRepository implements UserRepositoryInterface
     {
         $model = UserModel::create([
             'tenant_id' => $this->context->tenantId,
-            'is_staff' => false,
             'email' => $user->getEmail(),
             'first_name' => $user->getFirstName(),
             'last_name_paternal' => $user->getLastNamePaternal(),
