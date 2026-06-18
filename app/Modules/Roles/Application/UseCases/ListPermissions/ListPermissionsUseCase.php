@@ -15,12 +15,13 @@ class ListPermissionsUseCase
     ) {}
 
     /**
-     * Return permissions scoped by the given role's category when a roleUuid is provided.
+     * Return permissions available to a role when a roleUuid is provided.
      *
      * When roleUuid is provided:
      * - If the role does not exist, throws RoleNotFoundException.
      * - If the role is custom (no category), returns all permissions.
-     * - Otherwise returns only permissions from the role's category.
+     * - Otherwise returns permissions from the role's category plus the 'common' category
+     *   of the same scope (e.g. school/director returns school/director + school/common).
      *
      * When no roleUuid is provided, returns all permissions.
      *
@@ -45,6 +46,6 @@ class ListPermissionsUseCase
             return $this->permissions->findAll();
         }
 
-        return $this->permissions->findByCategoryId($role->getCategoryId());
+        return $this->permissions->findByCategoryIdOrCommon($role->getCategoryId());
     }
 }

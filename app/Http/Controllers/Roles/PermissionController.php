@@ -8,6 +8,7 @@ use App\Http\Requests\Roles\ListSchoolPermissionsRequest;
 use App\Http\Resources\Roles\PermissionResource;
 use App\Http\Response\ApiResponse;
 use App\Modules\Roles\Application\UseCases\ListPermissions\ListPermissionsUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolInput;
 use App\Modules\Schools\Application\UseCases\GetSchool\GetSchoolUseCase;
@@ -23,7 +24,7 @@ class PermissionController extends Controller
      */
     public function index(ListPermissionsRequest $request, ListPermissionsUseCase $useCase): JsonResponse
     {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         try {
             $permissions = $useCase->execute($request->validated('role_uuid'));
@@ -46,7 +47,7 @@ class PermissionController extends Controller
         GetSchoolUseCase $getSchool,
         ListPermissionsUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         try {
             $getSchool->execute(new GetSchoolInput($uuid));

@@ -43,9 +43,23 @@ interface PermissionRepositoryInterface
     public function findCategoryScope(int $categoryId): ?string;
 
     /**
+     * Return the category name (e.g. 'director', 'finance', 'common') for the given category id,
+     * or null when the category does not exist.
+     */
+    public function findCategoryName(int $categoryId): ?string;
+
+    /**
      * Return all permissions that belong to the given category.
      *
      * @return array<Permission>
      */
     public function findByCategoryId(int $categoryId): array;
+
+    /**
+     * Return all permissions that belong to the given category OR to the 'common'
+     * category of the same scope (e.g. school/common for any school/* category).
+     *
+     * @return array<Permission>
+     */
+    public function findByCategoryIdOrCommon(int $categoryId): array;
 }

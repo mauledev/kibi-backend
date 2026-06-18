@@ -9,6 +9,7 @@ use App\Modules\Roles\Application\UseCases\GetRole\GetRoleInput;
 use App\Modules\Roles\Application\UseCases\GetRole\GetRoleUseCase;
 use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesInput;
 use App\Modules\Roles\Application\UseCases\ListRoles\ListRolesUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ class RoleController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         $roles = $this->listRolesUseCase->execute(new ListRolesInput);
 
@@ -37,7 +38,7 @@ class RoleController extends Controller
      */
     public function show(Request $request, string $uuid): JsonResponse
     {
-        $this->authorize('role.view');
+        $this->authorize(PermissionSlug::ROLE_VIEW->value);
 
         try {
             $role = $this->getRoleUseCase->execute(new GetRoleInput($uuid));

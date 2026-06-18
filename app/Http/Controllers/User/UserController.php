@@ -13,6 +13,7 @@ use App\Http\Resources\User\UserListResource;
 use App\Http\Resources\User\UserStatsResource;
 use App\Http\Response\ApiResponse;
 use App\Models\Tenant as TenantModel;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\OwnerRoleAssignmentException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
@@ -65,7 +66,7 @@ class UserController extends Controller
      */
     public function index(ListUsersRequest $request, ListUsersUseCase $useCase, TenantContext $tenant): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
 
@@ -116,7 +117,7 @@ class UserController extends Controller
      */
     public function stats(ListUsersRequest $request, GetUserStatsUseCase $useCase, TenantContext $tenant): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
 
@@ -151,7 +152,7 @@ class UserController extends Controller
      */
     public function show(string $uuid, GetUserUseCase $useCase): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         try {
             $user = $useCase->execute(new GetUserInput(uuid: $uuid));
@@ -180,7 +181,7 @@ class UserController extends Controller
         InviteUserUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.create');
+        $this->authorize(PermissionSlug::USER_CREATE->value);
 
         $actor = $request->user();
 

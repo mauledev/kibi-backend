@@ -13,6 +13,7 @@ use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserInpu
 use App\Modules\Roles\Application\UseCases\AssignRoleToUser\AssignRoleToUserUseCase;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserInput;
 use App\Modules\Roles\Application\UseCases\RevokeRoleFromUser\RevokeRoleFromUserUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
@@ -29,7 +30,7 @@ class UserRoleController extends Controller
         string $uuid,
         AssignRoleToUserUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('role.assign');
+        $this->authorize(PermissionSlug::ROLE_ASSIGN->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -63,7 +64,7 @@ class UserRoleController extends Controller
         string $role_uuid,
         RevokeRoleFromUserUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('role.revoke');
+        $this->authorize(PermissionSlug::ROLE_REVOKE->value);
 
         /** @var User $actor */
         $actor = $request->user();

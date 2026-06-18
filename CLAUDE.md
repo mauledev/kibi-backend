@@ -16,11 +16,22 @@ Before any task, identify which docs are relevant and read them.
 | `docs/audit.md` | When emitting audit logs or adding audit events | Audit event catalog, `{model}.{verb}` convention, what is and isn't audited, how to add an event |
 | `docs/oauth.md` | When working on OAuth, Socialite, or social login | Full OAuth flow diagram, lookup logic, gateway pattern, Socialite integration guide |
 | `docs/post-mvp.md` | When making architectural trade-off decisions | Known limitations accepted for MVP with recommended solutions for the mature system |
-| `docs/roles-and-permissions.md` | When working on roles, permissions, assignments, or anything related to authorization | Full roles and permissions model: role types, scopes, category bounds, denials, school context, worked examples |
+| `docs/roles-and-permissions.md` | When working on roles, permissions, assignments, or anything related to authorization | Full roles and permissions model: role types, scopes, category bounds, denials, school context, worked examples, permission slug convention |
 
 After completing any task, update the docs that are affected by the changes made. If a new pattern was introduced, a rule changed, or a structural decision was taken, reflect it in the corresponding doc. Do not document task-specific details — only rules, patterns and decisions that apply going forward.
 
 All files in this repository (docs, comments, variable names, commit messages) must be written in **English**. The only exception is user-facing content (e.g. error messages returned to end users) which may be in Spanish.
+
+Permission slugs, permission names, permission category names, and role names in seeders must always be in **English** — they are internal identifiers, not user-facing strings.
+
+## Seeder structure
+
+`RolesAndPermissionsSeeder` is the coordinator — it delegates to focused seeders in order:
+
+- `StaffSeeder` — `staff` scope (Softlinkia internal roles)
+- `TenantSchoolSeeder` — `tenant` and `school` scope
+
+When adding a new scope or splitting an existing one (e.g. `TenantSeeder` and `SchoolSeeder`), create the new class and register it in `RolesAndPermissionsSeeder::run()`. Each seeder follows the sequence: categories → permissions → roles → role_permissions.
 
 ## Agents
 

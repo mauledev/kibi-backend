@@ -13,6 +13,7 @@ use App\Http\Resources\Student\StudentListResource;
 use App\Http\Response\ApiResponse;
 use App\Models\Group;
 use App\Models\School;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\RoleExclusionException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
@@ -61,7 +62,7 @@ class StudentController extends Controller
         ListStudentsUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         $actor = $request->user();
         $isOwner = $tenant->ownerId === $actor->id;
@@ -100,7 +101,7 @@ class StudentController extends Controller
      */
     public function show(string $uuid, GetStudentUseCase $useCase): JsonResponse
     {
-        $this->authorize('user.view');
+        $this->authorize(PermissionSlug::USER_VIEW->value);
 
         try {
             $student = $useCase->execute(new GetStudentInput(userUuid: $uuid));
@@ -130,7 +131,7 @@ class StudentController extends Controller
         CreateStudentUseCase $useCase,
         TenantContext $tenant,
     ): JsonResponse {
-        $this->authorize('user.create');
+        $this->authorize(PermissionSlug::USER_CREATE->value);
 
         // Resolve school UUID — requires SchoolContext (injected by school middleware) and
         // a matching row in the schools table. Both checks collapse into one guard.
@@ -193,7 +194,7 @@ class StudentController extends Controller
         string $uuid,
         UpdateStudentUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('user.update');
+        $this->authorize(PermissionSlug::USER_UPDATE->value);
 
         // Resolve group_uuid to internal group_id when provided
         $groupId = null;

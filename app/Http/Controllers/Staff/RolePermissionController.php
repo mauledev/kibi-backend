@@ -10,6 +10,7 @@ use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissi
 use App\Modules\Roles\Application\UseCases\AssignPermissionToRole\AssignPermissionToRoleUseCase;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleInput;
 use App\Modules\Roles\Application\UseCases\RevokePermissionFromRole\RevokePermissionFromRoleUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\HierarchyViolationException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\RoleNotFoundException;
@@ -31,7 +32,7 @@ class RolePermissionController extends Controller
         AssignPermissionRequest $request,
         string $uuid,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -63,7 +64,7 @@ class RolePermissionController extends Controller
         string $uuid,
         string $permission_uuid,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

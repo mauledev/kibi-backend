@@ -10,6 +10,7 @@ use App\Modules\Roles\Application\UseCases\DenyPermissionFromAssignment\DenyPerm
 use App\Modules\Roles\Application\UseCases\DenyPermissionFromAssignment\DenyPermissionFromAssignmentUseCase;
 use App\Modules\Roles\Application\UseCases\RestorePermissionToAssignment\RestorePermissionToAssignmentInput;
 use App\Modules\Roles\Application\UseCases\RestorePermissionToAssignment\RestorePermissionToAssignmentUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use App\Modules\Roles\Domain\Exceptions\AssignmentNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\PermissionNotFoundException;
 use App\Modules\Roles\Domain\Exceptions\SystemRoleViolationException;
@@ -28,7 +29,7 @@ class AssignmentDenialController extends Controller
         string $assignment_uuid,
         DenyPermissionFromAssignmentUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();
@@ -64,7 +65,7 @@ class AssignmentDenialController extends Controller
         string $permission_uuid,
         RestorePermissionToAssignmentUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

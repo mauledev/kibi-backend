@@ -9,6 +9,7 @@ use App\Http\Response\ApiResponse;
 use App\Models\User;
 use App\Modules\Roles\Application\UseCases\ConfigureCustomRoleLimit\ConfigureCustomRoleLimitInput;
 use App\Modules\Roles\Application\UseCases\ConfigureCustomRoleLimit\ConfigureCustomRoleLimitUseCase;
+use App\Modules\Roles\Domain\Enums\PermissionSlug;
 use Illuminate\Http\JsonResponse;
 use InvalidArgumentException;
 
@@ -23,7 +24,7 @@ class CustomRoleLimitController extends Controller
         TenantContext $context,
         ConfigureCustomRoleLimitUseCase $useCase,
     ): JsonResponse {
-        $this->authorize('manage.permissions');
+        $this->authorize(PermissionSlug::MANAGE_PERMISSIONS->value);
 
         /** @var User $actor */
         $actor = $request->user();

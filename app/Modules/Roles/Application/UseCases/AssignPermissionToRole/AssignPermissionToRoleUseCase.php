@@ -73,16 +73,27 @@ class AssignPermissionToRoleUseCase
             throw new PermissionNotFoundException;
         }
 
-        // Scope validation: permission category scope must match the role's category scope.
-        // Custom roles (category_id = null) skip this check.
+        // Category validation: permission must belong to the role's exact category OR to the
+        // 'common' category of the same scope (e.g. school/common for any school/* role).
+        // Custom roles (category_id = null) skip this check entirely.
         if (! $role->isCustomRole() && $role->getCategoryId() !== null) {
-            $roleScope = $this->permissions->findCategoryScope($role->getCategoryId());
-            $permissionScope = $this->permissions->findCategoryScope($permission->getCategoryId());
+            if ($permission->getCategoryId() !== $role->getCategoryId()) {
+                $permissionCategoryName = $this->permissions->findCategoryName($permission->getCategoryId());
 
-            if ($roleScope !== null && $permissionScope !== null && $roleScope !== $permissionScope) {
-                throw new HierarchyViolationException(
-                    'The permission scope does not match the role category scope.'
-                );
+                if ($permissionCategoryName !== 'common') {
+                    throw new HierarchyViolationException(
+                        'The permission does not belong to the role\'s category or to the common category of the same scope.'
+                    );
+                }
+
+                $roleScope = $this->permissions->findCategoryScope($role->getCategoryId());
+                $permissionScope = $this->permissions->findCategoryScope($permission->getCategoryId());
+
+                if ($roleScope !== $permissionScope) {
+                    throw new HierarchyViolationException(
+                        'The permission does not belong to the role\'s category or to the common category of the same scope.'
+                    );
+                }
             }
         }
 
